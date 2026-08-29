@@ -1,0 +1,801 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "RootGUIConfig",
+  "description": "JSON schema for guify_my_script configuration payload.",
+  "type": "object",
+  "defaultSnippets": [
+    {
+      "label": "New Root GUI Config Boilerplate",
+      "description": "Scaffolds a complete config file with default settings.",
+      "body": {
+        "config": {
+          "title": "${1:App Title}",
+          "icon": "/home/$USER/Pictures/Icons/gms/com.nixtrillo.gms.png",
+          "uuid": "com.$USER.${2:uuid}",
+          "source_script": "${3:/path/to/script}",
+          "source_type": "${4|go,bash|}",
+          "startup": "tray",
+          "tray_on_minimize": true,
+          "instance_mode": "replace",
+          "action_on_startup": null,
+          "default_tab_on_startup": null,
+          "close_after_startup_action": false,
+          "sudo": false,
+          "theme": {
+            "color": "auto",
+            "width": 600,
+            "height": 400
+          }
+        },
+        "main_menu": {
+          "tab_label": "Main Menu",
+          "welcome_heading_label": null,
+          "info_label": null
+        },
+        "deploy": {
+          "description": "Generated Qt GUI package staged by guify_my_script.",
+          "version": "0.0.1",
+          "release_number": "1",
+          "summary": "A GUI frontend for executing commands for ${3:script}",
+          "license": "MIT",
+          "maintainer": "gms",
+          "support_email": "maintainer@example.invalid",
+          "dependencies": [
+            {
+              "pacman": [],
+              "arch": [],
+              "apt": [],
+              "debian": [],
+              "dnf": [],
+              "fedora": []
+            }
+          ]
+        },
+        "actions": []
+      }
+    }
+  ],
+  "required": [
+    "config",
+    "main_menu",
+    "deploy",
+    "actions"
+  ],
+  "properties": {
+    "config": {
+      "$ref": "#/$defs/uiConfig"
+    },
+    "main_menu": {
+      "$ref": "#/$defs/mainMenuConfig"
+    },
+    "deploy": {
+      "$ref": "#/$defs/deployConfig"
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/uiAction"
+      }
+    }
+  },
+  "$defs": {
+    "uiConfig": {
+      "type": "object",
+      "defaultSnippets": [
+        {
+          "label": "New UIConfig Boilerplate",
+          "body": {
+            "title": "${1:App Title}",
+            "icon": "/home/$USER/Pictures/Icons/gms/com.nixtrillo.gms.png",
+            "uuid": "com.$USER.${2:uuid}",
+            "source_script": "${3:/path/to/script}",
+            "source_type": "${4|go,bash|}",
+            "startup": "tray",
+            "tray_on_minimize": true,
+            "instance_mode": "replace",
+            "action_on_startup": null,
+            "default_tab_on_startup": null,
+            "close_after_startup_action": false,
+            "sudo": false,
+            "theme": {
+              "color": "auto",
+              "width": 600,
+              "height": 400
+            }
+          }
+        }
+      ],
+      "required": [
+        "title",
+        "icon",
+        "uuid",
+        "source_script",
+        "source_type",
+        "startup",
+        "tray_on_minimize",
+        "instance_mode",
+        "close_after_startup_action",
+        "sudo",
+        "theme"
+      ],
+      "properties": {
+        "title": { "type": "string" },
+        "icon": { "type": "string" },
+        "uuid": { "type": "string" },
+        "source_script": { "type": "string" },
+        "source_type": {
+          "type": "string",
+          "enum": ["go", "bash"]
+        },
+        "startup": { "type": "string" },
+        "tray_on_minimize": { "type": "boolean" },
+        "instance_mode": { "type": "string" },
+        "action_on_startup": { "type": ["string", "null"] },
+        "default_tab_on_startup": { "type": ["string", "null"] },
+        "close_after_startup_action": { "type": "boolean" },
+        "sudo": { "type": "boolean" },
+        "theme": {
+          "type": "object",
+          "required": ["color", "width", "height"],
+          "properties": {
+            "color": { "type": "string" },
+            "width": { "type": "integer" },
+            "height": { "type": "integer" }
+          }
+        }
+      }
+    },
+    "mainMenuConfig": {
+      "type": "object",
+      "defaultSnippets": [
+        {
+          "label": "New Main Menu Boilerplate",
+          "body": {
+            "tab_label": "Main Menu",
+            "welcome_heading_label": null,
+            "info_label": null
+          }
+        }
+      ],
+      "required": ["tab_label"],
+      "properties": {
+        "tab_label": { "type": "string" },
+        "welcome_heading_label": { "type": ["string", "null"] },
+        "info_label": { "type": ["string", "null"] }
+      }
+    },
+    "deployConfig": {
+      "type": "object",
+      "defaultSnippets": [
+        {
+          "label": "New Deploy Boilerplate",
+          "body": {
+            "description": "Generated Qt GUI package staged by guify_my_script.",
+            "version": "0.0.1",
+            "release_number": "1",
+            "summary": "A GUI frontend for executing commands for ${1:script}",
+            "license": "MIT",
+            "maintainer": "gms",
+            "support_email": "maintainer@example.invalid",
+            "dependencies": [
+              {
+                "pacman": [],
+                "arch": [],
+                "apt": [],
+                "debian": [],
+                "dnf": [],
+                "fedora": []
+              }
+            ]
+          }
+        }
+      ],
+      "required": [
+        "description",
+        "version",
+        "release_number",
+        "summary",
+        "license",
+        "maintainer",
+        "support_email",
+        "dependencies"
+      ],
+      "properties": {
+        "description": { "type": "string" },
+        "version": { "type": "string" },
+        "release_number": { "type": "string" },
+        "summary": { "type": "string" },
+        "license": { "type": "string" },
+        "maintainer": { "type": "string" },
+        "support_email": {
+          "type": "string",
+          "format": "email"
+        },
+        "dependencies": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/deployDependency" }
+        }
+      }
+    },
+    "deployDependency": {
+      "type": "object",
+      "properties": {
+        "pacman": { "type": "array", "items": { "type": "string" } },
+        "arch": { "type": "array", "items": { "type": "string" } },
+        "apt": { "type": "array", "items": { "type": "string" } },
+        "debian": { "type": "array", "items": { "type": "string" } },
+        "dnf": { "type": "array", "items": { "type": "string" } },
+        "fedora": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "uiAction": {
+      "type": "object",
+      "defaultSnippets": [
+        {
+          "label": "New UIAction Boilerplate",
+          "body": {
+            "label": "${1:Action Title}",
+            "func": "${2:function_name}",
+            "mode": "g",
+            "refresh_fields_on_tab_open": [],
+            "refresh_fields_on_completion": [],
+            "quick_launch": false,
+            "width": 600,
+            "sudo": false,
+            "exec_label": "Execute ${1}",
+            "exec_in_progress_label": "Executing ${1}...",
+            "stop_label": "Stop",
+            "fields": []
+          }
+        }
+      ],
+      "required": [
+        "label",
+        "func",
+        "mode",
+        "quick_launch",
+        "width",
+        "sudo",
+        "exec_label",
+        "exec_in_progress_label",
+        "stop_label",
+        "fields"
+      ],
+      "properties": {
+        "label": { "type": "string" },
+        "func": { "type": "string" },
+        "mode": { "type": "string" },
+        "refresh_fields_on_tab_open": {
+          "type": ["array", "null"],
+          "items": { "type": "string" }
+        },
+        "refresh_fields_on_completion": {
+          "type": ["array", "null"],
+          "items": { "type": "string" }
+        },
+        "quick_launch": { "type": "boolean" },
+        "width": { "type": "integer" },
+        "sudo": { "type": "boolean" },
+        "exec_label": { "type": "string" },
+        "exec_in_progress_label": { "type": "string" },
+        "stop_label": { "type": "string" },
+        "fields": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/uiField" }
+        }
+      }
+    },
+    "uiField": {
+      "type": "object",
+      "defaultSnippets": [
+        {
+          "label": "New TXT (Text) Field",
+          "description": "Scaffolds a standard text input field.",
+          "body": {
+            "name": "${1:Text Input}",
+            "type": "TXT",
+            "default": "Initial Value",
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New DIR (Directory) Field",
+          "description": "Scaffolds a directory picker field.",
+          "body": {
+            "name": "${1:Directory Picker}",
+            "type": "DIR",
+            "default": "/home",
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New FL (File) Picker Field",
+          "description": "Scaffolds a single file picker field.",
+          "body": {
+            "name": "${1:File Picker}",
+            "type": "FL",
+            "default": "",
+            "file_types": ["txt"],
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New MFL (Multi-File) Picker Field",
+          "description": "Scaffolds a multi-file picker field.",
+          "body": {
+            "name": "${1:Multi-File Picker}",
+            "type": "MFL",
+            "default": "",
+            "file_types": ["txt"],
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New FS (File Save) Picker Field",
+          "description": "Scaffolds a save file picker field.",
+          "body": {
+            "name": "${1:Save File Picker}",
+            "type": "FS",
+            "default": "",
+            "file_types": ["txt"],
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New CB (Combo Box) Field",
+          "description": "Scaffolds a single-select dropdown field.",
+          "body": {
+            "name": "${1:Combo Box}",
+            "type": "CB",
+            "options": ["Option1", "Option2", "Option3"],
+            "default": "Option1",
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New CK (Checkbox) Field",
+          "description": "Scaffolds a boolean checkbox field.",
+          "body": {
+            "name": "${1:Checkbox}",
+            "type": "CK",
+            "default": "0",
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New FD (File/Directory) Picker Field",
+          "description": "Scaffolds a hybrid file or directory picker.",
+          "body": {
+            "name": "${1:File or Directory Picker}",
+            "type": "FD",
+            "default": "",
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New MCB (Multi-Combo Box) Field",
+          "description": "Scaffolds a multi-select dropdown field.",
+          "body": {
+            "name": "${1:Multi-Combo Box}",
+            "type": "MCB",
+            "options": ["Option1", "Option2", "Option3"],
+            "default": ["Option2", "Option3"],
+            "minimum": "0",
+            "maximum": "0",
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New LTXT (Long Text) Field",
+          "description": "Scaffolds a multi-line text area field.",
+          "body": {
+            "name": "${1:Long Text}",
+            "type": "LTXT",
+            "default": "Initial Long Text Value",
+            "auto_height": true,
+            "min_height": 240,
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New TIME Field",
+          "description": "Scaffolds a time picker field.",
+          "body": {
+            "name": "${1:Time Picker}",
+            "type": "TIME",
+            "default": "12:00:00",
+            "minimum": null,
+            "maximum": null,
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New DATE Field",
+          "description": "Scaffolds a date picker field.",
+          "body": {
+            "name": "${1:Date Picker}",
+            "type": "DATE",
+            "default": "2026-01-01",
+            "minimum": null,
+            "maximum": null,
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
+          "label": "New NUM (Number) Field",
+          "description": "Scaffolds a numeric input field.",
+          "body": {
+            "name": "${1:Number Input}",
+            "type": "NUM",
+            "default": "0",
+            "minimum": null,
+            "maximum": null,
+            "decimal_places": "0",
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        }
+      ],
+      "required": [
+        "name",
+        "type",
+        "advanced_menu",
+        "json_endpoints"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": { "enum": ["CB", "MCB"] }
+            }
+          },
+          "then": {
+            "required": ["options"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "enum": ["MCB", "TIME", "DATE", "NUM"] }
+            }
+          },
+          "then": {
+            "required": ["minimum", "maximum"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "NUM" }
+            }
+          },
+          "then": {
+            "required": ["decimal_places"],
+            "properties": {
+              "default": {
+                "type": "string",
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "minimum": {
+                "type": ["string", "null"],
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              },
+              "maximum": {
+                "type": ["string", "null"],
+                "pattern": "^-?\\d+(\\.\\d+)?$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "MCB" }
+            }
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "minimum": {
+                "type": ["string", "null"],
+                "pattern": "^\\d+$"
+              },
+              "maximum": {
+                "type": ["string", "null"],
+                "pattern": "^\\d+$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "DATE" }
+            }
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string",
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "minimum": {
+                "type": ["string", "null"],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              },
+              "maximum": {
+                "type": ["string", "null"],
+                "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "TIME" }
+            }
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string",
+                "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+              },
+              "minimum": {
+                "type": ["string", "null"],
+                "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+              },
+              "maximum": {
+                "type": ["string", "null"],
+                "pattern": "^\\d{2}:\\d{2}:\\d{2}$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "CK" }
+            }
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string",
+                "enum": ["0", "1"]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "enum": ["CB", "TXT", "DIR", "FL", "MFL", "FS", "FD", "LTXT"] }
+            }
+          },
+          "then": {
+            "properties": {
+              "default": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "enum": ["FL", "MFL", "FS"] }
+            }
+          },
+          "then": {
+            "required": ["file_types"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "LTXT" }
+            }
+          },
+          "then": {
+            "required": ["auto_height", "min_height"]
+          }
+        }
+      ],
+      "properties": {
+        "name": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": [
+            "TXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"
+          ]
+        },
+        "options": {
+          "type": "array"
+        },
+        "default": {},
+        "minimum": {
+          "type": ["string", "null"],
+          "default": "0|2026-01-01|12:00:00",
+          "defaultSnippets": [
+            {
+              "label": "minimum (String)",
+              "description": "Insert minimum numeric bound",
+              "body": "\"${1:0}\""
+            }
+          ]
+        },
+        "maximum": {
+          "type": ["string", "null"],
+          "default": "0|2026-01-01|12:00:00",
+          "defaultSnippets": [
+            {
+              "label": "maximum (String)",
+              "description": "Insert maximum numeric bound",
+              "body": "\"${1:100}\""
+            }
+          ]
+        },
+        "decimal_places": {
+          "type": ["string", "null"],
+          "pattern": "^\\d+$",
+          "default": "0",
+          "defaultSnippets": [
+            {
+              "label": "decimal_places",
+              "description": "Set decimal precision",
+              "body": "\"${1:2}\""
+            }
+          ]
+        },
+        "advanced_menu": { "type": "boolean", "default": false },
+        "auto_height": { "type": "boolean", "default": true },
+        "min_height": { "type": "integer", "default": 240 },
+        "file_types": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": ["txt"]
+        },
+        "json_endpoints": { "$ref": "#/$defs/jsonEndpoints" },
+        "refresh_fields_on_change": {
+          "type": ["array", "null"],
+          "items": { "type": "string" },
+          "default": []
+        }
+      }
+    },
+    "jsonEndpoints": {
+      "type": "object",
+      "properties": {
+        "array_endpoint": { "type": ["array", "null"], "default": [] },
+        "path_to_array": { "type": ["string", "null"], "default": null },
+        "get_defaults_endpoint": { "type": ["array", "null"], "default": [] },
+        "path_to_default": { "type": ["string", "null"], "default": null },
+        "get_enabled_endpoint": { "type": ["array", "null"], "default": [] },
+        "path_to_enabled": { "type": ["string", "null"], "default": null }
+      }
+    }
+  }
+}
