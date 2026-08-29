@@ -1,0 +1,324 @@
+{
+  "config": {
+    "tab_title": "Global Hotkeys",
+    "package_uuid": "com.nixtrillo.globalhotkeymapper",
+    "package_version": "0.0.1",
+    "source_script": "/opt/com.nixtrillo.globalhotkeymapper/global_hotkey_api",
+    "source_type": "go",
+    "source_gui": "/opt/com.nixtrillo.globalhotkeymapper/com.nixtrillo.globalhotkeymapper"
+  },
+  "actions": [
+    {
+      "label": "Add Kde Hotkey",
+      "func": "add_kde_hotkey",
+      "mode": "g",
+      "refresh_fields_on_tab_open": [
+        "Quick Launch Triggers"
+      ],
+      "refresh_fields_on_completion": [],
+      "quick_launch": false,
+      "width": 600,
+      "sudo": false,
+      "fields": [
+        {
+          "name": "Modifiers",
+          "type": "MCB",
+          "default": "",
+          "minimum": "0",
+          "maximum": "2",
+          "advanced_menu": false,
+          "json_endpoints": {
+            "array_endpoint": [
+              "get_valid_kde_keys_json",
+              "INFO",
+              "1"
+            ],
+            "path_to_array": "[key]",
+            "get_defaults_endpoint": [],
+            "path_to_default": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null
+          },
+          "refresh_fields_on_change": []
+        },
+        {
+          "name": "Primary Key",
+          "type": "MCB",
+          "default": "",
+          "minimum": "1",
+          "maximum": "1",
+          "advanced_menu": false,
+          "json_endpoints": {
+            "array_endpoint": [
+              "get_valid_kde_keys_json",
+              "INFO",
+              "0"
+            ],
+            "path_to_array": "[key]",
+            "get_defaults_endpoint": [],
+            "path_to_default": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null
+          },
+          "refresh_fields_on_change": []
+        },
+        {
+          "name": "Quick Launch Triggers",
+          "type": "MCB",
+          "default": "",
+          "minimum": "1",
+          "maximum": "1",
+          "advanced_menu": false,
+          "json_endpoints": {
+            "array_endpoint": [
+              "__$QUICK_LAUNCH_TRIGGERS__}"
+            ],
+            "path_to_array": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null
+          },
+          "refresh_fields_on_change": []
+        },
+        {
+          "name": "Log Level",
+          "type": "CB",
+          "options": [
+            "TRACE",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "FATAL",
+            "SILENT"
+          ],
+          "default": "INFO",
+          "advanced_menu": true,
+          "json_endpoints": {
+            "array_endpoint": [],
+            "path_to_array": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null
+          },
+          "refresh_fields_on_change": []
+        },
+        {
+          "name": "Replace Instead of Append?",
+          "type": "CK",
+          "default": "0",
+          "advanced_menu": false,
+          "json_endpoints": {
+            "array_endpoint": [],
+            "path_to_array": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null
+          },
+          "refresh_fields_on_change": []
+        }
+      ]
+    },
+    {
+      "label": "Remove Command From Kde Hotkey",
+      "func": "remove_command_from_kde_hotkey",
+      "mode": "g",
+      "refresh_fields_on_tab_open": [
+        "Hotkey",
+        "Commands"
+      ],
+      "refresh_fields_on_completion": [
+        "Hotkey",
+        "Commands"
+      ],
+      "quick_launch": false,
+      "width": 600,
+      "sudo": false,
+      "fields": [
+        {
+          "name": "Hotkey",
+          "type": "MCB",
+          "default": "",
+          "minimum": "1",
+          "maximum": "1",
+          "advanced_menu": false,
+          "json_endpoints": {
+            "array_endpoint": [
+              "get_all_mapped_commands_json",
+              "",
+              "INFO"
+            ],
+            "path_to_array": "[name]",
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null
+          },
+          "refresh_fields_on_change": [
+            "Commands"
+          ]
+        },
+        {
+          "name": "Commands",
+          "type": "MCB",
+          "default": "",
+          "minimum": "1",
+          "advanced_menu": false,
+          "json_endpoints": {
+            "array_endpoint": [
+              "get_all_mapped_commands_json",
+              "{Hotkey}",
+              "INFO"
+            ],
+            "path_to_array": "value",
+            "get_defaults_endpoint": [],
+            "path_to_default": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null
+          },
+          "refresh_fields_on_change": []
+        },
+        {
+          "name": "Log Level",
+          "type": "CB",
+          "options": [
+            "TRACE",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "FATAL",
+            "SILENT"
+          ],
+          "default": "INFO",
+          "advanced_menu": true,
+          "json_endpoints": {
+            "array_endpoint": [],
+            "path_to_array": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null
+          },
+          "refresh_fields_on_change": []
+        }
+      ]
+    },
+    {
+      "label": "Backup All",
+      "func": "backup_all",
+      "mode": "g",
+      "refresh_fields_on_tab_open": [],
+      "refresh_fields_on_completion": [],
+      "quick_launch": false,
+      "width": 600,
+      "sudo": false,
+      "fields": [
+        {
+          "name": "Output Directory",
+          "type": "DIR",
+          "default": "~/backups/com.nixtrillo.global_hotkey_mapper/",
+          "advanced_menu": false,
+          "json_endpoints": {
+            "array_endpoint": [],
+            "path_to_array": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null
+          },
+          "refresh_fields_on_change": []
+        },
+        {
+          "name": "Log Level",
+          "type": "CB",
+          "options": [
+            "TRACE",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "FATAL",
+            "SILENT"
+          ],
+          "default": "INFO",
+          "advanced_menu": true,
+          "json_endpoints": {
+            "array_endpoint": [],
+            "path_to_array": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null
+          },
+          "refresh_fields_on_change": []
+        }
+      ]
+    },
+    {
+      "label": "Restore All",
+      "func": "restore_all",
+      "mode": "g",
+      "refresh_fields_on_tab_open": [],
+      "refresh_fields_on_completion": [],
+      "quick_launch": false,
+      "width": 600,
+      "sudo": true,
+      "fields": [
+        {
+          "name": "Keyd Input Path",
+          "type": "FL",
+          "default": "~/backups/com.nixtrillo.globalhotkeymapper/",
+          "advanced_menu": false,
+          "json_endpoints": {
+            "array_endpoint": [],
+            "path_to_array": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null
+          },
+          "refresh_fields_on_change": []
+        },
+        {
+          "name": "Kde Input Path",
+          "type": "FL",
+          "default": "~/backups/com.nixtrillo.globalhotkeymapper/",
+          "advanced_menu": false,
+          "json_endpoints": {
+            "array_endpoint": [],
+            "path_to_array": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null
+          },
+          "refresh_fields_on_change": []
+        },
+        {
+          "name": "Log Level",
+          "type": "CB",
+          "options": [
+            "TRACE",
+            "INFO",
+            "WARNING",
+            "ERROR",
+            "FATAL",
+            "SILENT"
+          ],
+          "default": "INFO",
+          "advanced_menu": true,
+          "json_endpoints": {
+            "array_endpoint": [],
+            "path_to_array": null,
+            "get_defaults_endpoint": [],
+            "path_to_default": null,
+            "get_enabled_endpoint": [],
+            "path_to_enabled": null
+          },
+          "refresh_fields_on_change": []
+        }
+      ]
+    }
+  ]
+}

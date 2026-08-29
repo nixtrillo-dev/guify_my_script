@@ -1,0 +1,12 @@
+.aider*
+.continue
+guify_my_script_config_schema.json
+go.mod
+guify_my_script_config.json
+guify_my_script_config_copy.json
+dist
+*amd64*
+*arm64*
+endpoint_utils/.directory
+internal_utils/.directory
+logger/.directory
