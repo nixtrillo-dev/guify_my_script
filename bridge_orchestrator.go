@@ -7,7 +7,7 @@ import (
 )
 
 // GenerateBridgeWithGuiConfig strings together the JSON schema generation and the C++ bridge construction.
-func GenerateBridgeWithGuiConfig(inputPath, outputJSON, excludePackages, outputBridge, binaryName string, compile bool, overwriteJson bool, logLevel string, includeFuncParams bool) error {
+func GenerateBridgeWithGuiConfig(inputPath, outputJSON, excludePackages, outputBridge, binaryName string, compile bool, overwriteJson bool, logLevel string, includeFuncParams bool, autoOpen bool) error {
 	// 1. Run the C++ bridge code generator (from generate_go_bridge.go)
 	targetDir, absBridge, err := bridge_gen.GenerateBridge(inputPath, outputBridge, excludePackages, logLevel, includeFuncParams)
 	if err != nil {
@@ -15,7 +15,7 @@ func GenerateBridgeWithGuiConfig(inputPath, outputJSON, excludePackages, outputB
 	}
 
 	// 2. Run the JSON layout config generator (from generate_config.go)
-	if err := config_gen.GenerateGUIConfig(absBridge, outputJSON, binaryName, overwriteJson, logLevel); err != nil {
+	if err := config_gen.GenerateGUIConfig(absBridge, outputJSON, binaryName, overwriteJson, logLevel, true); err != nil {
 		return fmt.Errorf("JSON generation failed: %w", err)
 	}
 

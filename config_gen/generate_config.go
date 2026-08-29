@@ -183,7 +183,7 @@ func GenerateGUIConfigWithPrompt(inputPath, outputPath, binaryName, logLevel str
 	return GenerateGUIConfig(inputPath, outputPath, binaryName, overwriteFlag, logLevel)
 }
 
-func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool, logLevel string) error {
+func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool, logLevel string, autoOpen bool) error {
 	lvl := logger.ParseLogLevel(logLevel)
 
 	if outputPath == "" {
@@ -268,6 +268,17 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	os.WriteFile(outputPath, jsonBytes, 0644)
 
 	logger.Info(lvl, "  • Successfully generated JSON: %s", outputPath)
+
+	if autoOpen {
+		editor := os.Getenv("EDITOR")
+		if editor == "" {
+			editor = "vim"
+		}
+		cmd := exec.Command(editor, outputPath)
+		if err := cmd.Start(); err != nil {
+			logger.Warn(lvl, "Failed to open JSON file in editor: %w", err)
+		}
+	}
 
 	// Copy the embedded schema to the output directory
 	if err := copySchemaToOutputDir(outputPath); err != nil {
