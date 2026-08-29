@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"guify_my_script/internal_utils"
+	"guify_my_script/logger"
+	"guify_my_script/package_installer"
 	"guify_my_script/bridge_gen"
 	"guify_my_script/config_gen"
 	"guify_my_script/endpoint_utils"
 	"guify_my_script/gui_gen"
-	"guify_my_script/internal_utils"
-	"guify_my_script/logger"
-	"guify_my_script/package_installer"
 	
 )
 

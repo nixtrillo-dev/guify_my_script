@@ -15,11 +15,56 @@ import (
 	"guify_my_script/logger"
 )
 
-//go:embed templates/main_window.cpp
-var cppTemplatePart1 string
+//go:embed templates/common.h
+var cppTemplateCommon string
+
+//go:embed templates/utils.h
+var cppTemplateUtilsH string
+
+//go:embed templates/utils.cpp
+var cppTemplateUtilsCpp string
+
+//go:embed templates/styles.h
+var cppTemplateStyles string
+
+//go:embed templates/widgets.h
+var cppTemplateWidgetsH string
+
+//go:embed templates/widgets.cpp
+var cppTemplateWidgetsCpp string
+
+//go:embed templates/mainwindow.h
+var cppTemplateMainwindowH string
+
+//go:embed templates/mainwindow_core.cpp
+var cppTemplateMainwindowCore string
+
+//go:embed templates/runtime.cpp
+var cppTemplateRuntime string
+
+//go:embed templates/dynamic_fields.cpp
+var cppTemplateDynamicFields string
+
+//go:embed templates/theme.cpp
+var cppTemplateTheme string
+
+//go:embed templates/ui_init.cpp
+var cppTemplateUiInit string
+
+//go:embed templates/dialogs.cpp
+var cppTemplateDialogs string
+
+//go:embed templates/settings_dialog.cpp
+var cppTemplateSettingsDialog string
+
+//go:embed templates/main_window_ui.cpp
+var cppTemplateMainwindowUi string
+
+//go:embed templates/action_tabs.cpp
+var cppTemplateActionTabs string
 
 //go:embed templates/main.cpp
-var cppTemplatePart2 string
+var cppTemplateMain string
 
 // GenerateUI orchestrates the parsing of the configuration and the generation of the C++ UI code.
 func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, targetBuilds string) error {
@@ -93,7 +138,66 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	}
 
 	var cpp strings.Builder
-	cpp.WriteString(cppTemplatePart1)
+
+	// Start with common includes and definitions
+	cpp.WriteString(cppTemplateCommon)
+	cpp.WriteString("\n")
+
+	// Add utility functions header
+	cpp.WriteString(cppTemplateUtilsH)
+	cpp.WriteString("\n")
+
+	// Add style helper functions
+	cpp.WriteString(cppTemplateStyles)
+	cpp.WriteString("\n")
+
+	// Add custom widget classes header
+	cpp.WriteString(cppTemplateWidgetsH)
+	cpp.WriteString("\n")
+
+	// Add MainWindow class header
+	cpp.WriteString(cppTemplateMainwindowH)
+	cpp.WriteString("\n")
+
+	// Add utility functions implementation
+	cpp.WriteString(cppTemplateUtilsCpp)
+	cpp.WriteString("\n")
+
+	// Add custom widget classes implementation
+	cpp.WriteString(cppTemplateWidgetsCpp)
+	cpp.WriteString("\n")
+
+	// Add MainWindow core implementation
+	cpp.WriteString(cppTemplateMainwindowCore)
+	cpp.WriteString("\n")
+
+	// Add runtime defaults and metadata handling
+	cpp.WriteString(cppTemplateRuntime)
+	cpp.WriteString("\n")
+
+	// Add dynamic field handling
+	cpp.WriteString(cppTemplateDynamicFields)
+	cpp.WriteString("\n")
+
+	// Add theme handling
+	cpp.WriteString(cppTemplateTheme)
+	cpp.WriteString("\n")
+
+	// Add UI initialization
+	cpp.WriteString(cppTemplateUiInit)
+	cpp.WriteString("\n")
+
+	// Add dialogs implementation
+	cpp.WriteString(cppTemplateDialogs)
+	cpp.WriteString("\n")
+
+	// Add settings dialog implementation
+	cpp.WriteString(cppTemplateSettingsDialog)
+	cpp.WriteString("\n")
+
+	// Add main window UI implementation
+	cpp.WriteString(cppTemplateMainwindowUi)
+	cpp.WriteString("\n")
 
 	// Inject extracted layouts
 	advancedRowsStr := buildQuickLaunchRows(ctx.root.Actions)
@@ -102,8 +206,16 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	// Generate dynamic Advanced Tool tabs
 	advancedToolTabsStr := buildAdvancedToolTabs(ctx.advancedTools, ctx.root.Config.UUID)
 
-	cpp.WriteString(actionTabsStr)
-	cpp.WriteString(cppTemplatePart2)
+	// Append generated action tabs and close MainWindow::initUi().
+	mainWindowContent := strings.Replace(cppTemplateActionTabs, "TEMPLATE_ACTION_TABS", actionTabsStr, 1)
+	cpp.WriteString(mainWindowContent)
+	cpp.WriteString("\n")
+
+	// Add main function with template replacements
+	mainContent := cppTemplateMain
+	mainContent = strings.Replace(mainContent, "TEMPLATE_ADVANCED_TRIGGER_ROWS", advancedRowsStr, 1)
+	mainContent = strings.Replace(mainContent, "TEMPLATE_ADVANCED_TOOLS_TABS", advancedToolTabsStr, 1)
+	cpp.WriteString(mainContent)
 
 	finalSource := cpp.String()
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_SOURCE_SCRIPT_EXPR", sourceScriptExpr)

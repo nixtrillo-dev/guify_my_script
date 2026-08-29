@@ -1,13 +1,3 @@
-if (!STARTUP_TO_TRAY || !QSystemTrayIcon::isSystemTrayAvailable()) {
-        show();
-    } else {
-        show();
-        hide();
-    }
-
-    QTimer::singleShot(500, []() { malloc_trim(0); });
-}
-
 int main(int argc, char *argv[]) {
     if (argc >= 3 && std::string(argv[1]) == "--trigger") {
         QCoreApplication tmpApp(argc, argv);
@@ -50,5 +40,15 @@ int main(int argc, char *argv[]) {
     }
 
     MainWindow win(appIcon);
+
+    if (!STARTUP_TO_TRAY || !QSystemTrayIcon::isSystemTrayAvailable()) {
+        win.show();
+    } else {
+        win.show();
+        win.hide();
+    }
+
+    QTimer::singleShot(500, []() { malloc_trim(0); });
+
     return app.exec();
 }
