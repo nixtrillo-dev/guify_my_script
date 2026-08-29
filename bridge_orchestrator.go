@@ -15,7 +15,7 @@ func GenerateBridgeWithGuiConfig(inputPath, outputJSON, excludePackages, outputB
 	}
 
 	// 2. Run the JSON layout config generator (from generate_config.go)
-	if err := config_gen.GenerateGUIConfig(absBridge, outputJSON, binaryName, overwriteJson, logLevel, true); err != nil {
+	if err := config_gen.GenerateGUIConfig(absBridge, outputJSON, binaryName, overwriteJson, logLevel, autoOpen); err != nil {
 		return fmt.Errorf("JSON generation failed: %w", err)
 	}
 
