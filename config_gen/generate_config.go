@@ -184,7 +184,7 @@ func GenerateGUIConfigWithPrompt(inputPath, outputPath, binaryName, logLevel str
 	return GenerateGUIConfig(inputPath, outputPath, binaryName, overwriteFlag, logLevel)
 }
 
-func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool, logLevel string, autoOpen bool) error {
+func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool, logLevel, autoOpen string) error {
 	lvl := logger.ParseLogLevel(logLevel)
 
 	if outputPath == "" {
