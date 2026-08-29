@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"embed"
 
@@ -181,10 +182,10 @@ func GenerateGUIConfigWithPrompt(inputPath, outputPath, binaryName, logLevel str
 			return nil
 		}
 	}
-	return GenerateGUIConfig(inputPath, outputPath, binaryName, overwriteFlag, logLevel)
+	return GenerateGUIConfig(inputPath, outputPath, binaryName, overwriteFlag, logLevel, autoOpen)
 }
 
-func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool, logLevel, autoOpen string) error {
+func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool, logLevel string, autoOpen bool) error {
 	lvl := logger.ParseLogLevel(logLevel)
 
 	if outputPath == "" {
@@ -271,14 +272,44 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	logger.Info(lvl, "  • Successfully generated JSON: %s", outputPath)
 
 	if autoOpen {
+		logger.Debug(lvl, "autoOpen is: True")
 		editor := os.Getenv("EDITOR")
+		logger.Debug(lvl, "editor is: %s", editor)
 		if editor == "" {
-			editor = "vim"
+			// Try to find the system default handler for JSON (like xdg-open on Linux, open on macOS, start on Windows)
+			// This handles Kate, VSCode, or whatever is assigned to .json files.
+			logger.Debug(lvl, "EDITOR env var not set, attempting native desktop open...")
+			var cmd *exec.Cmd
+			// Check runtime
+			// If on Linux/BSD, xdg-open works great and respects the system default (e.g. org.kde.kate.desktop).
+			// If on macOS, "open" launches the default app.
+			// If on Windows, "rundll32.exe url.dll,FileProtocolHandler" or start command launches the default.
+			// We can also fallback to searching common visual/CLI editors if xdg-open fails.
+			cmd = getNativeOpenCommand(outputPath)
+			if err := cmd.Start(); err != nil {
+				// Fallback to common terminal editors
+				logger.Debug(lvl, "Native open failed, falling back to terminal editor search")
+				for _, fallbackEditor := range []string{"nano", "vim", "vi"} {
+					if path, err := exec.LookPath(fallbackEditor); err == nil {
+						editor = path
+						break
+					}
+				}
+				if editor != "" {
+					cmd = exec.Command(editor, outputPath)
+					_ = cmd.Start()
+				} else {
+					logger.Warn(lvl, "Failed to find any viable editor to open JSON config.")
+				}
+			}
+		} else {
+			cmd := exec.Command(editor, outputPath)
+			if err := cmd.Start(); err != nil {
+				logger.Warn(lvl, "Failed to open JSON file in $EDITOR: %w", err)
+			}
 		}
-		cmd := exec.Command(editor, outputPath)
-		if err := cmd.Start(); err != nil {
-			logger.Warn(lvl, "Failed to open JSON file in editor: %w", err)
-		}
+	} else {
+		logger.Debug(lvl, "autoOpen is: False")
 	}
 
 	// Copy the embedded schema to the output directory
@@ -472,4 +503,15 @@ func toUuidCase(input string) string {
 	replacer := strings.NewReplacer("_", "", "-", "", " ", "")
 	unspaced := replacer.Replace(input)
 	return strings.ToLower(unspaced)
+}
+
+func getNativeOpenCommand(path string) *exec.Cmd {
+	switch runtime.GOOS {
+	case "windows":
+		return exec.Command("cmd", "/c", "start", "", path)
+	case "darwin":
+		return exec.Command("open", path)
+	default: // "linux", "freebsd", "openbsd", "netbsd" etc.
+		return exec.Command("xdg-open", path)
+	}
 }

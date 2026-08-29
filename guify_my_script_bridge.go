@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"guify_my_script/logger"
-	"guify_my_script/package_installer"
-	"guify_my_script/bridge_gen"
 	"guify_my_script/config_gen"
 	"guify_my_script/endpoint_utils"
 	"guify_my_script/gui_gen"
 	"guify_my_script/internal_utils"
+	"guify_my_script/logger"
+	"guify_my_script/package_installer"
+	"guify_my_script/bridge_gen"
 	
 )
 
@@ -81,7 +81,7 @@ func GoCompileLocal(targetDir *C.char, absBridge *C.char, binaryName *C.char, lo
 }
 
 //export GoGenerateBridgeWithGuiConfig
-func GoGenerateBridgeWithGuiConfig(inputPath *C.char, outputJSON *C.char, excludePackages *C.char, outputBridge *C.char, binaryName *C.char, compile C.int, overwriteJson C.int, logLevel *C.char, includeFuncParams C.int) C.int {
+func GoGenerateBridgeWithGuiConfig(inputPath *C.char, outputJSON *C.char, excludePackages *C.char, outputBridge *C.char, binaryName *C.char, compile C.int, overwriteJson C.int, logLevel *C.char, includeFuncParams C.int, autoOpen C.int) C.int {
 	
 	go_inputPath := C.GoString(inputPath)
 	
@@ -101,8 +101,10 @@ func GoGenerateBridgeWithGuiConfig(inputPath *C.char, outputJSON *C.char, exclud
 	
 	go_includeFuncParams := includeFuncParams == 1
 	
+	go_autoOpen := autoOpen == 1
 	
-	err := GenerateBridgeWithGuiConfig(go_inputPath, go_outputJSON, go_excludePackages, go_outputBridge, go_binaryName, go_compile, go_overwriteJson, go_logLevel, go_includeFuncParams)
+	
+	err := GenerateBridgeWithGuiConfig(go_inputPath, go_outputJSON, go_excludePackages, go_outputBridge, go_binaryName, go_compile, go_overwriteJson, go_logLevel, go_includeFuncParams, go_autoOpen)
 	if err != nil {
 		fmt.Printf("Pipeline Error in GenerateBridgeWithGuiConfig: %v\n", err)
 		return 0
@@ -112,7 +114,7 @@ func GoGenerateBridgeWithGuiConfig(inputPath *C.char, outputJSON *C.char, exclud
 }
 
 //export GoGenerateGUIConfigWithPrompt
-func GoGenerateGUIConfigWithPrompt(inputPath *C.char, outputPath *C.char, binaryName *C.char, logLevel *C.char) C.int {
+func GoGenerateGUIConfigWithPrompt(inputPath *C.char, outputPath *C.char, binaryName *C.char, logLevel *C.char, autoOpen C.int) C.int {
 	
 	go_inputPath := C.GoString(inputPath)
 	
@@ -122,8 +124,10 @@ func GoGenerateGUIConfigWithPrompt(inputPath *C.char, outputPath *C.char, binary
 	
 	go_logLevel := C.GoString(logLevel)
 	
+	go_autoOpen := autoOpen == 1
 	
-	err := config_gen.GenerateGUIConfigWithPrompt(go_inputPath, go_outputPath, go_binaryName, go_logLevel)
+	
+	err := config_gen.GenerateGUIConfigWithPrompt(go_inputPath, go_outputPath, go_binaryName, go_logLevel, go_autoOpen)
 	if err != nil {
 		fmt.Printf("Pipeline Error in GenerateGUIConfigWithPrompt: %v\n", err)
 		return 0
@@ -133,7 +137,7 @@ func GoGenerateGUIConfigWithPrompt(inputPath *C.char, outputPath *C.char, binary
 }
 
 //export GoGenerateGUIConfig
-func GoGenerateGUIConfig(inputPath *C.char, outputPath *C.char, binaryName *C.char, overwrite C.int, logLevel *C.char) C.int {
+func GoGenerateGUIConfig(inputPath *C.char, outputPath *C.char, binaryName *C.char, overwrite C.int, logLevel *C.char, autoOpen C.int) C.int {
 	
 	go_inputPath := C.GoString(inputPath)
 	
@@ -145,8 +149,10 @@ func GoGenerateGUIConfig(inputPath *C.char, outputPath *C.char, binaryName *C.ch
 	
 	go_logLevel := C.GoString(logLevel)
 	
+	go_autoOpen := autoOpen == 1
 	
-	err := config_gen.GenerateGUIConfig(go_inputPath, go_outputPath, go_binaryName, go_overwrite, go_logLevel)
+	
+	err := config_gen.GenerateGUIConfig(go_inputPath, go_outputPath, go_binaryName, go_overwrite, go_logLevel, go_autoOpen)
 	if err != nil {
 		fmt.Printf("Pipeline Error in GenerateGUIConfig: %v\n", err)
 		return 0
@@ -450,7 +456,7 @@ func main() {
 		
 		
 	    case "generate_bridge_with_gui_config":
-		if len(os.Args) < 11 {
+		if len(os.Args) < 12 {
 			fmt.Println("Error: generate_bridge_with_gui_config requires parameters")
 			os.Exit(1)
 		}
@@ -515,7 +521,20 @@ func main() {
 		}
 		
 		
-		err := GenerateBridgeWithGuiConfig(cli_inputPath, cli_outputJSON, cli_excludePackages, cli_outputBridge, cli_binaryName, cli_compile, cli_overwriteJson, cli_logLevel, cli_includeFuncParams)
+		cli_autoOpen, err_autoOpen := strconv.ParseBool(os.Args[11])
+		if err_autoOpen != nil {
+			if os.Args[11] == "1" {
+				cli_autoOpen = true
+			} else if os.Args[11] == "0" {
+				cli_autoOpen = false
+			} else {
+				fmt.Printf("Error: parameter 'autoOpen' must be a valid boolean evaluation: %v\n", err_autoOpen)
+				os.Exit(1)
+			}
+		}
+		
+		
+		err := GenerateBridgeWithGuiConfig(cli_inputPath, cli_outputJSON, cli_excludePackages, cli_outputBridge, cli_binaryName, cli_compile, cli_overwriteJson, cli_logLevel, cli_includeFuncParams, cli_autoOpen)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -523,7 +542,7 @@ func main() {
 		
 		
 	    case "generate_gui_config_with_prompt":
-		if len(os.Args) < 6 {
+		if len(os.Args) < 7 {
 			fmt.Println("Error: generate_gui_config_with_prompt requires parameters")
 			os.Exit(1)
 		}
@@ -543,7 +562,20 @@ func main() {
 		cli_logLevel := os.Args[5]
 		
 		
-		err := config_gen.GenerateGUIConfigWithPrompt(cli_inputPath, cli_outputPath, cli_binaryName, cli_logLevel)
+		cli_autoOpen, err_autoOpen := strconv.ParseBool(os.Args[6])
+		if err_autoOpen != nil {
+			if os.Args[6] == "1" {
+				cli_autoOpen = true
+			} else if os.Args[6] == "0" {
+				cli_autoOpen = false
+			} else {
+				fmt.Printf("Error: parameter 'autoOpen' must be a valid boolean evaluation: %v\n", err_autoOpen)
+				os.Exit(1)
+			}
+		}
+		
+		
+		err := config_gen.GenerateGUIConfigWithPrompt(cli_inputPath, cli_outputPath, cli_binaryName, cli_logLevel, cli_autoOpen)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -551,7 +583,7 @@ func main() {
 		
 		
 	    case "generate_gui_config":
-		if len(os.Args) < 7 {
+		if len(os.Args) < 8 {
 			fmt.Println("Error: generate_gui_config requires parameters")
 			os.Exit(1)
 		}
@@ -584,7 +616,20 @@ func main() {
 		cli_logLevel := os.Args[6]
 		
 		
-		err := config_gen.GenerateGUIConfig(cli_inputPath, cli_outputPath, cli_binaryName, cli_overwrite, cli_logLevel)
+		cli_autoOpen, err_autoOpen := strconv.ParseBool(os.Args[7])
+		if err_autoOpen != nil {
+			if os.Args[7] == "1" {
+				cli_autoOpen = true
+			} else if os.Args[7] == "0" {
+				cli_autoOpen = false
+			} else {
+				fmt.Printf("Error: parameter 'autoOpen' must be a valid boolean evaluation: %v\n", err_autoOpen)
+				os.Exit(1)
+			}
+		}
+		
+		
+		err := config_gen.GenerateGUIConfig(cli_inputPath, cli_outputPath, cli_binaryName, cli_overwrite, cli_logLevel, cli_autoOpen)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
