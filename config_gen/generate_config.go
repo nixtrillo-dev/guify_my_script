@@ -159,7 +159,7 @@ var exampleFieldNames = []string{
 	"Number Input Example",
 }
 
-func GenerateGUIConfigWithPrompt(inputPath, outputPath, binaryName, logLevel string) error {
+func GenerateGUIConfigWithPrompt(inputPath, outputPath, binaryName, logLevel string, autoOpen bool) error {
 	lvl := logger.ParseLogLevel(logLevel)
 
 	if outputPath == "" {
