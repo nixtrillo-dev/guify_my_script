@@ -69,7 +69,7 @@
             "stop_label": "Stop",
             "fields": [
                 {
-                    "name": "Input File or Directory",
+                    "name": "Input File (Bash) or Directory (Go)",
                     "type": "FD",
                     "default": "",
                     "advanced_menu": false,
@@ -237,7 +237,7 @@
                     "refresh_fields_on_change": []
                 },
                 {
-                    "name": "Auto Open",
+                    "name": "Auto Open JSON Config",
                     "type": "CK",
                     "default": "1",
                     "advanced_menu": false,

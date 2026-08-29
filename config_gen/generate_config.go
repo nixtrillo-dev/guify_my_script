@@ -197,13 +197,17 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	if !overwrite {
 		if _, err := os.Stat(outputPath); err == nil {
 			logger.Warn(lvl, "Safety abort: target file '%s' already exists. Skipping JSON generation.\n", outputPath)
+			if autoOpen {
+				openFileInEditor(outputPath, lvl)
+			} else {
+				logger.Debug(lvl, "autoOpen is: False")
+			}
 			return nil
 		}
 	}
 
 	absInput, _ := filepath.Abs(inputPath)
 	absBinary, _ := filepath.Abs(binaryName)
-
 	var actions []UIAction
 	ext := strings.ToLower(filepath.Ext(absInput))
 	sourceType := "go"
@@ -272,42 +276,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	logger.Info(lvl, "  • Successfully generated JSON: %s", outputPath)
 
 	if autoOpen {
-		logger.Debug(lvl, "autoOpen is: True")
-		editor := os.Getenv("EDITOR")
-		logger.Debug(lvl, "editor is: %s", editor)
-		if editor == "" {
-			// Try to find the system default handler for JSON (like xdg-open on Linux, open on macOS, start on Windows)
-			// This handles Kate, VSCode, or whatever is assigned to .json files.
-			logger.Debug(lvl, "EDITOR env var not set, attempting native desktop open...")
-			var cmd *exec.Cmd
-			// Check runtime
-			// If on Linux/BSD, xdg-open works great and respects the system default (e.g. org.kde.kate.desktop).
-			// If on macOS, "open" launches the default app.
-			// If on Windows, "rundll32.exe url.dll,FileProtocolHandler" or start command launches the default.
-			// We can also fallback to searching common visual/CLI editors if xdg-open fails.
-			cmd = getNativeOpenCommand(outputPath)
-			if err := cmd.Start(); err != nil {
-				// Fallback to common terminal editors
-				logger.Debug(lvl, "Native open failed, falling back to terminal editor search")
-				for _, fallbackEditor := range []string{"nano", "vim", "vi"} {
-					if path, err := exec.LookPath(fallbackEditor); err == nil {
-						editor = path
-						break
-					}
-				}
-				if editor != "" {
-					cmd = exec.Command(editor, outputPath)
-					_ = cmd.Start()
-				} else {
-					logger.Warn(lvl, "Failed to find any viable editor to open JSON config.")
-				}
-			}
-		} else {
-			cmd := exec.Command(editor, outputPath)
-			if err := cmd.Start(); err != nil {
-				logger.Warn(lvl, "Failed to open JSON file in $EDITOR: %w", err)
-			}
-		}
+		openFileInEditor(outputPath, lvl)
 	} else {
 		logger.Debug(lvl, "autoOpen is: False")
 	}
@@ -368,7 +337,6 @@ func parseGoFile(path string) ([]UIAction, error) {
 			label := internal_utils.ToTitleCase(paramNames[i])
 			fields = append(fields, createField(label, i))
 		}
-
 		actions = append(actions, UIAction{
 			Label:                     internal_utils.ToTitleCase(bashName),
 			Func:                      bashName,
@@ -506,5 +474,44 @@ func getNativeOpenCommand(path string) *exec.Cmd {
 		return exec.Command("open", path)
 	default: // "linux", "freebsd", "openbsd", "netbsd" etc.
 		return exec.Command("xdg-open", path)
+	}
+}
+
+func openFileInEditor(outputPath string, lvl logger.LogLevel) {
+	logger.Debug(lvl, "autoOpen is: True")
+	editor := os.Getenv("EDITOR")
+	logger.Debug(lvl, "editor is: %s", editor)
+	if editor == "" {
+		// Try to find the system default handler for JSON (like xdg-open on Linux, open on macOS, start on Windows)
+		// This handles Kate, VSCode, or whatever is assigned to .json files.
+		logger.Debug(lvl, "EDITOR env var not set, attempting native desktop open...")
+		var cmd *exec.Cmd
+		// Check runtime
+		// If on Linux/BSD, xdg-open works great and respects the system default (e.g. org.kde.kate.desktop).
+		// If on macOS, "open" launches the default app.
+		// If on Windows, "rundll32.exe url.dll,FileProtocolHandler" or start command launches the default.
+		// We can also fallback to searching common visual/CLI editors if xdg-open fails.
+		cmd = getNativeOpenCommand(outputPath)
+		if err := cmd.Start(); err != nil {
+			// Fallback to common terminal editors
+			logger.Debug(lvl, "Native open failed, falling back to terminal editor search")
+			for _, fallbackEditor := range []string{"nano", "vim", "vi"} {
+				if path, err := exec.LookPath(fallbackEditor); err == nil {
+					editor = path
+					break
+				}
+			}
+			if editor != "" {
+				cmd = exec.Command(editor, outputPath)
+				_ = cmd.Start()
+			} else {
+				logger.Warn(lvl, "Failed to find any viable editor to open JSON config.")
+			}
+		}
+	} else {
+		cmd := exec.Command(editor, outputPath)
+		if err := cmd.Start(); err != nil {
+			logger.Warn(lvl, "Failed to open JSON file in $EDITOR: %w", err)
+		}
 	}
 }
