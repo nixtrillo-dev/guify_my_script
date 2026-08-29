@@ -1,7 +1,6 @@
 .aider*
 .continue
 /guify_my_script_config_schema.json
-guify_my_script_config.json
 guify_my_script_config_copy.json
 dist
 /*amd64*
