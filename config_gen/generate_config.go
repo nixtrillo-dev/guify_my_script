@@ -2,6 +2,7 @@ package config_gen
 
 import (
 	"bufio"
+	"embed"
 	"encoding/json"
 	"fmt"
 	"go/ast"
@@ -13,7 +14,6 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
-	"embed"
 
 	"guify_my_script/internal_utils"
 	"guify_my_script/logger"
@@ -216,7 +216,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	}
 
 	guiConfig := RootGUIConfig{}
-	
+
 	// Add $schema pointing to a relative config schema path
 	guiConfig.Schema = "guify_my_script_config_schema.json"
 
@@ -362,16 +362,10 @@ func parseGoFile(path string) ([]UIAction, error) {
 		}
 
 		var fields []UIField
-		total := len(exampleFieldNames)
-		if len(paramNames) > len(exampleFieldNames) {
-			total = len(paramNames)
-		}
+		total := len(paramNames)
 
 		for i := 0; i < total; i++ {
-			label := exampleFieldNames[i%len(exampleFieldNames)]
-			if i < len(paramNames) {
-				label = internal_utils.ToTitleCase(paramNames[i])
-			}
+			label := internal_utils.ToTitleCase(paramNames[i])
 			fields = append(fields, createField(label, i))
 		}
 
@@ -412,9 +406,8 @@ func parseBashFile(path string) ([]UIAction, error) {
 			}
 
 			var fields []UIField
-			for i := 0; i < len(exampleFieldNames); i++ {
-				fields = append(fields, createField(exampleFieldNames[i], i))
-			}
+			// Bash functions don't have parameter information from the simple regex
+			// Set to 0 fields since we can't determine parameters
 
 			actions = append(actions, UIAction{
 				Label:                     internal_utils.ToTitleCase(name),
