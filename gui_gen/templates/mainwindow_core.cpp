@@ -45,13 +45,16 @@ MainWindow::MainWindow(const QIcon &appIcon) : m_appIcon(appIcon), m_maxBtn(null
     applyThemeStyle();
     initUi();            // Creates the widgets and populates m_uiFields
 
-    // Trigger dynamic field refreshes (Must run AFTER initUi populates widgets)
+    // Trigger dynamic field refreshes and initial enabled states (Must run AFTER initUi populates widgets)
     for (auto it = m_fieldMetadata.begin(); it != m_fieldMetadata.end(); ++it) {
-        QJsonObject endpoints = it.value()["json_endpoints"].toObject();
-        if (!endpoints["get_defaults_endpoint"].toArray().isEmpty() ||
-            !endpoints["get_enabled_endpoint"].toArray().isEmpty() ||
-            !endpoints["array_endpoint"].toArray().isEmpty()) { // Also catch dynamic arrays
+        QJsonObject meta = it.value();
+        QJsonObject endpoints = meta["json_endpoints"].toObject();
+        bool hasEndpoints = !endpoints["get_defaults_endpoint"].toArray().isEmpty() ||
+                            !endpoints["get_enabled_endpoint"].toArray().isEmpty() ||
+                            !endpoints["array_endpoint"].toArray().isEmpty();
+        bool isFieldDisabled = meta.contains("enabled") && !meta["enabled"].toBool(true);
 
+        if (hasEndpoints || isFieldDisabled) {
             QStringList parts = it.key().split("::");
             if (parts.size() == 2) {
                 refreshField(parts[0], parts[1]);

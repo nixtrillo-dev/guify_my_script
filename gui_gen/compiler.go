@@ -40,7 +40,8 @@ type BuildContext struct {
 	BaseDir           string
 	PackageName       string
 	BundledSourceName string
-	SourcePath        string
+	SourcePathAMD64   string
+	SourcePathARM64   string
 	FinalSourceCode   string
 	DefaultsJSON      []byte
 	RootConfig        RootConfig
@@ -200,22 +201,27 @@ func runBuildLoop(ctx BuildContext) error {
 
 		if ctx.CompileMode == "production" {
 			// --- PRODUCTION ASSET BUNDLING ---
-			actualSourcePath := ctx.SourcePath
-			specificPath := fmt.Sprintf("%s_%s", ctx.SourcePath, targetArch)
-			if _, err := os.Stat(specificPath); err == nil {
-				actualSourcePath = specificPath
+			actualSourcePath := ""
+			if targetArch == "amd64" {
+				actualSourcePath = ctx.SourcePathAMD64
+			} else if targetArch == "arm64" {
+				actualSourcePath = ctx.SourcePathARM64
+			}
+
+			if actualSourcePath == "" {
+				return fmt.Errorf("production mode could not find source script path for architecture %s", targetArch)
 			}
 
 			sourceInfo, err := os.Stat(actualSourcePath)
 			if err != nil {
-				return fmt.Errorf("production mode failed to inspect source_script %q: %w", actualSourcePath, err)
+				return fmt.Errorf("production mode failed to inspect source script %q for %s: %w", actualSourcePath, targetArch, err)
 			}
 			sourceMode := sourceInfo.Mode().Perm()
 			if sourceMode&0111 == 0 {
 				sourceMode |= 0755
 			}
 			if err := copyFile(actualSourcePath, filepath.Join(archAppDir, ctx.BundledSourceName), sourceMode); err != nil {
-				return fmt.Errorf("failed bundling source_script for %s: %w", targetArch, err)
+				return fmt.Errorf("failed bundling source script for %s: %w", targetArch, err)
 			}
 			if err := os.WriteFile(filepath.Join(archAppDir, "runtime_defaults.json"), ctx.DefaultsJSON, 0644); err != nil {
 				return fmt.Errorf("failed writing production runtime defaults: %w", err)

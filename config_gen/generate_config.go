@@ -60,6 +60,7 @@ type UIField struct {
 	Maximum               *json.RawMessage `json:"maximum,omitempty"`
 	DecimalPlaces         *string          `json:"decimal_places,omitempty"`
 	AdvancedMenu          bool             `json:"advanced_menu"`
+	Enabled               bool             `json:"enabled"`
 	AutoHeight            bool             `json:"auto_height,omitempty"`
 	MinHeight             int              `json:"min_height,omitempty"`
 	FileTypes             []string         `json:"file_types,omitempty"`
@@ -88,7 +89,9 @@ type UIConfig struct {
 	Title                   string  `json:"title"`
 	Icon                    string  `json:"icon"`
 	UUID                    string  `json:"uuid"`
-	SourceScript            string  `json:"source_script"`
+	ScriptAlias             string  `json:"script_alias"`
+	SourceScriptAMD64       string  `json:"source_script_amd64"`
+	SourceScriptARM64       string  `json:"source_script_arm64"`
 	SourceType              string  `json:"source_type"`
 	Startup                 string  `json:"startup"`
 	TrayOnMinimize          bool    `json:"tray_on_minimize"`
@@ -207,16 +210,38 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	}
 
 	absInput, _ := filepath.Abs(inputPath)
-	absBinary, _ := filepath.Abs(binaryName)
-	var actions []UIAction
-	ext := strings.ToLower(filepath.Ext(absInput))
+	inputExt := filepath.Ext(absInput)
+	ext := strings.ToLower(inputExt)
 	sourceType := "go"
 
+	var targetName string
+	var sourceScript string
+	var scriptAlias string
+	var sourceScriptAMD64 string
+	var sourceScriptARM64 string
+	if strings.TrimSpace(binaryName) != "" {
+		absBinary, _ := filepath.Abs(binaryName)
+		targetName = filepath.Base(absBinary)
+		sourceScript = absBinary
+	} else {
+		inputBase := filepath.Base(absInput)
+		targetName = strings.TrimSuffix(inputBase, inputExt)
+		sourceScript = absInput
+	}
+
+	var actions []UIAction
 	if ext == ".go" {
 		actions, _ = parseGoFile(absInput)
+		sourceScriptBase := strings.TrimSuffix(sourceScript, inputExt)
+		scriptAlias = filepath.Base(sourceScriptBase)
+		sourceScriptAMD64 = sourceScriptBase + "_amd64"
+		sourceScriptARM64 = sourceScriptBase + "_arm64"
 	} else {
 		actions, _ = parseBashFile(absInput)
 		sourceType = "bash"
+		scriptAlias = filepath.Base(sourceScript)
+		sourceScriptAMD64 = sourceScript
+		sourceScriptARM64 = sourceScript
 	}
 
 	guiConfig := RootGUIConfig{}
@@ -225,10 +250,12 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	guiConfig.Schema = "guify_my_script_config_schema.json"
 
 	// Config Section
-	guiConfig.Config.Title = internal_utils.ToTitleCase(filepath.Base(absBinary))
+	guiConfig.Config.Title = internal_utils.ToTitleCase(targetName)
 	guiConfig.Config.Icon = fmt.Sprintf("/home/%s/Pictures/Icons/gms/com.nixtrillo.gms.png", os.Getenv("USER"))
-	guiConfig.Config.UUID = fmt.Sprintf("com.%s.%s", os.Getenv("USER"), toUuidCase(filepath.Base(absBinary)))
-	guiConfig.Config.SourceScript = absBinary
+	guiConfig.Config.UUID = fmt.Sprintf("com.%s.%s", os.Getenv("USER"), toUuidCase(targetName))
+	guiConfig.Config.ScriptAlias = scriptAlias
+	guiConfig.Config.SourceScriptAMD64 = sourceScriptAMD64
+	guiConfig.Config.SourceScriptARM64 = sourceScriptARM64
 	guiConfig.Config.SourceType = sourceType
 	guiConfig.Config.Startup = "tray"
 	guiConfig.Config.TrayOnMinimize = true
@@ -250,7 +277,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	guiConfig.Deploy.Description = "Generated Qt GUI package staged by guify_my_script."
 	guiConfig.Deploy.Version = "0.0.1"
 	guiConfig.Deploy.ReleaseNum = "1"
-	guiConfig.Deploy.Summary = fmt.Sprintf("A GUI frontend for executing commands for %s", filepath.Base(absBinary))
+	guiConfig.Deploy.Summary = fmt.Sprintf("A GUI frontend for executing commands for %s", targetName)
 	guiConfig.Deploy.License = "MIT"
 	guiConfig.Deploy.Maintainer = "gms"
 	guiConfig.Deploy.SupportEmail = "maintainer@example.invalid"
@@ -312,7 +339,7 @@ func parseGoFile(path string) ([]UIAction, error) {
 
 	for _, decl := range node.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Name.Name == "main" || !ast.IsExported(fn.Name.Name) {
+		if !ok || fn.Recv != nil || fn.Name.Name == "main" || !ast.IsExported(fn.Name.Name) {
 			continue
 		}
 
@@ -330,7 +357,7 @@ func parseGoFile(path string) ([]UIAction, error) {
 			}
 		}
 
-		var fields []UIField
+		fields := []UIField{}
 		total := len(paramNames)
 
 		for i := 0; i < total; i++ {
@@ -373,7 +400,7 @@ func parseBashFile(path string) ([]UIAction, error) {
 				name = strings.TrimPrefix(name, "go_")
 			}
 
-			var fields []UIField
+			fields := []UIField{}
 			// Bash functions don't have parameter information from the simple regex
 			// Set to 0 fields since we can't determine parameters
 
@@ -405,6 +432,7 @@ func createField(displayName string, index int) UIField {
 		Type:         fieldType,
 		Default:      "",
 		AdvancedMenu: false,
+		Enabled:      true,
 		JsonEndpoints: JsonEndpoints{
 			ArrayEndpoint:       emptyArrayJSON(),
 			PathToArray:         nullJSON(),
@@ -433,9 +461,7 @@ func createField(displayName string, index int) UIField {
 		field.Default = "Initial Value"
 	case "CK":
 		field.Default = "0"
-	case "FD":
-		field.Default = ""
-	case "FL", "MFL", "FS":
+	case "FD", "FL", "MFL", "FS":
 		field.Default = ""
 		field.FileTypes = []string{"txt"}
 	case "LTXT":
@@ -515,3 +541,4 @@ func openFileInEditor(outputPath string, lvl logger.LogLevel) {
 		}
 	}
 }
+

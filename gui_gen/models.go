@@ -18,11 +18,20 @@ type UIField struct {
 	Maximum               string        `json:"maximum,omitempty"`
 	DecimalPlaces         string        `json:"decimal_places,omitempty"`
 	AdvancedMenu          bool          `json:"advanced_menu,omitempty"`
+	Enabled               *bool         `json:"enabled,omitempty"`
 	AutoHeight            bool          `json:"auto_height,omitempty"`
 	MinHeight             int           `json:"min_height,omitempty"`
 	FileTypes             []string      `json:"file_types,omitempty"`
 	JsonEndpoints         JsonEndpoints `json:"json_endpoints,omitempty"`
 	RefreshFieldsOnChange []string      `json:"refresh_fields_on_change,omitempty"`
+}
+
+// IsEnabled returns true if Enabled is not set (nil) or set to true.
+func (f UIField) IsEnabled() bool {
+	if f.Enabled == nil {
+		return true
+	}
+	return *f.Enabled
 }
 
 type UIAction struct {
@@ -56,7 +65,9 @@ type AppConfig struct {
 	Title                   string      `json:"title"`
 	Icon                    string      `json:"icon"`
 	UUID                    string      `json:"uuid"`
-	SourceScript            string      `json:"source_script"`
+	ScriptAlias             string      `json:"script_alias"`
+	SourceScriptAMD64       string      `json:"source_script_amd64,omitempty"`
+	SourceScriptARM64       string      `json:"source_script_arm64,omitempty"`
 	SourceType              string      `json:"source_type"`
 	Startup                 string      `json:"startup"`
 	TrayOnMinimize          bool        `json:"tray_on_minimize"`

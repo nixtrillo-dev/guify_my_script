@@ -12,8 +12,10 @@
           "title": "${1:App Title}",
           "icon": "/home/$USER/Pictures/Icons/gms/com.nixtrillo.gms.png",
           "uuid": "com.$USER.${2:uuid}",
-          "source_script": "${3:/path/to/script}",
-          "source_type": "${4|go,bash|}",
+          "script_alias": "${3:script_name}",
+          "source_script_amd64": "${4:/path/to/script_amd64}",
+          "source_script_arm64": "${5:/path/to/script_arm64}",
+          "source_type": "${6|go,bash|}",
           "startup": "tray",
           "tray_on_minimize": true,
           "instance_mode": "replace",
@@ -88,8 +90,10 @@
             "title": "${1:App Title}",
             "icon": "/home/$USER/Pictures/Icons/gms/com.nixtrillo.gms.png",
             "uuid": "com.$USER.${2:uuid}",
-            "source_script": "${3:/path/to/script}",
-            "source_type": "${4|go,bash|}",
+            "script_alias": "${3:script_name}",
+            "source_script_amd64": "${4:/path/to/script_amd64}",
+            "source_script_arm64": "${5:/path/to/script_arm64}",
+            "source_type": "${6|go,bash|}",
             "startup": "tray",
             "tray_on_minimize": true,
             "instance_mode": "replace",
@@ -109,7 +113,9 @@
         "title",
         "icon",
         "uuid",
-        "source_script",
+        "script_alias",
+        "source_script_amd64",
+        "source_script_arm64",
         "source_type",
         "startup",
         "tray_on_minimize",
@@ -122,7 +128,9 @@
         "title": { "type": "string" },
         "icon": { "type": "string" },
         "uuid": { "type": "string" },
-        "source_script": { "type": "string" },
+        "script_alias": { "type": "string" },
+        "source_script_amd64": { "type": "string" },
+        "source_script_arm64": { "type": "string" },
         "source_type": {
           "type": "string",
           "enum": ["go", "bash"]
@@ -295,6 +303,7 @@
             "name": "${1:Text Input}",
             "type": "TXT",
             "default": "Initial Value",
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -314,6 +323,7 @@
             "name": "${1:Directory Picker}",
             "type": "DIR",
             "default": "/home",
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -334,6 +344,7 @@
             "type": "FL",
             "default": "",
             "file_types": ["txt"],
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -354,6 +365,7 @@
             "type": "MFL",
             "default": "",
             "file_types": ["txt"],
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -374,6 +386,7 @@
             "type": "FS",
             "default": "",
             "file_types": ["txt"],
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -394,6 +407,7 @@
             "type": "CB",
             "options": ["Option1", "Option2", "Option3"],
             "default": "Option1",
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -413,6 +427,7 @@
             "name": "${1:Checkbox}",
             "type": "CK",
             "default": "0",
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -432,6 +447,8 @@
             "name": "${1:File or Directory Picker}",
             "type": "FD",
             "default": "",
+            "file_types": ["txt"],
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -454,6 +471,7 @@
             "default": ["Option2", "Option3"],
             "minimum": "0",
             "maximum": "0",
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -475,6 +493,7 @@
             "default": "Initial Long Text Value",
             "auto_height": true,
             "min_height": 240,
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -496,6 +515,7 @@
             "default": "12:00:00",
             "minimum": null,
             "maximum": null,
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -517,6 +537,7 @@
             "default": "2026-01-01",
             "minimum": null,
             "maximum": null,
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -539,6 +560,7 @@
             "minimum": null,
             "maximum": null,
             "decimal_places": "0",
+            "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
               "array_endpoint": [],
@@ -555,6 +577,7 @@
       "required": [
         "name",
         "type",
+        "enabled",
         "advanced_menu",
         "json_endpoints"
       ],
@@ -706,7 +729,7 @@
         {
           "if": {
             "properties": {
-              "type": { "enum": ["FL", "MFL", "FS"] }
+              "type": { "enum": ["FL", "MFL", "FS", "FD"] }
             }
           },
           "then": {
@@ -770,6 +793,7 @@
             }
           ]
         },
+        "enabled": { "type": "boolean", "default": true },
         "advanced_menu": { "type": "boolean", "default": false },
         "auto_height": { "type": "boolean", "default": true },
         "min_height": { "type": "integer", "default": 240 },

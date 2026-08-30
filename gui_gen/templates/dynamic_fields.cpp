@@ -68,6 +68,7 @@ QString MainWindow::resolveDynamicPath(QString rawPath, const QString& actionLab
             QWidget *w = m_uiFields[mapKey];
             if (w->property("isMCB").toBool()) refVal = static_cast<CheckableListWidget*>(w)->checkedItems().join(",");
             else if (QComboBox *cb = qobject_cast<QComboBox*>(w)) refVal = cb->currentText();
+            else if (QCheckBox *ck = qobject_cast<QCheckBox*>(w)) refVal = (!ck->isEnabled()) ? "0" : (ck->isChecked() ? "1" : "0");
             else if (QLineEdit *le = qobject_cast<QLineEdit*>(w)) refVal = le->text();
             else if (QTextEdit *te = qobject_cast<QTextEdit*>(w)) refVal = te->toPlainText();
             else if (QDateEdit *de = qobject_cast<QDateEdit*>(w)) refVal = de->date().toString("yyyy-MM-dd");
@@ -228,7 +229,49 @@ void MainWindow::updateWidgetDefaultValue(QWidget* targetWidget, const QJsonObje
     applyWidgetValue(targetWidget, newVal);
 }
 
-void MainWindow::updateWidgetEnabledState(QWidget* targetWidget, const QJsonObject& endpoints, const QString& actionLabel) {
+void MainWindow::setFieldEnabled(QWidget* targetWidget, bool isEnabled, bool clearValue) {
+    if (!targetWidget) return;
+    targetWidget->setEnabled(isEnabled);
+    QWidget *mainLayoutItem = targetWidget;
+
+    // Also disable/enable sibling widgets (like browse buttons for DIR/FL) in QHBoxLayout
+    if (targetWidget->parentWidget() && targetWidget->parentWidget()->layout()) {
+        QLayout *layout = targetWidget->parentWidget()->layout();
+        if (qobject_cast<QHBoxLayout*>(layout)) {
+            mainLayoutItem = targetWidget->parentWidget(); // Target the outer frame holding the row
+            for (int i = 0; i < layout->count(); ++i) {
+                if (QWidget *w = layout->itemAt(i)->widget()) {
+                    w->setEnabled(isEnabled);
+                }
+            }
+        }
+    }
+
+    // Locate the QLabel immediately preceding this field in the vertical layout
+    if (mainLayoutItem && mainLayoutItem->parentWidget() && mainLayoutItem->parentWidget()->layout()) {
+        QLayout *vLayout = mainLayoutItem->parentWidget()->layout();
+        int widgetIndex = vLayout->indexOf(mainLayoutItem);
+        if (widgetIndex > 0) {
+            if (QWidget *prevWidget = vLayout->itemAt(widgetIndex - 1)->widget()) {
+                if (qobject_cast<QLabel*>(prevWidget)) {
+                    prevWidget->setEnabled(isEnabled);
+                }
+            }
+        }
+    }
+
+    if (!isEnabled && clearValue) {
+        clearWidgetValue(targetWidget);
+    }
+}
+
+void MainWindow::updateWidgetEnabledState(QWidget* targetWidget, const QJsonObject& meta, const QJsonObject& endpoints, const QString& actionLabel) {
+    bool isEnabled = true;
+    if (meta.contains("enabled")) {
+        isEnabled = meta["enabled"].toBool(true);
+    }
+
+    bool hasDynamicEndpoint = false;
     QJsonArray enabledEndpointArr = endpoints["get_enabled_endpoint"].toArray();
     QString enabledPathTemplate = endpoints["path_to_enabled"].toString();
 
@@ -239,49 +282,18 @@ void MainWindow::updateWidgetEnabledState(QWidget* targetWidget, const QJsonObje
             QJsonValue jVal = getNestedValue(doc, resolvedPath);
 
             if (!jVal.isUndefined() && !jVal.isNull()) {
-                bool isEnabled = true;
+                hasDynamicEndpoint = true;
                 if (jVal.isBool()) isEnabled = jVal.toBool();
                 else if (jVal.isString()) {
                     QString s = jVal.toString().toLower();
                     isEnabled = (s == "true" || s == "1");
                 }
                 else if (jVal.isDouble()) isEnabled = (jVal.toDouble() != 0);
-
-                targetWidget->setEnabled(isEnabled);
-                QWidget *mainLayoutItem = targetWidget;
-
-                // Also disable sibling widgets (like browse buttons for DIR/FL) in QHBoxLayout
-                if (targetWidget->parentWidget() && targetWidget->parentWidget()->layout()) {
-                    QLayout *layout = targetWidget->parentWidget()->layout();
-                    if (qobject_cast<QHBoxLayout*>(layout)) {
-                        mainLayoutItem = targetWidget->parentWidget(); // Target the outer frame holding the row
-                        for (int i = 0; i < layout->count(); ++i) {
-                            if (QWidget *w = layout->itemAt(i)->widget()) {
-                                w->setEnabled(isEnabled);
-                            }
-                        }
-                    }
-                }
-
-                // Locate the QLabel immediately preceding this field in the vertical layout
-                if (mainLayoutItem && mainLayoutItem->parentWidget() && mainLayoutItem->parentWidget()->layout()) {
-                    QLayout *vLayout = mainLayoutItem->parentWidget()->layout();
-                    int widgetIndex = vLayout->indexOf(mainLayoutItem);
-                    if (widgetIndex > 0) {
-                        if (QWidget *prevWidget = vLayout->itemAt(widgetIndex - 1)->widget()) {
-                            if (qobject_cast<QLabel*>(prevWidget)) {
-                                prevWidget->setEnabled(isEnabled);
-                            }
-                        }
-                    }
-                }
-
-                if (!isEnabled) {
-                    clearWidgetValue(targetWidget);
-                }
             }
         }
     }
+
+    setFieldEnabled(targetWidget, isEnabled, hasDynamicEndpoint && !isEnabled);
 }
 
 void MainWindow::refreshField(const QString& actionLabel, const QString& fieldName) {
@@ -308,5 +320,5 @@ void MainWindow::refreshField(const QString& actionLabel, const QString& fieldNa
     updateWidgetDefaultValue(targetWidget, meta, endpoints, actionLabel, fieldName);
 
     // c. FETCH AND APPLY ENABLED STATE
-    updateWidgetEnabledState(targetWidget, endpoints, actionLabel);
+    updateWidgetEnabledState(targetWidget, meta, endpoints, actionLabel);
 }

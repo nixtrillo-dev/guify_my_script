@@ -463,7 +463,11 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         QStringList args;
         for (const auto &p : %[2]s) {
             if (!p.first->isEnabled()) {
-                args.append("");
+                if (p.second == "CK") {
+                    args.append("0");
+                } else {
+                    args.append("");
+                }
             } else if (p.second == "MCB") {
                 CheckableListWidget* mcb = static_cast<CheckableListWidget*>(p.first);
                 if (!mcb->isValid()) {

@@ -1,4 +1,4 @@
-package bridge_gen
+package go_gen
 
 import (
 	"encoding/csv"
@@ -248,6 +248,27 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 	fset := token.NewFileSet()
 	needsStrconv := false
 
+	// Pre-scan all target files to identify declared struct, interface, and composite types
+	compositeTypes := make(map[string]bool)
+	for _, fileToParse := range targetFiles {
+		node, err := parser.ParseFile(fset, fileToParse, nil, 0)
+		if err != nil {
+			continue
+		}
+		for _, decl := range node.Decls {
+			if genDecl, ok := decl.(*ast.GenDecl); ok && genDecl.Tok == token.TYPE {
+				for _, spec := range genDecl.Specs {
+					if typeSpec, ok := spec.(*ast.TypeSpec); ok {
+						switch typeSpec.Type.(type) {
+						case *ast.StructType, *ast.InterfaceType, *ast.MapType, *ast.ArrayType, *ast.ChanType:
+							compositeTypes[typeSpec.Name.Name] = true
+						}
+					}
+				}
+			}
+		}
+	}
+
 	for _, fileToParse := range targetFiles {
 		node, err := parser.ParseFile(fset, fileToParse, nil, parser.ParseComments)
 		if err != nil {
@@ -276,7 +297,8 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 
 		for _, decl := range node.Decls {
 			fn, ok := decl.(*ast.FuncDecl)
-			if !ok || fn.Name.Name == "main" {
+			// Skip non-functions, methods with struct/type receivers, and main()
+			if !ok || fn.Recv != nil || fn.Name.Name == "main" {
 				continue
 			}
 
@@ -304,7 +326,8 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 			}
 
 			var args []ArgMetaData
-			hasFuncParam := false // Track if a func() parameter is detected
+			hasFuncParam := false      // Track if a func() parameter is detected
+			hasUnsupportedParam := false // Track if struct/composite parameters are detected
 			localNeedsStrconv := false // Track strconv needs for this function only
 
 			if fn.Type.Params != nil {
@@ -320,21 +343,25 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 
 					// Parse base identifiers (int, string, bool)
 					if ident, ok := field.Type.(*ast.Ident); ok {
-						switch ident.Name {
-						case "bool":
-							typeStr = "bool"
-							localNeedsStrconv = true
-						case "int", "int64", "int32":
-							typeStr = "int"
-							localNeedsStrconv = true
-						case "string":
-							typeStr = "string"
-						default:
-							// Assume unknown local types are custom enums backed by int
-							// FIX: Prepend the parsed package name to the local identifier so main can see it
-							typeStr = "int"
-							castType = fmt.Sprintf("%s.%s", parsedPackageName, ident.Name)
-							localNeedsStrconv = true
+						if compositeTypes[ident.Name] {
+							hasUnsupportedParam = true
+						} else {
+							switch ident.Name {
+							case "bool":
+								typeStr = "bool"
+								localNeedsStrconv = true
+							case "int", "int64", "int32":
+								typeStr = "int"
+								localNeedsStrconv = true
+							case "string":
+								typeStr = "string"
+							default:
+								// Assume unknown local types are custom enums backed by int
+								// Prepend the parsed package name to the local identifier so main can see it
+								typeStr = "int"
+								castType = fmt.Sprintf("%s.%s", parsedPackageName, ident.Name)
+								localNeedsStrconv = true
+							}
 						}
 					// Parse pointer expressions (*bool)
 					} else if starExpr, ok := field.Type.(*ast.StarExpr); ok {
@@ -342,7 +369,11 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 							if ident.Name == "bool" {
 								typeStr = "*bool"
 								localNeedsStrconv = true
+							} else {
+								hasUnsupportedParam = true
 							}
+						} else {
+							hasUnsupportedParam = true
 						}
 					// Parse selector expressions (e.g., logger.LogLevel)
 					} else if selExpr, ok := field.Type.(*ast.SelectorExpr); ok {
@@ -350,7 +381,11 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 							typeStr = "int"
 							castType = fmt.Sprintf("%s.%s", xIdent.Name, selExpr.Sel.Name)
 							localNeedsStrconv = true
+						} else {
+							hasUnsupportedParam = true
 						}
+					} else {
+						hasUnsupportedParam = true
 					}
 
 					for _, name := range field.Names {
@@ -363,8 +398,8 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 				}
 			}
 
-			// Skip this function if it has a func() param and we are not explicitly including them
-			if hasFuncParam && !includeFuncParams {
+			// Skip this function if it has unsupported params or if it has a func() param and we are not explicitly including them
+			if hasUnsupportedParam || (hasFuncParam && !includeFuncParams) {
 				continue
 			}
 

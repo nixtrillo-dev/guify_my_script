@@ -9,6 +9,7 @@ import (
 	_ "embed"
 	"encoding/csv"
 	"fmt"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -132,7 +133,15 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 		return fmt.Errorf("failed to process advanced tools: %w", err)
 	}
 
-	sourceScriptExpr := fmt.Sprintf("QStringLiteral(\"%s\")", cppStringLiteral(ctx.root.Config.SourceScript))
+	sourceScriptPath := ""
+	if ctx.compileMode == "debug" {
+		if runtime.GOARCH == "arm64" && ctx.sourcePathARM64 != "" {
+			sourceScriptPath = ctx.sourcePathARM64
+		} else if ctx.sourcePathAMD64 != "" {
+			sourceScriptPath = ctx.sourcePathAMD64
+		}
+	}
+	sourceScriptExpr := fmt.Sprintf("QStringLiteral(\"%s\")", cppStringLiteral(sourceScriptPath))
 	if ctx.compileMode == "production" {
 		sourceScriptExpr = fmt.Sprintf("QCoreApplication::applicationDirPath() + QStringLiteral(\"/%s\")", cppStringLiteral(ctx.bundledSourceName))
 	}
@@ -281,7 +290,8 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 		BaseDir:           ctx.baseDir,
 		PackageName:       ctx.packageName,
 		BundledSourceName: ctx.bundledSourceName,
-		SourcePath:        ctx.sourcePath,
+		SourcePathAMD64:   ctx.sourcePathAMD64,
+		SourcePathARM64:   ctx.sourcePathARM64,
 		FinalSourceCode:   finalSource,
 		DefaultsJSON:      defaultsJSONBytes,
 		RootConfig:        ctx.root,

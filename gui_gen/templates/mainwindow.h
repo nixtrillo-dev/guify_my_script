@@ -46,9 +46,10 @@ private:
     // Widget value helpers
     void applyWidgetValue(QWidget* targetWidget, const QString& newVal);
     void clearWidgetValue(QWidget* targetWidget);
+    void setFieldEnabled(QWidget* targetWidget, bool isEnabled, bool clearValue = false);
     void updateWidgetOptions(QWidget* targetWidget, const QJsonObject& meta, const QJsonObject& endpoints, const QString& actionLabel);
     void updateWidgetDefaultValue(QWidget* targetWidget, const QJsonObject& meta, const QJsonObject& endpoints, const QString& actionLabel, const QString& fieldName);
-    void updateWidgetEnabledState(QWidget* targetWidget, const QJsonObject& endpoints, const QString& actionLabel);
+    void updateWidgetEnabledState(QWidget* targetWidget, const QJsonObject& meta, const QJsonObject& endpoints, const QString& actionLabel);
     void refreshField(const QString& actionLabel, const QString& fieldName);
 
     // UI initialization

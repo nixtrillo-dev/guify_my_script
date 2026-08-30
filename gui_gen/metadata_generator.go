@@ -73,6 +73,7 @@ func generateRuntimeState(root RootConfig) ([]byte, []byte, error) {
 					"type":           field.Type,
 					"options":        field.Options,
 					"default":        defStr,
+					"enabled":        field.IsEnabled(),
 					"minimum":        field.Minimum,
 					"maximum":        field.Maximum,
 					"decimal_places": field.DecimalPlaces,

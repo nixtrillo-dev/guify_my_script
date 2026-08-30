@@ -22,7 +22,8 @@ type configContext struct {
 	compileMode       string
 	baseDir           string
 	packageName       string
-	sourcePath        string
+	sourcePathAMD64   string
+	sourcePathARM64   string
 	bundledSourceName string
 	targetArchs       []string
 	trayMinimizeState string
@@ -96,26 +97,44 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 	}
 	ctx.packageName = sanitizePackageName(uuid)
 
-	ctx.sourcePath = ctx.root.Config.SourceScript
-	if ctx.sourcePath != "" && !filepath.IsAbs(ctx.sourcePath) {
-		ctx.sourcePath = filepath.Join(ctx.baseDir, ctx.sourcePath)
+	ctx.sourcePathAMD64 = ctx.root.Config.SourceScriptAMD64
+	if ctx.sourcePathAMD64 != "" && !filepath.IsAbs(ctx.sourcePathAMD64) {
+		ctx.sourcePathAMD64 = filepath.Join(ctx.baseDir, ctx.sourcePathAMD64)
 	}
 
-	ctx.bundledSourceName = filepath.Base(ctx.sourcePath)
+	ctx.sourcePathARM64 = ctx.root.Config.SourceScriptARM64
+	if ctx.sourcePathARM64 != "" && !filepath.IsAbs(ctx.sourcePathARM64) {
+		ctx.sourcePathARM64 = filepath.Join(ctx.baseDir, ctx.sourcePathARM64)
+	}
+
+	ctx.bundledSourceName = strings.TrimSpace(ctx.root.Config.ScriptAlias)
 	if ctx.bundledSourceName == "." || ctx.bundledSourceName == string(filepath.Separator) || ctx.bundledSourceName == "" {
-		ctx.bundledSourceName = "source_script"
+		if ctx.sourcePathAMD64 != "" {
+			ctx.bundledSourceName = filepath.Base(ctx.sourcePathAMD64)
+		} else if ctx.sourcePathARM64 != "" {
+			ctx.bundledSourceName = filepath.Base(ctx.sourcePathARM64)
+		} else {
+			ctx.bundledSourceName = "script_alias"
+		}
 	}
 	if ctx.bundledSourceName == ctx.packageName {
 		ctx.bundledSourceName = ctx.packageName + "-source"
 	}
 
 	// --- AUTO-DETECT ARCHITECTURES ---
-	if ctx.compileMode == "production" && (ctx.root.Config.SourceType == "go" || ctx.root.Config.SourceType == "binary") {
-		if _, err := os.Stat(ctx.sourcePath + "_amd64"); err == nil {
-			ctx.targetArchs = append(ctx.targetArchs, "amd64")
+	if ctx.compileMode == "production" {
+		// Detect AMD64
+		if ctx.sourcePathAMD64 != "" {
+			if _, err := os.Stat(ctx.sourcePathAMD64); err == nil {
+				ctx.targetArchs = append(ctx.targetArchs, "amd64")
+			}
 		}
-		if _, err := os.Stat(ctx.sourcePath + "_arm64"); err == nil {
-			ctx.targetArchs = append(ctx.targetArchs, "arm64")
+
+		// Detect ARM64
+		if ctx.sourcePathARM64 != "" {
+			if _, err := os.Stat(ctx.sourcePathARM64); err == nil {
+				ctx.targetArchs = append(ctx.targetArchs, "arm64")
+			}
 		}
 	}
 

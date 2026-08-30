@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"guify_my_script/bridge_gen"
 	"guify_my_script/config_gen"
 	"guify_my_script/endpoint_utils"
+	"guify_my_script/go_gen"
 	"guify_my_script/gui_gen"
 	"guify_my_script/internal_utils"
 	"guify_my_script/logger"
@@ -19,71 +19,12 @@ import (
 // AUTOMATICALLY GENERATED C++ EXPORTS
 // =====================================================================
 
-//export GoGetNonMainPackagesJSON
-func GoGetNonMainPackagesJSON(inputPath *C.char, logLevel *C.char) C.int {
+//export GoCompileScriptWithGuiConfig
+func GoCompileScriptWithGuiConfig(inputPath *C.char, scriptType *C.char, outputJSON *C.char, excludePackages *C.char, outputBridge *C.char, binaryName *C.char, compile C.int, overwriteJson C.int, logLevel *C.char, includeFuncParams C.int, autoOpen C.int) C.int {
 	
 	go_inputPath := C.GoString(inputPath)
 	
-	go_logLevel := C.GoString(logLevel)
-	
-	
-	_, err := bridge_gen.GetNonMainPackagesJSON(go_inputPath, go_logLevel)
-	if err != nil {
-		fmt.Printf("Pipeline Error in GetNonMainPackagesJSON: %v\n", err)
-		return 0
-	}
-	
-	return 1
-}
-
-//export GoGenerateBridge
-func GoGenerateBridge(inputPath *C.char, outputPath *C.char, excludePackages *C.char, logLevelStr *C.char, includeFuncParams C.int) C.int {
-	
-	go_inputPath := C.GoString(inputPath)
-	
-	go_outputPath := C.GoString(outputPath)
-	
-	go_excludePackages := C.GoString(excludePackages)
-	
-	go_logLevelStr := C.GoString(logLevelStr)
-	
-	go_includeFuncParams := includeFuncParams == 1
-	
-	
-	_, _, err := bridge_gen.GenerateBridge(go_inputPath, go_outputPath, go_excludePackages, go_logLevelStr, go_includeFuncParams)
-	if err != nil {
-		fmt.Printf("Pipeline Error in GenerateBridge: %v\n", err)
-		return 0
-	}
-	
-	return 1
-}
-
-//export GoCompileLocal
-func GoCompileLocal(targetDir *C.char, absBridge *C.char, binaryName *C.char, logLevelStr *C.char) C.int {
-	
-	go_targetDir := C.GoString(targetDir)
-	
-	go_absBridge := C.GoString(absBridge)
-	
-	go_binaryName := C.GoString(binaryName)
-	
-	go_logLevelStr := C.GoString(logLevelStr)
-	
-	
-	err := bridge_gen.CompileLocal(go_targetDir, go_absBridge, go_binaryName, go_logLevelStr)
-	if err != nil {
-		fmt.Printf("Pipeline Error in CompileLocal: %v\n", err)
-		return 0
-	}
-	
-	return 1
-}
-
-//export GoGenerateBridgeWithGuiConfig
-func GoGenerateBridgeWithGuiConfig(inputPath *C.char, outputJSON *C.char, excludePackages *C.char, outputBridge *C.char, binaryName *C.char, compile C.int, overwriteJson C.int, logLevel *C.char, includeFuncParams C.int, autoOpen C.int) C.int {
-	
-	go_inputPath := C.GoString(inputPath)
+	go_scriptType := C.GoString(scriptType)
 	
 	go_outputJSON := C.GoString(outputJSON)
 	
@@ -104,9 +45,9 @@ func GoGenerateBridgeWithGuiConfig(inputPath *C.char, outputJSON *C.char, exclud
 	go_autoOpen := autoOpen == 1
 	
 	
-	err := GenerateBridgeWithGuiConfig(go_inputPath, go_outputJSON, go_excludePackages, go_outputBridge, go_binaryName, go_compile, go_overwriteJson, go_logLevel, go_includeFuncParams, go_autoOpen)
+	err := CompileScriptWithGuiConfig(go_inputPath, go_scriptType, go_outputJSON, go_excludePackages, go_outputBridge, go_binaryName, go_compile, go_overwriteJson, go_logLevel, go_includeFuncParams, go_autoOpen)
 	if err != nil {
-		fmt.Printf("Pipeline Error in GenerateBridgeWithGuiConfig: %v\n", err)
+		fmt.Printf("Pipeline Error in CompileScriptWithGuiConfig: %v\n", err)
 		return 0
 	}
 	
@@ -161,6 +102,32 @@ func GoGenerateGUIConfig(inputPath *C.char, outputPath *C.char, binaryName *C.ch
 	return 1
 }
 
+//export GoIsValidDirectory
+func GoIsValidDirectory(path *C.char, logLevel C.int) C.int {
+	
+	go_path := C.GoString(path)
+	
+	go_logLevel := logger.LogLevel(int(logLevel))
+	
+	
+	endpoint_utils.IsValidDirectory(go_path, go_logLevel)
+	
+	return 1
+}
+
+//export GoGetDirectoryListIfValid
+func GoGetDirectoryListIfValid(path *C.char, logLevel C.int) C.int {
+	
+	go_path := C.GoString(path)
+	
+	go_logLevel := logger.LogLevel(int(logLevel))
+	
+	
+	endpoint_utils.GetDirectoryListIfValid(go_path, go_logLevel)
+	
+	return 1
+}
+
 //export GoModifyPath
 func GoModifyPath(filePath *C.char, appendString *C.char, newExtension *C.char, logLevel *C.char) C.int {
 	
@@ -197,6 +164,84 @@ func GoGeneratePathFromDir(dirPath *C.char, appendString *C.char, newExtension *
 	_, err := endpoint_utils.GeneratePathFromDir(go_dirPath, go_appendString, go_newExtension, go_logLevel)
 	if err != nil {
 		fmt.Printf("Pipeline Error in GeneratePathFromDir: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoGetExtension
+func GoGetExtension(filePath *C.char, logLevel *C.char) C.int {
+	
+	go_filePath := C.GoString(filePath)
+	
+	go_logLevel := C.GoString(logLevel)
+	
+	
+	_, err := endpoint_utils.GetExtension(go_filePath, go_logLevel)
+	if err != nil {
+		fmt.Printf("Pipeline Error in GetExtension: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoGetNonMainPackagesJSON
+func GoGetNonMainPackagesJSON(inputPath *C.char, logLevel *C.char) C.int {
+	
+	go_inputPath := C.GoString(inputPath)
+	
+	go_logLevel := C.GoString(logLevel)
+	
+	
+	_, err := go_gen.GetNonMainPackagesJSON(go_inputPath, go_logLevel)
+	if err != nil {
+		fmt.Printf("Pipeline Error in GetNonMainPackagesJSON: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoGenerateBridge
+func GoGenerateBridge(inputPath *C.char, outputPath *C.char, excludePackages *C.char, logLevelStr *C.char, includeFuncParams C.int) C.int {
+	
+	go_inputPath := C.GoString(inputPath)
+	
+	go_outputPath := C.GoString(outputPath)
+	
+	go_excludePackages := C.GoString(excludePackages)
+	
+	go_logLevelStr := C.GoString(logLevelStr)
+	
+	go_includeFuncParams := includeFuncParams == 1
+	
+	
+	_, _, err := go_gen.GenerateBridge(go_inputPath, go_outputPath, go_excludePackages, go_logLevelStr, go_includeFuncParams)
+	if err != nil {
+		fmt.Printf("Pipeline Error in GenerateBridge: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoCompileLocal
+func GoCompileLocal(targetDir *C.char, absBridge *C.char, binaryName *C.char, logLevelStr *C.char) C.int {
+	
+	go_targetDir := C.GoString(targetDir)
+	
+	go_absBridge := C.GoString(absBridge)
+	
+	go_binaryName := C.GoString(binaryName)
+	
+	go_logLevelStr := C.GoString(logLevelStr)
+	
+	
+	err := go_gen.CompileLocal(go_targetDir, go_absBridge, go_binaryName, go_logLevelStr)
+	if err != nil {
+		fmt.Printf("Pipeline Error in CompileLocal: %v\n", err)
 		return 0
 	}
 	
@@ -259,81 +304,6 @@ func GoParseLogLevel(level *C.char) C.int {
 	return 1
 }
 
-//export GoDebug
-func GoDebug(lvl C.int, format *C.char, args *C.char) C.int {
-	
-	go_lvl := logger.LogLevel(int(lvl))
-	
-	go_format := C.GoString(format)
-	
-	go_args := C.GoString(args)
-	
-	
-	logger.Debug(go_lvl, go_format, go_args)
-	
-	return 1
-}
-
-//export GoInfo
-func GoInfo(lvl C.int, format *C.char, args *C.char) C.int {
-	
-	go_lvl := logger.LogLevel(int(lvl))
-	
-	go_format := C.GoString(format)
-	
-	go_args := C.GoString(args)
-	
-	
-	logger.Info(go_lvl, go_format, go_args)
-	
-	return 1
-}
-
-//export GoWarn
-func GoWarn(lvl C.int, format *C.char, args *C.char) C.int {
-	
-	go_lvl := logger.LogLevel(int(lvl))
-	
-	go_format := C.GoString(format)
-	
-	go_args := C.GoString(args)
-	
-	
-	logger.Warn(go_lvl, go_format, go_args)
-	
-	return 1
-}
-
-//export GoError
-func GoError(lvl C.int, format *C.char, args *C.char) C.int {
-	
-	go_lvl := logger.LogLevel(int(lvl))
-	
-	go_format := C.GoString(format)
-	
-	go_args := C.GoString(args)
-	
-	
-	logger.Error(go_lvl, go_format, go_args)
-	
-	return 1
-}
-
-//export GoFatal
-func GoFatal(lvl C.int, format *C.char, args *C.char) C.int {
-	
-	go_lvl := logger.LogLevel(int(lvl))
-	
-	go_format := C.GoString(format)
-	
-	go_args := C.GoString(args)
-	
-	
-	logger.Fatal(go_lvl, go_format, go_args)
-	
-	return 1
-}
-
 //export GoInstallLocalPackage
 func GoInstallLocalPackage(pkgPath *C.char, updateFirst C.int, logLevel C.int) C.int {
 	
@@ -364,9 +334,9 @@ func main() {
 	}
 
 	switch os.Args[1] {
-	    case "get_non_main_packages_json":
-		if len(os.Args) < 4 {
-			fmt.Println("Error: get_non_main_packages_json requires parameters")
+	    case "compile_script_with_gui_config":
+		if len(os.Args) < 13 {
+			fmt.Println("Error: compile_script_with_gui_config requires parameters")
 			os.Exit(1)
 		}
 
@@ -376,114 +346,26 @@ func main() {
 		cli_inputPath := os.Args[2]
 		
 		
-		cli_logLevel := os.Args[3]
+		cli_scriptType := os.Args[3]
 		
 		
-		_, err := bridge_gen.GetNonMainPackagesJSON(cli_inputPath, cli_logLevel)
-		if err != nil {
-			fmt.Printf("Execution Failure: %v\n", err)
-			os.Exit(1)
-		}
+		cli_outputJSON := os.Args[4]
 		
 		
-	    case "generate_bridge":
-		if len(os.Args) < 7 {
-			fmt.Println("Error: generate_bridge requires parameters")
-			os.Exit(1)
-		}
-
-		// Parse string command line metrics safely to real types
+		cli_excludePackages := os.Args[5]
 		
 		
-		cli_inputPath := os.Args[2]
+		cli_outputBridge := os.Args[6]
 		
 		
-		cli_outputPath := os.Args[3]
+		cli_binaryName := os.Args[7]
 		
 		
-		cli_excludePackages := os.Args[4]
-		
-		
-		cli_logLevelStr := os.Args[5]
-		
-		
-		cli_includeFuncParams, err_includeFuncParams := strconv.ParseBool(os.Args[6])
-		if err_includeFuncParams != nil {
-			if os.Args[6] == "1" {
-				cli_includeFuncParams = true
-			} else if os.Args[6] == "0" {
-				cli_includeFuncParams = false
-			} else {
-				fmt.Printf("Error: parameter 'includeFuncParams' must be a valid boolean evaluation: %v\n", err_includeFuncParams)
-				os.Exit(1)
-			}
-		}
-		
-		
-		_, _, err := bridge_gen.GenerateBridge(cli_inputPath, cli_outputPath, cli_excludePackages, cli_logLevelStr, cli_includeFuncParams)
-		if err != nil {
-			fmt.Printf("Execution Failure: %v\n", err)
-			os.Exit(1)
-		}
-		
-		
-	    case "compile_local":
-		if len(os.Args) < 6 {
-			fmt.Println("Error: compile_local requires parameters")
-			os.Exit(1)
-		}
-
-		// Parse string command line metrics safely to real types
-		
-		
-		cli_targetDir := os.Args[2]
-		
-		
-		cli_absBridge := os.Args[3]
-		
-		
-		cli_binaryName := os.Args[4]
-		
-		
-		cli_logLevelStr := os.Args[5]
-		
-		
-		err := bridge_gen.CompileLocal(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr)
-		if err != nil {
-			fmt.Printf("Execution Failure: %v\n", err)
-			os.Exit(1)
-		}
-		
-		
-	    case "generate_bridge_with_gui_config":
-		if len(os.Args) < 12 {
-			fmt.Println("Error: generate_bridge_with_gui_config requires parameters")
-			os.Exit(1)
-		}
-
-		// Parse string command line metrics safely to real types
-		
-		
-		cli_inputPath := os.Args[2]
-		
-		
-		cli_outputJSON := os.Args[3]
-		
-		
-		cli_excludePackages := os.Args[4]
-		
-		
-		cli_outputBridge := os.Args[5]
-		
-		
-		cli_binaryName := os.Args[6]
-		
-		
-		cli_compile, err_compile := strconv.ParseBool(os.Args[7])
+		cli_compile, err_compile := strconv.ParseBool(os.Args[8])
 		if err_compile != nil {
-			if os.Args[7] == "1" {
+			if os.Args[8] == "1" {
 				cli_compile = true
-			} else if os.Args[7] == "0" {
+			} else if os.Args[8] == "0" {
 				cli_compile = false
 			} else {
 				fmt.Printf("Error: parameter 'compile' must be a valid boolean evaluation: %v\n", err_compile)
@@ -492,11 +374,11 @@ func main() {
 		}
 		
 		
-		cli_overwriteJson, err_overwriteJson := strconv.ParseBool(os.Args[8])
+		cli_overwriteJson, err_overwriteJson := strconv.ParseBool(os.Args[9])
 		if err_overwriteJson != nil {
-			if os.Args[8] == "1" {
+			if os.Args[9] == "1" {
 				cli_overwriteJson = true
-			} else if os.Args[8] == "0" {
+			} else if os.Args[9] == "0" {
 				cli_overwriteJson = false
 			} else {
 				fmt.Printf("Error: parameter 'overwriteJson' must be a valid boolean evaluation: %v\n", err_overwriteJson)
@@ -505,14 +387,14 @@ func main() {
 		}
 		
 		
-		cli_logLevel := os.Args[9]
+		cli_logLevel := os.Args[10]
 		
 		
-		cli_includeFuncParams, err_includeFuncParams := strconv.ParseBool(os.Args[10])
+		cli_includeFuncParams, err_includeFuncParams := strconv.ParseBool(os.Args[11])
 		if err_includeFuncParams != nil {
-			if os.Args[10] == "1" {
+			if os.Args[11] == "1" {
 				cli_includeFuncParams = true
-			} else if os.Args[10] == "0" {
+			} else if os.Args[11] == "0" {
 				cli_includeFuncParams = false
 			} else {
 				fmt.Printf("Error: parameter 'includeFuncParams' must be a valid boolean evaluation: %v\n", err_includeFuncParams)
@@ -521,11 +403,11 @@ func main() {
 		}
 		
 		
-		cli_autoOpen, err_autoOpen := strconv.ParseBool(os.Args[11])
+		cli_autoOpen, err_autoOpen := strconv.ParseBool(os.Args[12])
 		if err_autoOpen != nil {
-			if os.Args[11] == "1" {
+			if os.Args[12] == "1" {
 				cli_autoOpen = true
-			} else if os.Args[11] == "0" {
+			} else if os.Args[12] == "0" {
 				cli_autoOpen = false
 			} else {
 				fmt.Printf("Error: parameter 'autoOpen' must be a valid boolean evaluation: %v\n", err_autoOpen)
@@ -534,7 +416,7 @@ func main() {
 		}
 		
 		
-		err := GenerateBridgeWithGuiConfig(cli_inputPath, cli_outputJSON, cli_excludePackages, cli_outputBridge, cli_binaryName, cli_compile, cli_overwriteJson, cli_logLevel, cli_includeFuncParams, cli_autoOpen)
+		err := CompileScriptWithGuiConfig(cli_inputPath, cli_scriptType, cli_outputJSON, cli_excludePackages, cli_outputBridge, cli_binaryName, cli_compile, cli_overwriteJson, cli_logLevel, cli_includeFuncParams, cli_autoOpen)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -636,6 +518,64 @@ func main() {
 		}
 		
 		
+	    case "is_valid_directory":
+		if len(os.Args) < 4 {
+			fmt.Println("Error: is_valid_directory requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_path := os.Args[2]
+		
+		
+		var cli_logLevel_raw int
+		raw_logLevel := os.Args[3]
+		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
+			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
+			if err_logLevel != nil {
+				fmt.Printf("Error: parameter 'logLevel' must be a valid integer: %v\n", err_logLevel)
+				os.Exit(1)
+			}
+			cli_logLevel_raw = parsed_logLevel
+		}
+		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
+		
+		
+		
+		endpoint_utils.IsValidDirectory(cli_path, cli_logLevel)
+		
+		
+	    case "get_directory_list_if_valid":
+		if len(os.Args) < 4 {
+			fmt.Println("Error: get_directory_list_if_valid requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_path := os.Args[2]
+		
+		
+		var cli_logLevel_raw int
+		raw_logLevel := os.Args[3]
+		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
+			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
+			if err_logLevel != nil {
+				fmt.Printf("Error: parameter 'logLevel' must be a valid integer: %v\n", err_logLevel)
+				os.Exit(1)
+			}
+			cli_logLevel_raw = parsed_logLevel
+		}
+		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
+		
+		
+		
+		endpoint_utils.GetDirectoryListIfValid(cli_path, cli_logLevel)
+		
+		
 	    case "modify_path":
 		if len(os.Args) < 6 {
 			fmt.Println("Error: modify_path requires parameters")
@@ -686,6 +626,119 @@ func main() {
 		
 		
 		_, err := endpoint_utils.GeneratePathFromDir(cli_dirPath, cli_appendString, cli_newExtension, cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "get_extension":
+		if len(os.Args) < 4 {
+			fmt.Println("Error: get_extension requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_filePath := os.Args[2]
+		
+		
+		cli_logLevel := os.Args[3]
+		
+		
+		_, err := endpoint_utils.GetExtension(cli_filePath, cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "get_non_main_packages_json":
+		if len(os.Args) < 4 {
+			fmt.Println("Error: get_non_main_packages_json requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_inputPath := os.Args[2]
+		
+		
+		cli_logLevel := os.Args[3]
+		
+		
+		_, err := go_gen.GetNonMainPackagesJSON(cli_inputPath, cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "generate_bridge":
+		if len(os.Args) < 7 {
+			fmt.Println("Error: generate_bridge requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_inputPath := os.Args[2]
+		
+		
+		cli_outputPath := os.Args[3]
+		
+		
+		cli_excludePackages := os.Args[4]
+		
+		
+		cli_logLevelStr := os.Args[5]
+		
+		
+		cli_includeFuncParams, err_includeFuncParams := strconv.ParseBool(os.Args[6])
+		if err_includeFuncParams != nil {
+			if os.Args[6] == "1" {
+				cli_includeFuncParams = true
+			} else if os.Args[6] == "0" {
+				cli_includeFuncParams = false
+			} else {
+				fmt.Printf("Error: parameter 'includeFuncParams' must be a valid boolean evaluation: %v\n", err_includeFuncParams)
+				os.Exit(1)
+			}
+		}
+		
+		
+		_, _, err := go_gen.GenerateBridge(cli_inputPath, cli_outputPath, cli_excludePackages, cli_logLevelStr, cli_includeFuncParams)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "compile_local":
+		if len(os.Args) < 6 {
+			fmt.Println("Error: compile_local requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_targetDir := os.Args[2]
+		
+		
+		cli_absBridge := os.Args[3]
+		
+		
+		cli_binaryName := os.Args[4]
+		
+		
+		cli_logLevelStr := os.Args[5]
+		
+		
+		err := go_gen.CompileLocal(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -776,166 +829,6 @@ func main() {
 		
 		
 		logger.ParseLogLevel(cli_level)
-		
-		
-	    case "debug":
-		if len(os.Args) < 5 {
-			fmt.Println("Error: debug requires parameters")
-			os.Exit(1)
-		}
-
-		// Parse string command line metrics safely to real types
-		
-		
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
-				os.Exit(1)
-			}
-			cli_lvl_raw = parsed_lvl
-		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
-		
-		
-		
-		cli_format := os.Args[3]
-		
-		
-		cli_args := os.Args[4]
-		
-		
-		logger.Debug(cli_lvl, cli_format, cli_args)
-		
-		
-	    case "info":
-		if len(os.Args) < 5 {
-			fmt.Println("Error: info requires parameters")
-			os.Exit(1)
-		}
-
-		// Parse string command line metrics safely to real types
-		
-		
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
-				os.Exit(1)
-			}
-			cli_lvl_raw = parsed_lvl
-		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
-		
-		
-		
-		cli_format := os.Args[3]
-		
-		
-		cli_args := os.Args[4]
-		
-		
-		logger.Info(cli_lvl, cli_format, cli_args)
-		
-		
-	    case "warn":
-		if len(os.Args) < 5 {
-			fmt.Println("Error: warn requires parameters")
-			os.Exit(1)
-		}
-
-		// Parse string command line metrics safely to real types
-		
-		
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
-				os.Exit(1)
-			}
-			cli_lvl_raw = parsed_lvl
-		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
-		
-		
-		
-		cli_format := os.Args[3]
-		
-		
-		cli_args := os.Args[4]
-		
-		
-		logger.Warn(cli_lvl, cli_format, cli_args)
-		
-		
-	    case "error":
-		if len(os.Args) < 5 {
-			fmt.Println("Error: error requires parameters")
-			os.Exit(1)
-		}
-
-		// Parse string command line metrics safely to real types
-		
-		
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
-				os.Exit(1)
-			}
-			cli_lvl_raw = parsed_lvl
-		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
-		
-		
-		
-		cli_format := os.Args[3]
-		
-		
-		cli_args := os.Args[4]
-		
-		
-		logger.Error(cli_lvl, cli_format, cli_args)
-		
-		
-	    case "fatal":
-		if len(os.Args) < 5 {
-			fmt.Println("Error: fatal requires parameters")
-			os.Exit(1)
-		}
-
-		// Parse string command line metrics safely to real types
-		
-		
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
-				os.Exit(1)
-			}
-			cli_lvl_raw = parsed_lvl
-		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
-		
-		
-		
-		cli_format := os.Args[3]
-		
-		
-		cli_args := os.Args[4]
-		
-		
-		logger.Fatal(cli_lvl, cli_format, cli_args)
 		
 		
 	    case "install_local_package":
