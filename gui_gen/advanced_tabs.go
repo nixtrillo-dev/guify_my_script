@@ -346,6 +346,8 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
             shell_cmd = QString("%[3]spython3 -u -c %%1%%2").arg(quotedPyCode, FALLBACK_CMD);
         }
         `, mode, funcName, sudoPrefix))
+	} else if sourceType == "javascript" {
+		cpp.WriteString(buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, "targetScript", false))
 	} else {
 		if action.Sudo {
 			cpp.WriteString(fmt.Sprintf(`
@@ -537,13 +539,16 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
 
             if (QStringLiteral("%[3]s") == "python") {
                 args.append(formatPythonArg(rawVal, dataType));
+            } else if (QStringLiteral("%[3]s") == "javascript") {
+                args.append(formatJsonArg(rawVal, dataType));
             } else {
                 args.append(rawVal);
             }
         }
+%[4]s
         execLogic_%[1]s(args, false);
     });
-`, actIdxStr, fieldsArrName, sourceType))
+`, actIdxStr, fieldsArrName, sourceType, buildJavaScriptObjectWrapCPP(action, sourceType)))
 
 	return cpp.String()
 }

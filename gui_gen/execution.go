@@ -81,6 +81,8 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
             shell_cmd = QString("%[3]spython3 -u -c %%1%%2").arg(quotedPyCode, FALLBACK_CMD);
         }
         `, mode, funcName, sudoPrefix))
+	} else if sourceType == "javascript" {
+		cpp.WriteString(buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, "SOURCE_SCRIPT", true))
 	} else {
 		if action.Sudo {
 			cpp.WriteString(fmt.Sprintf(`
@@ -355,13 +357,92 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
 
             if (QStringLiteral("%[3]s") == "python") {
                 args.append(formatPythonArg(rawVal, dataType));
+            } else if (QStringLiteral("%[3]s") == "javascript") {
+                args.append(formatJsonArg(rawVal, dataType));
             } else {
                 args.append(rawVal);
             }
         }
+%[4]s
         execLogic_%[1]s(args, false);
     });
-        `, actIdxStr, fieldsArrName, sourceType))
+        `, actIdxStr, fieldsArrName, sourceType, buildJavaScriptObjectWrapCPP(action, sourceType)))
 
 	return cpp.String()
 }
+
+const javascriptNodeRunner = `import { pathToFileURL } from 'node:url';
+import { readFileSync } from 'node:fs';
+const script = process.argv[1];
+const funcName = process.argv[2];
+if (typeof funcName !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(funcName)) {
+  throw new Error('Invalid function name');
+}
+const callArgs = process.argv.slice(3).map((s) => JSON.parse(s));
+let fn;
+try {
+  const mod = await import(pathToFileURL(script).href);
+  fn = mod[funcName];
+} catch {
+  fn = undefined;
+}
+if (typeof fn !== 'function') {
+  const src = readFileSync(script, 'utf8');
+  const shim = src + '\nexport { ' + funcName + ' };\n';
+  const mod = await import('data:text/javascript;charset=utf-8,' + encodeURIComponent(shim));
+  fn = mod[funcName];
+}
+if (typeof fn !== 'function') {
+  throw new Error('Function is not exported and could not be loaded: ' + funcName);
+}
+const result = await fn(...callArgs);
+if (result !== undefined) {
+  if (typeof result === 'string') console.log(result);
+  else console.log(JSON.stringify(result));
+}
+`
+
+func buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, scriptExpr string, includeGuiModes bool) string {
+	cond := fmt.Sprintf("\"%s\" == \"s\" || \"%s\" == \"d\"", mode, mode)
+	if includeGuiModes {
+		cond = fmt.Sprintf("\"%s\" == \"g\" || \"%s\" == \"s\" || \"%s\" == \"d\"", mode, mode, mode)
+	}
+	return fmt.Sprintf(`
+        QString jsRunner = QString::fromUtf8("%s");
+        QString quotedJsRunner = shellQuote(jsRunner);
+        QString jsArgv = QString(" ") + shellQuote(%s) + " " + shellQuote(QStringLiteral("%s"));
+        for (const auto &a : args) {
+            jsArgv += " " + shellQuote(a);
+        }
+        QString shell_cmd;
+        if (%s) {
+            shell_cmd = QString("%snode --input-type=module -e %%1%%2").arg(quotedJsRunner, jsArgv);
+        } else {
+            shell_cmd = QString("%snode --input-type=module -e %%1%%2%%3").arg(quotedJsRunner, jsArgv, FALLBACK_CMD);
+        }
+        `, cppStringLiteral(javascriptNodeRunner), scriptExpr, cppStringLiteral(funcName), cond, sudoPrefix, sudoPrefix)
+}
+
+func buildJavaScriptObjectWrapCPP(action UIAction, sourceType string) string {
+	if sourceType != "javascript" || !action.InvokeAsObject || len(action.Fields) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("        {\n            QStringList jsParts;\n            const QStringList jsKeys = QStringList()")
+	for _, f := range action.Fields {
+		key := f.ArgName
+		if key == "" {
+			key = f.Name
+		}
+		b.WriteString(fmt.Sprintf(" << QStringLiteral(\"%s\")", cppStringLiteral(key)))
+	}
+	b.WriteString(";\n")
+	b.WriteString(`            for (int i = 0; i < args.size() && i < jsKeys.size(); ++i) {
+                jsParts.append(QString("\"%1\":%2").arg(jsKeys.at(i), args.at(i)));
+            }
+            args = QStringList() << ("{" + jsParts.join(",") + "}");
+        }
+`)
+	return b.String()
+}
+

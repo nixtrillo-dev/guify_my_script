@@ -15,7 +15,7 @@
           "script_alias": "${3:script_name}",
           "source_script_amd64": "${4:/path/to/script_amd64}",
           "source_script_arm64": "${5:/path/to/script_arm64}",
-          "source_type": "${6|go,bash,python|}",
+          "source_type": "${6|go,bash,python,javascript|}",
           "startup": "tray",
           "tray_on_minimize": true,
           "instance_mode": "replace",
@@ -93,7 +93,7 @@
             "script_alias": "${3:script_name}",
             "source_script_amd64": "${4:/path/to/script_amd64}",
             "source_script_arm64": "${5:/path/to/script_arm64}",
-            "source_type": "${6|go,bash,python|}",
+            "source_type": "${6|go,bash,python,javascript|}",
             "startup": "tray",
             "tray_on_minimize": true,
             "instance_mode": "replace",
@@ -133,7 +133,7 @@
         "source_script_arm64": { "type": "string" },
         "source_type": {
           "type": "string",
-          "enum": ["go", "bash", "python"]
+          "enum": ["go", "bash", "python", "javascript"]
         },
         "startup": { "type": "string" },
         "tray_on_minimize": { "type": "boolean" },
@@ -287,6 +287,11 @@
         "exec_label": { "type": "string" },
         "exec_in_progress_label": { "type": "string" },
         "stop_label": { "type": "string" },
+        "invoke_as_object": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, all positional arguments are combined into a single JSON object {arg_name: value} instead of separate arguments."
+        },
         "fields": {
           "type": "array",
           "items": { "$ref": "#/$defs/uiField" }
@@ -593,7 +598,8 @@
         "data_type",
         "enabled",
         "advanced_menu",
-        "json_endpoints"
+        "json_endpoints",
+        "refresh_fields_on_change"
       ],
       "allOf": [
         {
@@ -763,6 +769,10 @@
       ],
       "properties": {
         "name": { "type": "string" },
+        "arg_name": {
+          "type": "string",
+          "description": "Original parameter/argument name from the source script (e.g. JavaScript identifier used in object destructuring calls)."
+        },
         "type": {
           "type": "string",
           "enum": [

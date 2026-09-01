@@ -27,7 +27,7 @@ func contains(slice []string, item string) bool {
 }
 
 // writeProductionPackageFiles generates the necessary staging files for Arch, Debian, and Fedora.
-func writeProductionPackageFiles(stageDir, packageName, title, iconName string, deploy DeployConfig, targetArch string, requiresPython bool) error {
+func writeProductionPackageFiles(stageDir, packageName, title, iconName string, deploy DeployConfig, targetArch string, requiresPython bool, requiresJavascript bool) error {
 	debDir := filepath.Join(stageDir, "debian")
 	fedDir := filepath.Join(stageDir, "fedora")
 	archDir := filepath.Join(stageDir, "arch")
@@ -92,6 +92,12 @@ func writeProductionPackageFiles(stageDir, packageName, title, iconName string, 
 		depsArchList = append(depsArchList, "python")
 		depsDebianList = append(depsDebianList, "python3")
 		depsFedoraList = append(depsFedoraList, "python3")
+	}
+	if requiresJavascript {
+		// JavaScript modules are executed by the generated launcher at runtime via Node.js.
+		depsArchList = append(depsArchList, "nodejs")
+		depsDebianList = append(depsDebianList, "nodejs")
+		depsFedoraList = append(depsFedoraList, "nodejs")
 	}
 
 	// --- MERGE CUSTOM DEPENDENCIES FROM JSON CONFIG ---

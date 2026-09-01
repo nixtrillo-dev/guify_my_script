@@ -55,6 +55,7 @@ type UIField struct {
 	Name                  string           `json:"name"`
 	Type                  string           `json:"type"`
 	DataType              string           `json:"data_type"`
+	ArgName               string           `json:"arg_name,omitempty"`
 	Options               []interface{}    `json:"options,omitempty"`
 	Default               any              `json:"default"`
 	Minimum               *json.RawMessage `json:"minimum,omitempty"`
@@ -82,6 +83,7 @@ type UIAction struct {
 	ExecLabel                 string           `json:"exec_label"`
 	ExecInProgressLabel       string           `json:"exec_in_progress_label"`
 	StopLabel                 string           `json:"stop_label"`
+	InvokeAsObject            bool             `json:"invoke_as_object,omitempty"`
 	Fields                    []UIField        `json:"fields"`
 }
 
@@ -251,6 +253,15 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		sourceType = "python"
 		// Python modules are source files, even when binaryName customises the
 		// generated application's name.
+		scriptAlias = filepath.Base(absInput)
+		sourceScriptAMD64 = absInput
+		sourceScriptARM64 = absInput
+	} else if ext == ".js" || ext == ".mjs" {
+		actions, err = parseJavaScriptFile(absInput)
+		if err != nil {
+			return fmt.Errorf("failed to parse JavaScript module %q: %w", absInput, err)
+		}
+		sourceType = "javascript"
 		scriptAlias = filepath.Base(absInput)
 		sourceScriptAMD64 = absInput
 		sourceScriptARM64 = absInput

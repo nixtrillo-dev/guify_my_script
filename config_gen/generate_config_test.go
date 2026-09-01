@@ -279,13 +279,32 @@ func TestSchemaContainsRequiredProperties(t *testing.T) {
 		t.Fatalf("Missing enum in source_type property")
 	}
 	hasPython := false
+	hasJavascript := false
 	for _, e := range enums {
 		if e == "python" {
 			hasPython = true
 		}
+		if e == "javascript" {
+			hasJavascript = true
+		}
 	}
 	if !hasPython {
 		t.Errorf("source_type enum does not include 'python'")
+	}
+	if !hasJavascript {
+		t.Errorf("source_type enum does not include 'javascript'")
+	}
+
+	uiAction, ok := defs["uiAction"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Missing uiAction in $defs")
+	}
+	actionProps, ok := uiAction["properties"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("Missing properties in uiAction")
+	}
+	if _, exists := actionProps["invoke_as_object"]; !exists {
+		t.Errorf("Field 'invoke_as_object' is missing from uiAction properties (required for JavaScript object destructuring)")
 	}
 
 	uiField, ok := defs["uiField"].(map[string]interface{})
@@ -305,7 +324,7 @@ func TestSchemaContainsRequiredProperties(t *testing.T) {
 		}
 	}
 
-	for _, field := range []string{"name", "type", "data_type", "enabled", "advanced_menu", "json_endpoints"} {
+	for _, field := range []string{"name", "type", "data_type", "enabled", "advanced_menu", "json_endpoints", "refresh_fields_on_change"} {
 		if !reqMap[field] {
 			t.Errorf("Field %q is missing from uiField required list", field)
 		}
@@ -318,5 +337,8 @@ func TestSchemaContainsRequiredProperties(t *testing.T) {
 
 	if _, exists := props["data_type"]; !exists {
 		t.Errorf("Field 'data_type' is missing from uiField properties")
+	}
+	if _, exists := props["arg_name"]; !exists {
+		t.Errorf("Field 'arg_name' is missing from uiField properties (required for JavaScript/parameter naming)")
 	}
 }

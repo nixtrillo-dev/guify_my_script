@@ -187,3 +187,63 @@ static QString formatPythonArg(const QString& rawVal, const QString& dataType) {
     }
     return escapePythonString(rawVal);
 }
+
+static QString jsonEscapeString(const QString& str) {
+    QString escaped;
+    escaped.reserve(str.size() + 2);
+    for (int i = 0; i < str.size(); ++i) {
+        QChar c = str.at(i);
+        switch (c.unicode()) {
+            case '"':  escaped += "\\\""; break;
+            case '\\': escaped += "\\\\"; break;
+            case '\b': escaped += "\\b";  break;
+            case '\f': escaped += "\\f";  break;
+            case '\n': escaped += "\\n";  break;
+            case '\r': escaped += "\\r";  break;
+            case '\t': escaped += "\\t";  break;
+            default:
+                if (c.unicode() < 0x20) {
+                    escaped += QString("\\u%1").arg(c.unicode(), 4, 16, QChar('0'));
+                } else {
+                    escaped += c;
+                }
+        }
+    }
+    return "\"" + escaped + "\"";
+}
+
+static QString formatJsonArg(const QString& rawVal, const QString& dataType) {
+    QString dt = dataType.toLower().trimmed();
+    if (dt == "int" || dt == "integer") {
+        QString trimmed = rawVal.trimmed();
+        if (trimmed.isEmpty()) return "0";
+        bool ok = false;
+        long long v = trimmed.toLongLong(&ok);
+        return ok ? QString::number(v) : "0";
+    } else if (dt == "float" || dt == "double" || dt == "number") {
+        QString trimmed = rawVal.trimmed();
+        if (trimmed.isEmpty()) return "0.0";
+        bool ok = false;
+        double v = trimmed.toDouble(&ok);
+        return ok ? QString::number(v, 'g', 15) : "0.0";
+    } else if (dt == "bool" || dt == "boolean") {
+        QString lower = rawVal.trimmed().toLower();
+        if (lower == "1" || lower == "true" || lower == "yes") return "true";
+        return "false";
+    } else if (dt == "list" || dt == "array") {
+        if (rawVal.trimmed().startsWith("[") && rawVal.trimmed().endsWith("]")) {
+            return rawVal.trimmed();
+        }
+        QStringList parts = rawVal.split(",", Qt::SkipEmptyParts);
+        QStringList formatted;
+        for (const QString& p : parts) {
+            formatted.append(jsonEscapeString(p.trimmed()));
+        }
+        return "[" + formatted.join(",") + "]";
+    } else if (dt == "dict" || dt == "object") {
+        QString trimmed = rawVal.trimmed();
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) return trimmed;
+        return "{}";
+    }
+    return jsonEscapeString(rawVal);
+}

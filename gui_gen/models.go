@@ -13,6 +13,7 @@ type UIField struct {
 	Name                  string        `json:"name"`
 	Type                  string        `json:"type"`
 	DataType              string        `json:"data_type"`
+	ArgName               string        `json:"arg_name,omitempty"`
 	Options               []interface{} `json:"options,omitempty"`
 	Default               interface{}   `json:"default"`
 	Minimum               string        `json:"minimum,omitempty"`
@@ -47,6 +48,7 @@ type UIAction struct {
 	StopLabel                 string    `json:"stop_label,omitempty"`
 	RefreshFieldsOnTabOpen    []string  `json:"refresh_fields_on_tab_open,omitempty"`
 	RefreshFieldsOnCompletion []string  `json:"refresh_fields_on_completion,omitempty"`
+	InvokeAsObject            bool      `json:"invoke_as_object,omitempty"`
 	Fields                    []UIField `json:"fields"`
 }
 
