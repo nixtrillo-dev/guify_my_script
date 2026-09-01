@@ -70,7 +70,9 @@
                     "enabled": true,
                     "file_types": [
                         "sh",
-                        "py"
+                        "py",
+                        "js",
+                        "mjs"
                     ],
                     "json_endpoints": {
                         "get_defaults_endpoint": [],
@@ -113,9 +115,7 @@
                     },
                     "name": "Script Type",
                     "options": [
-                        "GO",
-                        "SH",
-                        "PY"
+                        "GO"
                     ],
                     "refresh_fields_on_change": [],
                     "type": "CB"
