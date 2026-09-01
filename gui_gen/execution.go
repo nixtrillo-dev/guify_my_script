@@ -67,6 +67,20 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
             shell_cmd = QString("%[3]s\"%%1\" %[2]s%%2%%3").arg(SOURCE_SCRIPT, escaped_args, FALLBACK_CMD);
         }
         `, mode, funcName, sudoPrefix))
+	} else if sourceType == "python" {
+		cpp.WriteString(fmt.Sprintf(`
+        QString py_args = args.join(", ");
+        QString modName = QFileInfo(SOURCE_SCRIPT).completeBaseName();
+        QString pyCode = QString("import sys, os; sys.path.insert(0, os.path.dirname(%%1)); import %%2; %%2.%[2]s(%%3)").arg(escapePythonString(SOURCE_SCRIPT), modName, py_args);
+        QString quotedPyCode = shellQuote(pyCode);
+
+        QString shell_cmd;
+        if ("%[1]s" == "g" || "%[1]s" == "s" || "%[1]s" == "d") {
+            shell_cmd = QString("%[3]spython3 -u -c %%1").arg(quotedPyCode);
+        } else {
+            shell_cmd = QString("%[3]spython3 -u -c %%1%%2").arg(quotedPyCode, FALLBACK_CMD);
+        }
+        `, mode, funcName, sudoPrefix))
 	} else {
 		if action.Sudo {
 			cpp.WriteString(fmt.Sprintf(`
@@ -280,14 +294,18 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
     connect(execBtn_%[1]s, &QPushButton::clicked, [%[2]s, execLogic_%[1]s, this]() {
         QStringList args;
         for (const auto &p : %[2]s) {
-            if (!p.first->isEnabled()) {
-                if (p.second == "CK") {
-                    args.append("0");
+            QWidget* widget = std::get<0>(p);
+            QString fieldType = std::get<1>(p);
+            QString dataType = std::get<2>(p);
+            QString rawVal;
+            if (!widget->isEnabled()) {
+                if (fieldType == "CK") {
+                    rawVal = "0";
                 } else {
-                    args.append("");
+                    rawVal = "";
                 }
-            } else if (p.second == "MCB") {
-                CheckableListWidget* mcb = static_cast<CheckableListWidget*>(p.first);
+            } else if (fieldType == "MCB") {
+                CheckableListWidget* mcb = static_cast<CheckableListWidget*>(widget);
                 if (!mcb->isValid()) {
                     QString fName = mcb->property("fieldName").toString();
                     QString maxStr = mcb->maxChecked > 0 ? QString::number(mcb->maxChecked) : "unlimited";
@@ -299,7 +317,7 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
 
                 if (mcb->maxChecked == 1) {
                     QStringList checked = mcb->checkedItems();
-                    args.append(checked.isEmpty() ? "" : checked.first());
+                    rawVal = checked.isEmpty() ? "" : checked.first();
                 } else {
                     QStringList escaped;
                     for (const QString& item : mcb->checkedItems()) {
@@ -307,37 +325,43 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
                         esc.replace("\"", "\"\"");
                         escaped.append("\"" + esc + "\"");
                     }
-                    args.append(escaped.join(","));
+                    rawVal = escaped.join(",");
                 }
-            } else if (p.second == "CB") {
-                QComboBox* cb = static_cast<QComboBox*>(p.first);
+            } else if (fieldType == "CB") {
+                QComboBox* cb = static_cast<QComboBox*>(widget);
                 QVariant data = cb->currentData();
                 if (data.isValid() && !data.toString().isEmpty()) {
-                    args.append(data.toString());
+                    rawVal = data.toString();
                 } else {
-                    args.append(cb->currentText());
+                    rawVal = cb->currentText();
                 }
-           } else if (p.second == "CK") {
-                args.append(static_cast<QCheckBox*>(p.first)->isChecked() ? "1" : "0");
-            } else if (p.second == "NUM") {
-                if (QDoubleSpinBox *dsb = qobject_cast<QDoubleSpinBox*>(p.first)) {
-                    args.append(QString::number(dsb->value()));
-                } else if (QSpinBox *sb = qobject_cast<QSpinBox*>(p.first)) {
-                    args.append(QString::number(sb->value()));
+            } else if (fieldType == "CK") {
+                rawVal = static_cast<QCheckBox*>(widget)->isChecked() ? "1" : "0";
+            } else if (fieldType == "NUM") {
+                if (QDoubleSpinBox *dsb = qobject_cast<QDoubleSpinBox*>(widget)) {
+                    rawVal = QString::number(dsb->value());
+                } else if (QSpinBox *sb = qobject_cast<QSpinBox*>(widget)) {
+                    rawVal = QString::number(sb->value());
                 }
-            } else if (p.second == "DATE") {
-                args.append(static_cast<QDateEdit*>(p.first)->date().toString("yyyy-MM-dd"));
-            } else if (p.second == "TIME") {
-                args.append(static_cast<QTimeEdit*>(p.first)->time().toString("HH:mm:ss"));
-            } else if (p.second == "LTXT") {
-                args.append(static_cast<QTextEdit*>(p.first)->toPlainText());
+            } else if (fieldType == "DATE") {
+                rawVal = static_cast<QDateEdit*>(widget)->date().toString("yyyy-MM-dd");
+            } else if (fieldType == "TIME") {
+                rawVal = static_cast<QTimeEdit*>(widget)->time().toString("HH:mm:ss");
+            } else if (fieldType == "LTXT") {
+                rawVal = static_cast<QTextEdit*>(widget)->toPlainText();
             } else {
-                args.append(static_cast<QLineEdit*>(p.first)->text());
+                rawVal = static_cast<QLineEdit*>(widget)->text();
+            }
+
+            if (QStringLiteral("%[3]s") == "python") {
+                args.append(formatPythonArg(rawVal, dataType));
+            } else {
+                args.append(rawVal);
             }
         }
         execLogic_%[1]s(args, false);
     });
-        `, actIdxStr, fieldsArrName))
+        `, actIdxStr, fieldsArrName, sourceType))
 
 	return cpp.String()
 }

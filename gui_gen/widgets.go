@@ -61,6 +61,11 @@ func buildEndpointItemsCPP(endpoints JsonEndpoints, label string) string {
 func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fieldsArrName string) string {
 	var cpp strings.Builder
 
+	dataType := field.DataType
+	if dataType == "" {
+		dataType = "string"
+	}
+
 	isDouble := false
 
 	cpp.WriteString(fmt.Sprintf("\n    %s->addWidget(new QLabel(\"%s:\"));\n", targetLayout, field.Name))
@@ -86,7 +91,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 	case "TXT":
 		cpp.WriteString(fmt.Sprintf("    QLineEdit *txt_%s = new QLineEdit(def_%s);\n", varSuffix, varSuffix))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(txt_%s);\n", targetLayout, varSuffix))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({txt_%s, \"TXT\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({txt_%s, \"TXT\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = txt_%[3]s;\n", label, field.Name, varSuffix))
 
 	case "CB":
@@ -143,7 +148,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("        else cb_%[1]s->setCurrentText(def_%[1]s);\n", varSuffix))
 		cpp.WriteString("    }\n")
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(cb_%s);\n", targetLayout, varSuffix))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({cb_%s, \"CB\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({cb_%s, \"CB\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = cb_%[3]s;\n", label, field.Name, varSuffix))
 
 	case "MCB":
@@ -190,7 +195,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		}
 
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(mcb_%s);\n", targetLayout, varSuffix))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({mcb_%s, \"MCB\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({mcb_%s, \"MCB\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = mcb_%[3]s;\n", label, field.Name, varSuffix))
 
 	case "CK":
@@ -198,7 +203,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    ck_%s->setFocusPolicy(Qt::StrongFocus);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    ck_%s->setChecked(def_%s == \"1\");\n", varSuffix, varSuffix))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(ck_%s);\n", targetLayout, varSuffix))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({ck_%s, \"CK\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({ck_%s, \"CK\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = ck_%[3]s;\n", label, field.Name, varSuffix))
 
 	case "FD":
@@ -218,7 +223,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(%s);\n", cppFileBtn))
 		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(%s);\n", cppDirBtn))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(fieldFrame);\n", targetLayout))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({fd_%s, \"FD\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({fd_%s, \"FD\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = fd_%[3]s;\n", label, field.Name, varSuffix))
 
 		// Connect File Button
@@ -253,7 +258,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(dir_%s);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(%s);\n", cppDirBtn))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(fieldFrame);\n", targetLayout))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({dir_%s, \"DIR\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({dir_%s, \"DIR\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = dir_%[3]s;\n", label, field.Name, varSuffix))
 		cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, dir_%s]() {\n", cppDirBtn, varSuffix))
 		cpp.WriteString(fmt.Sprintf("        QString d = QFileDialog::getExistingDirectory(this, \"Select Folder\", dir_%s->text());\n", varSuffix))
@@ -276,7 +281,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(fl_%s);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(%s);\n", cppFlBtn))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(fieldFrame);\n", targetLayout))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({fl_%s, \"FL\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({fl_%s, \"FL\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = fl_%[3]s;\n", label, field.Name, varSuffix))
 		if field.Type == "FL" {
 			cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, fl_%s]() {\n", cppFlBtn, varSuffix))
@@ -315,7 +320,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(fs_%s);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(%s);\n", cppFsBtn))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(fieldFrame);\n", targetLayout))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({fs_%s, \"FS\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({fs_%s, \"FS\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = fs_%[3]s;\n", label, field.Name, varSuffix))
 
 		// Connect the Save File Button
@@ -379,7 +384,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 
 		cpp.WriteString(fmt.Sprintf("    ltxt_%s->setFocusPolicy(Qt::StrongFocus);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(ltxt_%s);\n", targetLayout, varSuffix))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({ltxt_%s, \"LTXT\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({ltxt_%s, \"LTXT\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = ltxt_%[3]s;\n", label, field.Name, varSuffix))
 
 	case "NUM":
@@ -424,7 +429,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 
 		cpp.WriteString(fmt.Sprintf("    num_%s->setFocusPolicy(Qt::StrongFocus);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(num_%s);\n", targetLayout, varSuffix))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({num_%s, \"NUM\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({num_%s, \"NUM\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = num_%[3]s;\n", label, field.Name, varSuffix))
 
 	case "DATE":
@@ -440,7 +445,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    date_%s->setDate(QDate::fromString(def_%s, \"yyyy-MM-dd\"));\n", varSuffix, varSuffix))
 		cpp.WriteString(fmt.Sprintf("    date_%s->setFocusPolicy(Qt::StrongFocus);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(date_%s);\n", targetLayout, varSuffix))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({date_%s, \"DATE\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({date_%s, \"DATE\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = date_%[3]s;\n", label, field.Name, varSuffix))
 
 	case "TIME":
@@ -455,7 +460,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    time_%s->setTime(QTime::fromString(def_%s, \"HH:mm:ss\"));\n", varSuffix, varSuffix))
 		cpp.WriteString(fmt.Sprintf("    time_%s->setFocusPolicy(Qt::StrongFocus);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(time_%s);\n", targetLayout, varSuffix))
-		cpp.WriteString(fmt.Sprintf("    %s.push_back({time_%s, \"TIME\"});\n", fieldsArrName, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({time_%s, \"TIME\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = time_%[3]s;\n", label, field.Name, varSuffix))
 	}
 

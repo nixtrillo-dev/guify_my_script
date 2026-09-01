@@ -15,7 +15,7 @@
           "script_alias": "${3:script_name}",
           "source_script_amd64": "${4:/path/to/script_amd64}",
           "source_script_arm64": "${5:/path/to/script_arm64}",
-          "source_type": "${6|go,bash|}",
+          "source_type": "${6|go,bash,python|}",
           "startup": "tray",
           "tray_on_minimize": true,
           "instance_mode": "replace",
@@ -93,7 +93,7 @@
             "script_alias": "${3:script_name}",
             "source_script_amd64": "${4:/path/to/script_amd64}",
             "source_script_arm64": "${5:/path/to/script_arm64}",
-            "source_type": "${6|go,bash|}",
+            "source_type": "${6|go,bash,python|}",
             "startup": "tray",
             "tray_on_minimize": true,
             "instance_mode": "replace",
@@ -133,7 +133,7 @@
         "source_script_arm64": { "type": "string" },
         "source_type": {
           "type": "string",
-          "enum": ["go", "bash"]
+          "enum": ["go", "bash", "python"]
         },
         "startup": { "type": "string" },
         "tray_on_minimize": { "type": "boolean" },
@@ -302,6 +302,7 @@
           "body": {
             "name": "${1:Text Input}",
             "type": "TXT",
+            "data_type": "string",
             "default": "Initial Value",
             "enabled": true,
             "advanced_menu": false,
@@ -322,6 +323,7 @@
           "body": {
             "name": "${1:Directory Picker}",
             "type": "DIR",
+            "data_type": "string",
             "default": "/home",
             "enabled": true,
             "advanced_menu": false,
@@ -342,6 +344,7 @@
           "body": {
             "name": "${1:File Picker}",
             "type": "FL",
+            "data_type": "string",
             "default": "",
             "file_types": ["txt"],
             "enabled": true,
@@ -363,6 +366,7 @@
           "body": {
             "name": "${1:Multi-File Picker}",
             "type": "MFL",
+            "data_type": "string",
             "default": "",
             "file_types": ["txt"],
             "enabled": true,
@@ -384,6 +388,7 @@
           "body": {
             "name": "${1:Save File Picker}",
             "type": "FS",
+            "data_type": "string",
             "default": "",
             "file_types": ["txt"],
             "enabled": true,
@@ -405,6 +410,7 @@
           "body": {
             "name": "${1:Combo Box}",
             "type": "CB",
+            "data_type": "string",
             "options": ["Option1", "Option2", "Option3"],
             "default": "Option1",
             "enabled": true,
@@ -426,6 +432,7 @@
           "body": {
             "name": "${1:Checkbox}",
             "type": "CK",
+            "data_type": "bool",
             "default": "0",
             "enabled": true,
             "advanced_menu": false,
@@ -446,6 +453,7 @@
           "body": {
             "name": "${1:File or Directory Picker}",
             "type": "FD",
+            "data_type": "string",
             "default": "",
             "file_types": ["txt"],
             "enabled": true,
@@ -467,6 +475,7 @@
           "body": {
             "name": "${1:Multi-Combo Box}",
             "type": "MCB",
+            "data_type": "list",
             "options": ["Option1", "Option2", "Option3"],
             "default": ["Option2", "Option3"],
             "minimum": "0",
@@ -490,6 +499,7 @@
           "body": {
             "name": "${1:Long Text}",
             "type": "LTXT",
+            "data_type": "string",
             "default": "Initial Long Text Value",
             "auto_height": true,
             "min_height": 240,
@@ -512,6 +522,7 @@
           "body": {
             "name": "${1:Time Picker}",
             "type": "TIME",
+            "data_type": "string",
             "default": "12:00:00",
             "minimum": null,
             "maximum": null,
@@ -534,6 +545,7 @@
           "body": {
             "name": "${1:Date Picker}",
             "type": "DATE",
+            "data_type": "string",
             "default": "2026-01-01",
             "minimum": null,
             "maximum": null,
@@ -556,6 +568,7 @@
           "body": {
             "name": "${1:Number Input}",
             "type": "NUM",
+            "data_type": "int",
             "default": "0",
             "minimum": null,
             "maximum": null,
@@ -577,6 +590,7 @@
       "required": [
         "name",
         "type",
+        "data_type",
         "enabled",
         "advanced_menu",
         "json_endpoints"
@@ -754,6 +768,10 @@
           "enum": [
             "TXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"
           ]
+        },
+        "data_type": {
+          "type": "string",
+          "default": "string"
         },
         "options": {
           "type": "array"

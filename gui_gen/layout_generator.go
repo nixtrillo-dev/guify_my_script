@@ -114,7 +114,7 @@ func buildActionTabs(actions []UIAction, sourceType string, actionOnStartup stri
 		cpp.WriteString(fmt.Sprintf("    tabOuterLayout_%s->addWidget(fieldsScroll_%s, 1);\n", actIdxStr, actIdxStr))
 
 		fieldsArrName := fmt.Sprintf("fields_%s_%s", sanitizedLabel, actIdxStr)
-		cpp.WriteString(fmt.Sprintf("        \n    std::vector<std::pair<QWidget*, QString>> %s;\n", fieldsArrName))
+		cpp.WriteString(fmt.Sprintf("        \n    std::vector<std::tuple<QWidget*, QString, QString>> %s;\n", fieldsArrName))
 
 		hasAdvanced := false
 		for _, field := range action.Fields {

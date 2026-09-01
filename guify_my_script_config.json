@@ -1,45 +1,33 @@
 {
     "$schema": "guify_my_script_config_schema.json",
     "config": {
-        "title": "Guify My Script",
+        "action_on_startup": null,
+        "close_after_startup_action": false,
+        "default_tab_on_startup": "Compile My Script",
         "icon": "/home/nixtrillo/Pictures/Icons/gms/com.nixtrillo.gms.png",
-        "uuid": "com.nixtrillo.guifymyscript",
+        "instance_mode": "replace",
         "script_alias": "guify_my_script",
         "source_script_amd64": "/home/nixtrillo/Documents/Script Lab/System Tray Application/cpp attempt 2/Go/guify_my_script/guify_my_script_amd64",
         "source_script_arm64": "/home/nixtrillo/Documents/Script Lab/System Tray Application/cpp attempt 2/Go/guify_my_script/guify_my_script_arm64",
         "source_type": "go",
         "startup": "normal",
-        "tray_on_minimize": false,
-        "instance_mode": "replace",
-        "action_on_startup": null,
-        "default_tab_on_startup": "Compile My Script",
-        "close_after_startup_action": false,
         "sudo": false,
         "theme": {
             "color": "auto",
-            "width": 600,
-            "height": 400
-        }
-    },
-    "main_menu": {
-        "tab_label": "Main Menu",
-        "welcome_heading_label": null,
-        "info_label": null
+            "height": 400,
+            "width": 600
+        },
+        "title": "Guify My Script",
+        "tray_on_minimize": false,
+        "uuid": "com.nixtrillo.guifymyscript"
     },
     "deploy": {
-        "description": "Generated Qt GUI package staged by guify_my_script.",
-        "version": "0.0.1",
-        "release_number": "1",
-        "summary": "A GUI frontend for executing commands for guify_my_script",
-        "license": "MIT",
-        "maintainer": "gms",
-        "support_email": "maintainer@example.invalid",
         "dependencies": [
             {
-                "pacman": [
-                    "go",
-                    "aarch64-linux-gnu-gcc",
-                    "base-devel",
+                "apt": [
+                    "golang-go",
+                    "gcc-aarch64-linux-gnu",
+                    "build-essential",
                     "podman"
                 ],
                 "dnf": [
@@ -49,42 +37,48 @@
                     "make",
                     "podman"
                 ],
-                "apt": [
-                    "golang-go",
-                    "gcc-aarch64-linux-gnu",
-                    "build-essential",
+                "pacman": [
+                    "go",
+                    "aarch64-linux-gnu-gcc",
+                    "base-devel",
                     "podman"
                 ]
             }
-        ]
+        ],
+        "description": "Generated Qt GUI package staged by guify_my_script.",
+        "license": "MIT",
+        "maintainer": "gms",
+        "release_number": "1",
+        "summary": "A GUI frontend for executing commands for guify_my_script",
+        "support_email": "maintainer@example.invalid",
+        "version": "0.0.1"
+    },
+    "main_menu": {
+        "info_label": null,
+        "tab_label": "Main Menu",
+        "welcome_heading_label": null
     },
     "actions": [
         {
-            "label": "Compile My Script",
-            "func": "compile_script_with_gui_config",
-            "mode": "g",
-            "quick_launch": false,
-            "width": 600,
-            "sudo": false,
-            "exec_label": "Compile My Script",
             "exec_in_progress_label": "Compiling My Script...",
-            "stop_label": "Stop",
+            "exec_label": "Compile My Script",
             "fields": [
                 {
-                    "name": "Input File (Bash) or Directory (GO)",
-                    "type": "FD",
-                    "default": "",
-                    "file_types": [
-                        "sh"
-                    ],
-                    "enabled": true,
                     "advanced_menu": false,
+                    "data_type": "string",
+                    "default": "",
+                    "enabled": true,
+                    "file_types": [
+                        "sh",
+                        "py"
+                    ],
                     "json_endpoints": {
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
                         "get_defaults_endpoint": [],
-                        "path_to_default": null
+                        "get_enabled_endpoint": [],
+                        "path_to_default": null,
+                        "path_to_enabled": null
                     },
+                    "name": "Input File (Bash) or Directory (GO)",
                     "refresh_fields_on_change": [
                         "Script Type",
                         "Output JSON Path",
@@ -93,47 +87,48 @@
                         "Exclude Packages",
                         "Include Func Params",
                         "Compile?"
-                    ]
+                    ],
+                    "type": "FD"
                 },
                 {
-                    "name": "Script Type",
-                    "type": "CB",
-                    "options": [
-                        "GO"
-                    ],
+                    "advanced_menu": false,
+                    "data_type": "string",
                     "default": "GO",
                     "enabled": true,
-                    "advanced_menu": false,
                     "json_endpoints": {
                         "array_endpoint": [],
-                        "path_to_array": null,
                         "get_defaults_endpoint": [
                             "get_extension",
                             ".GO",
                             "INFO"
                         ],
-                        "path_to_default": "extension",
                         "get_enabled_endpoint": [
                             "is_valid_directory",
                             "{Input File (Bash) or Directory (GO)}",
                             "4"
                         ],
+                        "path_to_array": null,
+                        "path_to_default": "extension",
                         "path_to_enabled": "is_valid"
                     },
-                    "refresh_fields_on_change": []
+                    "name": "Script Type",
+                    "options": [
+                        "GO",
+                        "SH",
+                        "PY"
+                    ],
+                    "refresh_fields_on_change": [],
+                    "type": "CB"
                 },
                 {
-                    "name": "Output JSON Path",
-                    "type": "FS",
+                    "advanced_menu": false,
+                    "data_type": "string",
                     "default": "",
                     "enabled": true,
-                    "advanced_menu": false,
                     "file_types": [
                         "json"
                     ],
                     "json_endpoints": {
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
                         "get_defaults_endpoint": [
                             "generate_path_from_dir",
                             "{Input File (Bash) or Directory (GO)}",
@@ -141,53 +136,51 @@
                             "json",
                             "INFO"
                         ],
-                        "path_to_default": "modified_path"
+                        "get_enabled_endpoint": [],
+                        "path_to_default": "modified_path",
+                        "path_to_enabled": null
                     },
-                    "refresh_fields_on_change": []
+                    "name": "Output JSON Path",
+                    "refresh_fields_on_change": [],
+                    "type": "FS"
                 },
                 {
-                    "name": "Exclude Packages",
-                    "type": "MCB",
-                    "options": [],
-                    "default": [],
-                    "minimum": "0",
-                    "maximum": "0",
-                    "enabled": true,
                     "advanced_menu": true,
+                    "data_type": "string",
+                    "default": [],
+                    "enabled": true,
                     "json_endpoints": {
                         "array_endpoint": [
                             "get_non_main_packages_json",
                             "{Input File (Bash) or Directory (GO)}",
                             "INFO"
                         ],
-                        "path_to_array": null,
+                        "get_defaults_endpoint": [],
                         "get_enabled_endpoint": [
                             "is_valid_directory",
                             "{Input File (Bash) or Directory (GO)}",
                             "4"
                         ],
-                        "path_to_enabled": "is_valid",
-                        "get_defaults_endpoint": [],
-                        "path_to_default": null
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": "is_valid"
                     },
-                    "refresh_fields_on_change": []
+                    "maximum": "0",
+                    "minimum": "0",
+                    "name": "Exclude Packages",
+                    "options": [],
+                    "refresh_fields_on_change": [],
+                    "type": "MCB"
                 },
                 {
-                    "name": "Output Bridge Path",
-                    "type": "FS",
+                    "advanced_menu": false,
+                    "data_type": "string",
                     "default": "",
+                    "enabled": true,
                     "file_types": [
                         "txt"
                     ],
-                    "enabled": true,
-                    "advanced_menu": false,
                     "json_endpoints": {
-                        "get_enabled_endpoint": [
-                            "is_valid_directory",
-                            "{Input File (Bash) or Directory (GO)}",
-                            "4"
-                        ],
-                        "path_to_enabled": "is_valid",
                         "get_defaults_endpoint": [
                             "generate_path_from_dir",
                             "{Input File (Bash) or Directory (GO)}",
@@ -195,26 +188,27 @@
                             "go",
                             "INFO"
                         ],
-                        "path_to_default": "modified_path"
-                    },
-                    "refresh_fields_on_change": null
-                },
-                {
-                    "name": "Binary Output",
-                    "type": "FS",
-                    "default": "",
-                    "file_types": [
-                        "txt"
-                    ],
-                    "enabled": true,
-                    "advanced_menu": false,
-                    "json_endpoints": {
                         "get_enabled_endpoint": [
                             "is_valid_directory",
                             "{Input File (Bash) or Directory (GO)}",
                             "4"
                         ],
-                        "path_to_enabled": "is_valid",
+                        "path_to_default": "modified_path",
+                        "path_to_enabled": "is_valid"
+                    },
+                    "name": "Output Bridge Path",
+                    "refresh_fields_on_change": null,
+                    "type": "FS"
+                },
+                {
+                    "advanced_menu": false,
+                    "data_type": "string",
+                    "default": "",
+                    "enabled": true,
+                    "file_types": [
+                        "txt"
+                    ],
+                    "json_endpoints": {
                         "get_defaults_endpoint": [
                             "generate_path_from_dir",
                             "{Input File (Bash) or Directory (GO)}",
@@ -222,45 +216,66 @@
                             "",
                             "INFO"
                         ],
-                        "path_to_default": "modified_path"
-                    },
-                    "refresh_fields_on_change": []
-                },
-                {
-                    "name": "Compile?",
-                    "type": "CK",
-                    "default": "1",
-                    "enabled": true,
-                    "advanced_menu": true,
-                    "json_endpoints": {
                         "get_enabled_endpoint": [
                             "is_valid_directory",
                             "{Input File (Bash) or Directory (GO)}",
                             "4"
                         ],
-                        "path_to_enabled": "is_valid",
-                        "get_defaults_endpoint": null,
-                        "path_to_default": null
+                        "path_to_default": "modified_path",
+                        "path_to_enabled": "is_valid"
                     },
-                    "refresh_fields_on_change": []
+                    "name": "Binary Output",
+                    "refresh_fields_on_change": [],
+                    "type": "FS"
                 },
                 {
-                    "name": "Overwrite JSON? (if exists)",
-                    "type": "CK",
+                    "advanced_menu": true,
+                    "data_type": "string",
                     "default": "1",
                     "enabled": true,
-                    "advanced_menu": false,
                     "json_endpoints": {
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
-                        "get_defaults_endpoint": [],
-                        "path_to_default": null
+                        "get_defaults_endpoint": null,
+                        "get_enabled_endpoint": [
+                            "is_valid_directory",
+                            "{Input File (Bash) or Directory (GO)}",
+                            "4"
+                        ],
+                        "path_to_default": null,
+                        "path_to_enabled": "is_valid"
                     },
-                    "refresh_fields_on_change": []
+                    "name": "Compile?",
+                    "refresh_fields_on_change": [],
+                    "type": "CK"
                 },
                 {
+                    "advanced_menu": false,
+                    "data_type": "string",
+                    "default": "1",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    },
+                    "name": "Overwrite JSON? (if exists)",
+                    "refresh_fields_on_change": [],
+                    "type": "CK"
+                },
+                {
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": "INFO",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    },
                     "name": "Log Level",
-                    "type": "CB",
                     "options": [
                         "TRACE",
                         "INFO",
@@ -269,106 +284,111 @@
                         "FATAL",
                         "SILENT"
                     ],
-                    "default": "INFO",
-                    "enabled": true,
-                    "advanced_menu": true,
-                    "json_endpoints": {
-                        "array_endpoint": [],
-                        "path_to_array": null,
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
-                        "get_defaults_endpoint": [],
-                        "path_to_default": null
-                    },
-                    "refresh_fields_on_change": []
+                    "refresh_fields_on_change": [],
+                    "type": "CB"
                 },
                 {
-                    "name": "Include Func Params",
-                    "type": "CK",
+                    "advanced_menu": true,
+                    "data_type": "string",
                     "default": "0",
                     "enabled": true,
-                    "advanced_menu": true,
                     "json_endpoints": {
+                        "get_defaults_endpoint": [],
                         "get_enabled_endpoint": [
                             "is_valid_directory",
                             "{Input File (Bash) or Directory (GO)}",
                             "4"
                         ],
-                        "path_to_enabled": "is_valid",
-                        "get_defaults_endpoint": [],
-                        "path_to_default": null
+                        "path_to_default": null,
+                        "path_to_enabled": "is_valid"
                     },
-                    "refresh_fields_on_change": []
+                    "name": "Include Func Params",
+                    "refresh_fields_on_change": [],
+                    "type": "CK"
                 },
                 {
-                    "name": "Auto Open Ouput JSON",
-                    "type": "CK",
+                    "advanced_menu": false,
+                    "data_type": "string",
                     "default": "1",
                     "enabled": true,
-                    "advanced_menu": false,
                     "json_endpoints": {
                         "array_endpoint": [],
-                        "path_to_array": null,
                         "get_defaults_endpoint": [],
-                        "path_to_default": null,
                         "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
                         "path_to_enabled": null
                     },
-                    "refresh_fields_on_change": []
+                    "name": "Auto Open Ouput JSON",
+                    "refresh_fields_on_change": [],
+                    "type": "CK"
                 }
-            ]
-        },
-        {
-            "label": "Guify My Script",
-            "func": "generate_ui",
+            ],
+            "func": "compile_script_with_gui_config",
+            "label": "Compile My Script",
             "mode": "g",
             "quick_launch": false,
-            "width": 600,
-            "sudo": false,
-            "exec_label": "Guify My Script",
-            "exec_in_progress_label": "Guifying My Script...",
             "stop_label": "Stop",
+            "sudo": false,
+            "width": 600
+        },
+        {
+            "exec_in_progress_label": "Guifying My Script...",
+            "exec_label": "Guify My Script",
             "fields": [
                 {
-                    "name": "JSON Config Path",
-                    "type": "FL",
+                    "advanced_menu": false,
+                    "data_type": "string",
                     "default": "",
                     "enabled": true,
-                    "advanced_menu": false,
                     "file_types": [
                         "json"
                     ],
                     "json_endpoints": {
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
                         "get_defaults_endpoint": [],
-                        "path_to_default": null
+                        "get_enabled_endpoint": [],
+                        "path_to_default": null,
+                        "path_to_enabled": null
                     },
-                    "refresh_fields_on_change": []
+                    "name": "JSON Config Path",
+                    "refresh_fields_on_change": [],
+                    "type": "FL"
                 },
                 {
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": "production",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    },
                     "name": "Compile Mode",
-                    "type": "CB",
                     "options": [
                         "debug",
                         "production"
                     ],
-                    "default": "production",
-                    "enabled": true,
-                    "advanced_menu": true,
-                    "json_endpoints": {
-                        "array_endpoint": [],
-                        "path_to_array": null,
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
-                        "get_defaults_endpoint": [],
-                        "path_to_default": null
-                    },
-                    "refresh_fields_on_change": []
+                    "refresh_fields_on_change": [],
+                    "type": "CB"
                 },
                 {
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": "INFO",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    },
                     "name": "Log Level",
-                    "type": "CB",
                     "options": [
                         "TRACE",
                         "INFO",
@@ -377,46 +397,29 @@
                         "FATAL",
                         "SILENT"
                     ],
-                    "default": "INFO",
-                    "enabled": true,
-                    "advanced_menu": true,
-                    "json_endpoints": {
-                        "array_endpoint": [],
-                        "path_to_array": null,
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
-                        "get_defaults_endpoint": [],
-                        "path_to_default": null
-                    },
-                    "refresh_fields_on_change": []
+                    "refresh_fields_on_change": [],
+                    "type": "CB"
                 },
                 {
-                    "name": "Clear Dependency Cache?",
-                    "type": "CK",
+                    "advanced_menu": true,
+                    "data_type": "string",
                     "default": "0",
                     "enabled": true,
-                    "advanced_menu": true,
                     "json_endpoints": {
                         "array_endpoint": [],
-                        "path_to_array": null,
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
                         "get_defaults_endpoint": [],
-                        "path_to_default": null
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
                     },
-                    "refresh_fields_on_change": []
+                    "name": "Clear Dependency Cache?",
+                    "refresh_fields_on_change": [],
+                    "type": "CK"
                 },
                 {
-                    "name": "Target Builds",
-                    "type": "MCB",
-                    "options": [
-                        ".pkg.tar.zst_amd64",
-                        ".deb_amd64",
-                        ".rpm_amd64",
-                        ".pkg.tar.zst_arm64",
-                        ".deb_arm64",
-                        ".rpm_arm64"
-                    ],
+                    "advanced_menu": true,
+                    "data_type": "string",
                     "default": [
                         ".pkg.tar.zst_amd64",
                         ".deb_amd64",
@@ -425,40 +428,47 @@
                         ".deb_arm64",
                         ".rpm_arm64"
                     ],
-                    "minimum": "1",
-                    "maximum": "0",
                     "enabled": true,
-                    "advanced_menu": true,
                     "json_endpoints": {
                         "array_endpoint": [],
-                        "path_to_array": null,
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
                         "get_defaults_endpoint": [],
-                        "path_to_default": null
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
                     },
-                    "refresh_fields_on_change": []
+                    "maximum": "0",
+                    "minimum": "1",
+                    "name": "Target Builds",
+                    "options": [
+                        ".pkg.tar.zst_amd64",
+                        ".deb_amd64",
+                        ".rpm_amd64",
+                        ".pkg.tar.zst_arm64",
+                        ".deb_arm64",
+                        ".rpm_arm64"
+                    ],
+                    "refresh_fields_on_change": [],
+                    "type": "MCB"
                 }
-            ]
+            ],
+            "func": "generate_ui",
+            "label": "Guify My Script",
+            "mode": "g",
+            "quick_launch": false,
+            "stop_label": "Stop",
+            "sudo": false,
+            "width": 600
         },
         {
-            "label": "Install My Package",
-            "func": "install_local_package",
-            "mode": "gc",
-            "refresh_fields_on_tab_open": [],
-            "refresh_fields_on_completion": [],
-            "quick_launch": false,
-            "width": 600,
-            "sudo": true,
-            "exec_label": "Install My Package",
             "exec_in_progress_label": "Installing My Package...",
-            "stop_label": "Stop",
+            "exec_label": "Install My Package",
             "fields": [
                 {
-                    "name": "Pkg Path",
-                    "type": "FL",
-                    "default": "",
                     "advanced_menu": false,
+                    "data_type": "string",
+                    "default": "",
+                    "enabled": true,
                     "file_types": [
                         "pkg.tar.zst",
                         "pkg.tar.xz",
@@ -466,34 +476,47 @@
                         "rpm",
                         "apk"
                     ],
-                    "enabled": true,
                     "json_endpoints": {
+                        "get_defaults_endpoint": [],
                         "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
-                        "get_defaults_endpoint": [],
-                        "path_to_default": null
-                    },
-                    "refresh_fields_on_change": []
-                },
-                {
-                    "name": "Update First",
-                    "type": "CK",
-                    "default": "1",
-                    "enabled": true,
-                    "advanced_menu": false,
-                    "json_endpoints": {
-                        "array_endpoint": [],
-                        "path_to_array": null,
-                        "get_defaults_endpoint": [],
                         "path_to_default": null,
-                        "get_enabled_endpoint": [],
                         "path_to_enabled": null
                     },
-                    "refresh_fields_on_change": []
+                    "name": "Pkg Path",
+                    "refresh_fields_on_change": [],
+                    "type": "FL"
                 },
                 {
+                    "advanced_menu": false,
+                    "data_type": "string",
+                    "default": "1",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    },
+                    "name": "Update First",
+                    "refresh_fields_on_change": [],
+                    "type": "CK"
+                },
+                {
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": "4 - INFO",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    },
                     "name": "Log Level",
-                    "type": "CB",
                     "options": [
                         [
                             "5 - TRACE",
@@ -520,20 +543,19 @@
                             "0"
                         ]
                     ],
-                    "default": "4 - INFO",
-                    "enabled": true,
-                    "advanced_menu": true,
-                    "json_endpoints": {
-                        "array_endpoint": [],
-                        "path_to_array": null,
-                        "get_enabled_endpoint": [],
-                        "path_to_enabled": null,
-                        "get_defaults_endpoint": [],
-                        "path_to_default": null
-                    },
-                    "refresh_fields_on_change": []
+                    "refresh_fields_on_change": [],
+                    "type": "CB"
                 }
-            ]
+            ],
+            "func": "install_local_package",
+            "label": "Install My Package",
+            "mode": "gc",
+            "quick_launch": false,
+            "refresh_fields_on_completion": [],
+            "refresh_fields_on_tab_open": [],
+            "stop_label": "Stop",
+            "sudo": true,
+            "width": 600
         }
     ]
 }

@@ -54,6 +54,7 @@ type JsonEndpoints struct {
 type UIField struct {
 	Name                  string           `json:"name"`
 	Type                  string           `json:"type"`
+	DataType              string           `json:"data_type"`
 	Options               []interface{}    `json:"options,omitempty"`
 	Default               any              `json:"default"`
 	Minimum               *json.RawMessage `json:"minimum,omitempty"`
@@ -229,15 +230,35 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		sourceScript = absInput
 	}
 
-	var actions []UIAction
+	var (
+		actions []UIAction
+		err     error
+	)
 	if ext == ".go" {
-		actions, _ = parseGoFile(absInput)
+		actions, err = parseGoFile(absInput)
+		if err != nil {
+			return fmt.Errorf("failed to parse Go source %q: %w", absInput, err)
+		}
 		sourceScriptBase := strings.TrimSuffix(sourceScript, inputExt)
 		scriptAlias = filepath.Base(sourceScriptBase)
 		sourceScriptAMD64 = sourceScriptBase + "_amd64"
 		sourceScriptARM64 = sourceScriptBase + "_arm64"
+	} else if ext == ".py" {
+		actions, err = parsePythonFile(absInput)
+		if err != nil {
+			return fmt.Errorf("failed to parse Python module %q: %w", absInput, err)
+		}
+		sourceType = "python"
+		// Python modules are source files, even when binaryName customises the
+		// generated application's name.
+		scriptAlias = filepath.Base(absInput)
+		sourceScriptAMD64 = absInput
+		sourceScriptARM64 = absInput
 	} else {
-		actions, _ = parseBashFile(absInput)
+		actions, err = parseBashFile(absInput)
+		if err != nil {
+			return fmt.Errorf("failed to parse Bash source %q: %w", absInput, err)
+		}
 		sourceType = "bash"
 		scriptAlias = filepath.Base(sourceScript)
 		sourceScriptAMD64 = sourceScript
@@ -384,7 +405,10 @@ func parseGoFile(path string) ([]UIAction, error) {
 
 func parseBashFile(path string) ([]UIAction, error) {
 	var actions []UIAction
-	file, _ := os.Open(path)
+	file, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
 	defer file.Close()
 	regex := regexp.MustCompile(`^[[:space:]]*(function[[:space:]]+)?([a-zA-Z_][a-zA-Z0-9_]*)[[:space:]]*\(\)`)
 	scanner := bufio.NewScanner(file)
@@ -420,7 +444,7 @@ func parseBashFile(path string) ([]UIAction, error) {
 			})
 		}
 	}
-	return actions, nil
+	return actions, scanner.Err()
 }
 
 func createField(displayName string, index int) UIField {
@@ -430,6 +454,7 @@ func createField(displayName string, index int) UIField {
 	field := UIField{
 		Name:         internal_utils.ToTitleCase(displayName),
 		Type:         fieldType,
+		DataType:     "string",
 		Default:      "",
 		AdvancedMenu: false,
 		Enabled:      true,
@@ -542,3 +567,213 @@ func openFileInEditor(outputPath string, lvl logger.LogLevel) {
 	}
 }
 
+func parsePythonFile(path string) ([]UIAction, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	content := string(data)
+	var actions []UIAction
+
+	// Match module-level def statements.  Restricting this to column zero avoids
+	// accidentally exposing class methods or nested implementation helpers.
+	// Matches `def func_name(params) -> return_type:` or `async def func_name(params):`
+	re := regexp.MustCompile(`(?m)^(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(([\s\S]*?)\)\s*(?:->\s*[^:]+)?\s*:`)
+	matches := re.FindAllStringSubmatch(content, -1)
+
+	for _, match := range matches {
+		name := match[1]
+		paramsRaw := match[2]
+
+		// Skip internal, dunder, or standard utility functions
+		if strings.HasPrefix(name, "_") || name == "main" || name == "usage" || name == "cleanup" {
+			continue
+		}
+
+		params := splitPythonParams(paramsRaw)
+		var fields []UIField
+		for i, param := range params {
+			f := createPythonField(param, i)
+			if f.Name != "" {
+				fields = append(fields, f)
+			}
+		}
+
+		actions = append(actions, UIAction{
+			Label:                     internal_utils.ToTitleCase(name),
+			Func:                      name,
+			Mode:                      "g",
+			RefreshFieldsOnTabOpen:    emptyArrayJSON(),
+			RefreshFieldsOnCompletion: emptyArrayJSON(),
+			QuickLaunch:               false,
+			Width:                     600,
+			Sudo:                      false,
+			ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(name)),
+			ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(name)),
+			StopLabel:                 "Stop",
+			Fields:                    fields,
+		})
+	}
+
+	return actions, nil
+}
+
+func splitPythonParams(raw string) []string {
+	var params []string
+	var current strings.Builder
+	depthParen := 0
+	depthBracket := 0
+	depthBrace := 0
+	inSingleQuote := false
+	inDoubleQuote := false
+	escaped := false
+
+	for _, r := range raw {
+		if escaped {
+			current.WriteRune(r)
+			escaped = false
+			continue
+		}
+		if r == '\\' {
+			current.WriteRune(r)
+			escaped = true
+			continue
+		}
+		if inSingleQuote {
+			current.WriteRune(r)
+			if r == '\'' {
+				inSingleQuote = false
+			}
+			continue
+		}
+		if inDoubleQuote {
+			current.WriteRune(r)
+			if r == '"' {
+				inDoubleQuote = false
+			}
+			continue
+		}
+
+		switch r {
+		case '\'':
+			inSingleQuote = true
+			current.WriteRune(r)
+		case '"':
+			inDoubleQuote = true
+			current.WriteRune(r)
+		case '(':
+			depthParen++
+			current.WriteRune(r)
+		case ')':
+			depthParen--
+			current.WriteRune(r)
+		case '[':
+			depthBracket++
+			current.WriteRune(r)
+		case ']':
+			depthBracket--
+			current.WriteRune(r)
+		case '{':
+			depthBrace++
+			current.WriteRune(r)
+		case '}':
+			depthBrace--
+			current.WriteRune(r)
+		case ',':
+			if depthParen == 0 && depthBracket == 0 && depthBrace == 0 {
+				trimmed := strings.TrimSpace(current.String())
+				if trimmed != "" {
+					params = append(params, trimmed)
+				}
+				current.Reset()
+			} else {
+				current.WriteRune(r)
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+	trimmed := strings.TrimSpace(current.String())
+	if trimmed != "" {
+		params = append(params, trimmed)
+	}
+	return params
+}
+
+func createPythonField(param string, index int) UIField {
+	param = strings.TrimSpace(param)
+	if param == "" || param == "self" || param == "cls" || strings.HasPrefix(param, "*") {
+		return UIField{}
+	}
+
+	// Remove default value if present e.g. "foo: int = 10" -> "foo: int"
+	nameAndType := param
+	if idx := strings.Index(nameAndType, "="); idx != -1 {
+		nameAndType = strings.TrimSpace(nameAndType[:idx])
+	}
+
+	parts := strings.SplitN(nameAndType, ":", 2)
+	paramName := strings.TrimSpace(parts[0])
+	typeHint := ""
+	if len(parts) > 1 {
+		typeHint = strings.ToLower(strings.TrimSpace(parts[1]))
+	}
+
+	dataType := "string"
+	fieldType := "TXT"
+	var defaultVal any = "Initial Value"
+	var decPlaces *string
+
+	if typeHint == "int" || typeHint == "integer" {
+		dataType = "int"
+		fieldType = "NUM"
+		defaultVal = "0"
+		zeroStr := "0"
+		decPlaces = &zeroStr
+	} else if typeHint == "float" || typeHint == "double" {
+		dataType = "float"
+		fieldType = "NUM"
+		defaultVal = "0.0"
+		twoStr := "2"
+		decPlaces = &twoStr
+	} else if typeHint == "bool" || typeHint == "boolean" {
+		dataType = "bool"
+		fieldType = "CK"
+		defaultVal = "0"
+	} else if strings.HasPrefix(typeHint, "list") || strings.HasPrefix(typeHint, "array") {
+		dataType = "list"
+		fieldType = "TXT"
+		defaultVal = ""
+	} else if strings.HasPrefix(typeHint, "dict") || strings.HasPrefix(typeHint, "map") {
+		dataType = "dict"
+		fieldType = "TXT"
+		defaultVal = ""
+	}
+
+	field := UIField{
+		Name:         internal_utils.ToTitleCase(paramName),
+		Type:         fieldType,
+		DataType:     dataType,
+		Default:      defaultVal,
+		AdvancedMenu: false,
+		Enabled:      true,
+		JsonEndpoints: JsonEndpoints{
+			ArrayEndpoint:       emptyArrayJSON(),
+			PathToArray:         nullJSON(),
+			GetDefaultsEndpoint: emptyArrayJSON(),
+			PathToDefault:       nullJSON(),
+			GetEnabledEndpoint:  emptyArrayJSON(),
+			PathToEnabled:       nullJSON(),
+		},
+		RefreshFieldsOnChange: emptyArrayJSON(),
+	}
+
+	if fieldType == "NUM" {
+		field.Minimum = nullJSON()
+		field.Maximum = nullJSON()
+		field.DecimalPlaces = decPlaces
+	}
+
+	return field
+}

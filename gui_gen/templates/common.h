@@ -77,6 +77,7 @@
 #include <fstream>
 #include <string>
 #include <utility>
+#include <tuple>
 #include <vector>
 #include <malloc.h>
 #include <QFile>

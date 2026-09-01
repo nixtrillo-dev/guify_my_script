@@ -139,3 +139,51 @@ QJsonValue getNestedValue(const QJsonDocument& doc, QString path) {
     }
     return current;
 }
+
+static QString escapePythonString(const QString& str) {
+    QString esc = str;
+    esc.replace('\\', "\\\\");
+    esc.replace('\'', "\\'");
+    esc.replace('\n', "\\n");
+    esc.replace('\r', "\\r");
+    esc.replace('\t', "\\t");
+    return "'" + esc + "'";
+}
+
+// Quotes an argument for the bash -c command used by the generated runner.
+// This keeps Python strings such as "$HOME", backticks, and quotes literal.
+static QString shellQuote(const QString& str) {
+    QString esc = str;
+    esc.replace("'", "'\"'\"'");
+    return "'" + esc + "'";
+}
+
+static QString formatPythonArg(const QString& rawVal, const QString& dataType) {
+    QString dt = dataType.toLower().trimmed();
+    if (dt == "int" || dt == "integer") {
+        QString trimmed = rawVal.trimmed();
+        if (trimmed.isEmpty()) return "0";
+        bool ok = false;
+        long long v = trimmed.toLongLong(&ok);
+        return ok ? QString::number(v) : "0";
+    } else if (dt == "float" || dt == "double") {
+        QString trimmed = rawVal.trimmed();
+        if (trimmed.isEmpty()) return "0.0";
+        bool ok = false;
+        double v = trimmed.toDouble(&ok);
+        return ok ? QString::number(v) : "0.0";
+    } else if (dt == "bool" || dt == "boolean") {
+        QString lower = rawVal.trimmed().toLower();
+        if (lower == "1" || lower == "true" || lower == "yes") return "True";
+        return "False";
+    } else if (dt == "list" || dt == "array") {
+        if (rawVal.startsWith("[") && rawVal.endsWith("]")) return rawVal;
+        QStringList parts = rawVal.split(",", Qt::SkipEmptyParts);
+        QStringList formatted;
+        for (const QString& p : parts) {
+            formatted.append(escapePythonString(p.trimmed()));
+        }
+        return "[" + formatted.join(", ") + "]";
+    }
+    return escapePythonString(rawVal);
+}

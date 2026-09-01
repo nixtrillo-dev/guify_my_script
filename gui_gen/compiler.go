@@ -289,7 +289,7 @@ func runBuildLoop(ctx BuildContext) error {
 				return err
 			}
 
-			if err := writeProductionPackageFiles(archStageDir, ctx.PackageName, ctx.RootConfig.Config.Title, iconName, ctx.RootConfig.Deploy, targetArch); err != nil {
+			if err := writeProductionPackageFiles(archStageDir, ctx.PackageName, ctx.RootConfig.Config.Title, iconName, ctx.RootConfig.Deploy, targetArch, ctx.RootConfig.Config.SourceType == "python"); err != nil {
 				return fmt.Errorf("failed writing package metadata for %s: %w", targetArch, err)
 			}
 

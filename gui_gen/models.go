@@ -12,6 +12,7 @@ type JsonEndpoints struct {
 type UIField struct {
 	Name                  string        `json:"name"`
 	Type                  string        `json:"type"`
+	DataType              string        `json:"data_type"`
 	Options               []interface{} `json:"options,omitempty"`
 	Default               interface{}   `json:"default"`
 	Minimum               string        `json:"minimum,omitempty"`

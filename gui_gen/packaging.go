@@ -6,11 +6,11 @@
 package gui_gen
 
 import (
+	"encoding/csv"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"encoding/csv"
 	"strings"
 
 	"guify_my_script/logger"
@@ -27,7 +27,7 @@ func contains(slice []string, item string) bool {
 }
 
 // writeProductionPackageFiles generates the necessary staging files for Arch, Debian, and Fedora.
-func writeProductionPackageFiles(stageDir, packageName, title, iconName string, deploy DeployConfig, targetArch string) error {
+func writeProductionPackageFiles(stageDir, packageName, title, iconName string, deploy DeployConfig, targetArch string, requiresPython bool) error {
 	debDir := filepath.Join(stageDir, "debian")
 	fedDir := filepath.Join(stageDir, "fedora")
 	archDir := filepath.Join(stageDir, "arch")
@@ -87,6 +87,12 @@ func writeProductionPackageFiles(stageDir, packageName, title, iconName string, 
 	depsArchList := []string{"qt6-base", "glibc", "gcc-libs", "hicolor-icon-theme", "noto-fonts"}
 	depsDebianList := []string{"libqt6widgets6", "libqt6network6", "libc6", "libstdc++6", "hicolor-icon-theme", "fonts-noto"}
 	depsFedoraList := []string{"qt6-qtbase-gui", "qt6-qtbase", "hicolor-icon-theme", "google-noto-fonts-all"}
+	if requiresPython {
+		// Python modules are executed by the generated launcher at runtime.
+		depsArchList = append(depsArchList, "python")
+		depsDebianList = append(depsDebianList, "python3")
+		depsFedoraList = append(depsFedoraList, "python3")
+	}
 
 	// --- MERGE CUSTOM DEPENDENCIES FROM JSON CONFIG ---
 	for _, depGroup := range deploy.Dependencies {
