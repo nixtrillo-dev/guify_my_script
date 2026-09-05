@@ -247,3 +247,12 @@ static QString formatJsonArg(const QString& rawVal, const QString& dataType) {
     }
     return jsonEscapeString(rawVal);
 }
+
+static QString formatPowerShellArg(const QString& rawVal, const QString& dataType) {
+    QString dt = dataType.toLower().trimmed();
+    if (dt == "bool" || dt == "boolean") {
+        QString lower = rawVal.trimmed().toLower();
+        return (lower == "1" || lower == "true" || lower == "yes") ? "true" : "false";
+    }
+    return formatJsonArg(rawVal, dataType);
+}

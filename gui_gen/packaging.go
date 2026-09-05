@@ -27,7 +27,7 @@ func contains(slice []string, item string) bool {
 }
 
 // writeProductionPackageFiles generates the necessary staging files for Arch, Debian, and Fedora.
-func writeProductionPackageFiles(stageDir, packageName, title, iconName string, deploy DeployConfig, targetArch string, requiresPython bool, requiresJavascript bool) error {
+func writeProductionPackageFiles(stageDir, packageName, title, iconName string, deploy DeployConfig, targetArch string, requiresPython bool, requiresJavascript bool, runtimeFlags ...bool) error {
 	debDir := filepath.Join(stageDir, "debian")
 	fedDir := filepath.Join(stageDir, "fedora")
 	archDir := filepath.Join(stageDir, "arch")
@@ -98,6 +98,11 @@ func writeProductionPackageFiles(stageDir, packageName, title, iconName string, 
 		depsArchList = append(depsArchList, "nodejs")
 		depsDebianList = append(depsDebianList, "nodejs")
 		depsFedoraList = append(depsFedoraList, "nodejs")
+	}
+	if len(runtimeFlags) > 0 && runtimeFlags[0] {
+		depsArchList = append(depsArchList, "powershell-bin")
+		depsDebianList = append(depsDebianList, "powershell")
+		depsFedoraList = append(depsFedoraList, "powershell")
 	}
 
 	// --- MERGE CUSTOM DEPENDENCIES FROM JSON CONFIG ---
@@ -187,12 +192,35 @@ $ENGINE run --rm \
   -v arch_pacman_db:/var/lib/pacman/sync \
   -w /workspace/arch \
   archlinux:base-devel \
-  bash -c 'ORIG_UID=$(stat -c "%u" /workspace/arch) && \
+  bash -c 'set -e && \
+           ORIG_UID=$(stat -c "%u" /workspace/arch) && \
            ORIG_GID=$(stat -c "%g" /workspace/arch) && \
            pacman -Sy --noconfirm && \
+           pacman -S --needed --noconfirm git && \
            useradd -mG wheel builduser && \
            echo "%wheel ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+           official_deps=() && \
+           aur_deps=() && \
+           while IFS= read -r pkg; do \
+             [ -z "$pkg" ] && continue; \
+             if pacman -Si "$pkg" >/dev/null 2>&1; then \
+               official_deps+=("$pkg"); \
+             else \
+               aur_deps+=("$pkg"); \
+             fi; \
+           done < dependencies.arch.txt && \
+           if [ ${#official_deps[@]} -gt 0 ]; then \
+             echo "Installing official Arch dependencies: ${official_deps[*]}"; \
+             pacman -S --needed --noconfirm "${official_deps[@]}"; \
+           fi && \
            chown -R builduser /workspace/arch && \
+           if [ ${#aur_deps[@]} -gt 0 ]; then \
+             printf "%s\\n" "${aur_deps[@]}" > /workspace/arch/dependencies.arch.aur.txt; \
+             chown builduser:builduser /workspace/arch/dependencies.arch.aur.txt; \
+             echo "Installing AUR dependencies: ${aur_deps[*]}"; \
+             su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm --needed"; \
+             su - builduser -c "xargs yay -S --needed --noconfirm < /workspace/arch/dependencies.arch.aur.txt"; \
+           fi && \
            su - builduser -c "cd /workspace/arch && makepkg -cfsA --noconfirm" && \
            chown -R $ORIG_UID:$ORIG_GID /workspace/arch'
 

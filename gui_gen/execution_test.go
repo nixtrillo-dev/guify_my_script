@@ -38,6 +38,25 @@ func TestBuildExecutionLambda_JavaScriptUsesTypedJsonAndNodeRunner(t *testing.T)
 	}
 }
 
+func TestBuildExecutionLambda_PowerShellUsesLiteralImportAndJsonArgs(t *testing.T) {
+	cpp := buildExecutionLambda(UIAction{Label: "Filter", Func: "Invoke-CustomFilter", Mode: "g"}, "Filter", "0", "fields_filter_0", "powershell")
+	for _, expected := range []string{
+		"formatPowerShellArg(rawVal, dataType)",
+		"Import-Module -Name $scriptPath -Force",
+		"FromBase64String",
+		"ConvertFrom-Json",
+		"$callArgs = @{}",
+		"$callArgs[$parameterName]",
+		"pwsh -NoProfile -NonInteractive -Command",
+		"shellQuote(psRunner)",
+		"& $functionName @callArgs",
+	} {
+		if !strings.Contains(cpp, expected) {
+			t.Errorf("PowerShell execution lambda is missing %q", expected)
+		}
+	}
+}
+
 func TestBuildExecutionLambda_JavaScriptInvokeAsObject(t *testing.T) {
 	fields := []UIField{
 		{Name: "A", ArgName: "a", Type: "TXT", DataType: "string", Default: "hello"},

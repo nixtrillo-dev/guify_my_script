@@ -72,7 +72,8 @@
                         "sh",
                         "py",
                         "js",
-                        "mjs"
+                        "mjs",
+                        "psm1"
                     ],
                     "json_endpoints": {
                         "get_defaults_endpoint": [],

@@ -265,6 +265,15 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		scriptAlias = filepath.Base(absInput)
 		sourceScriptAMD64 = absInput
 		sourceScriptARM64 = absInput
+	} else if ext == ".psm1" {
+		actions, err = parsePowerShellFile(absInput)
+		if err != nil {
+			return fmt.Errorf("failed to parse PowerShell module %q: %w", absInput, err)
+		}
+		sourceType = "powershell"
+		scriptAlias = filepath.Base(absInput)
+		sourceScriptAMD64 = absInput
+		sourceScriptARM64 = absInput
 	} else {
 		actions, err = parseBashFile(absInput)
 		if err != nil {

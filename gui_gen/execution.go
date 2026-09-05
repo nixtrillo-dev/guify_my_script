@@ -83,6 +83,8 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
         `, mode, funcName, sudoPrefix))
 	} else if sourceType == "javascript" {
 		cpp.WriteString(buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, "SOURCE_SCRIPT", true))
+	} else if sourceType == "powershell" {
+		cpp.WriteString(buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, "SOURCE_SCRIPT", true, action.Fields))
 	} else {
 		if action.Sudo {
 			cpp.WriteString(fmt.Sprintf(`
@@ -359,6 +361,8 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
                 args.append(formatPythonArg(rawVal, dataType));
             } else if (QStringLiteral("%[3]s") == "javascript") {
                 args.append(formatJsonArg(rawVal, dataType));
+            } else if (QStringLiteral("%[3]s") == "powershell") {
+                args.append(formatPowerShellArg(rawVal, dataType));
             } else {
                 args.append(rawVal);
             }
@@ -423,6 +427,53 @@ func buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, scriptExpr string, i
         `, cppStringLiteral(javascriptNodeRunner), scriptExpr, cppStringLiteral(funcName), cond, sudoPrefix, sudoPrefix)
 }
 
+const powershellRunner = `& {
+$decodedArgs = @($args | ForEach-Object { [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($_)) })
+$scriptPath = $decodedArgs[0]
+$functionName = $decodedArgs[1]
+Import-Module -Name $scriptPath -Force
+$callArgs = @{}
+if ($decodedArgs.Count -gt 2) {
+    for ($i = 2; $i -lt $decodedArgs.Count; $i += 2) {
+        $parameterName = $decodedArgs[$i].TrimStart('-')
+        $callArgs[$parameterName] = $decodedArgs[$i + 1] | ConvertFrom-Json
+    }
+}
+& $functionName @callArgs
+}`
+
+func buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, scriptExpr string, includeGuiModes bool, fields []UIField) string {
+	cond := fmt.Sprintf("\"%s\" == \"s\" || \"%s\" == \"d\"", mode, mode)
+	if includeGuiModes {
+		cond = fmt.Sprintf("\"%s\" == \"g\" || \"%s\" == \"s\" || \"%s\" == \"d\"", mode, mode, mode)
+	}
+	var names strings.Builder
+	for _, field := range fields {
+		name := field.ArgName
+		if name == "" {
+			name = field.Name
+		}
+		names.WriteString(fmt.Sprintf(" << QStringLiteral(\"%s\")", cppStringLiteral(name)))
+	}
+	return fmt.Sprintf(`
+        QString psRunner = QString::fromUtf8("%s");
+        QString quotedPsRunner = shellQuote(psRunner);
+        QString psArgv = QString(" ") + shellQuote(QString::fromLatin1(%s.toUtf8().toBase64())) + " " + shellQuote(QString::fromLatin1(QStringLiteral("%s").toUtf8().toBase64()));
+        const QStringList psParamNames = QStringList()%s;
+        for (int i = 0; i < args.size(); ++i) {
+            if (i < psParamNames.size()) psArgv += " " + shellQuote(QString::fromLatin1(("-" + psParamNames.at(i)).toUtf8().toBase64()));
+            const auto &a = args.at(i);
+            psArgv += " " + shellQuote(QString::fromLatin1(a.toUtf8().toBase64()));
+        }
+        QString shell_cmd;
+        if (%s) {
+            shell_cmd = QString("%spwsh -NoProfile -NonInteractive -Command %%1%%2").arg(quotedPsRunner, psArgv);
+        } else {
+            shell_cmd = QString("%spwsh -NoProfile -NonInteractive -Command %%1%%2%%3").arg(quotedPsRunner, psArgv, FALLBACK_CMD);
+        }
+        `, cppStringLiteral(powershellRunner), scriptExpr, cppStringLiteral(funcName), names.String(), cond, sudoPrefix, sudoPrefix)
+}
+
 func buildJavaScriptObjectWrapCPP(action UIAction, sourceType string) string {
 	if sourceType != "javascript" || !action.InvokeAsObject || len(action.Fields) == 0 {
 		return ""
@@ -445,4 +496,3 @@ func buildJavaScriptObjectWrapCPP(action UIAction, sourceType string) string {
 `)
 	return b.String()
 }
-

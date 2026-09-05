@@ -280,6 +280,7 @@ func TestSchemaContainsRequiredProperties(t *testing.T) {
 	}
 	hasPython := false
 	hasJavascript := false
+	hasPowerShell := false
 	for _, e := range enums {
 		if e == "python" {
 			hasPython = true
@@ -287,12 +288,18 @@ func TestSchemaContainsRequiredProperties(t *testing.T) {
 		if e == "javascript" {
 			hasJavascript = true
 		}
+		if e == "powershell" {
+			hasPowerShell = true
+		}
 	}
 	if !hasPython {
 		t.Errorf("source_type enum does not include 'python'")
 	}
 	if !hasJavascript {
 		t.Errorf("source_type enum does not include 'javascript'")
+	}
+	if !hasPowerShell {
+		t.Errorf("source_type enum does not include 'powershell'")
 	}
 
 	uiAction, ok := defs["uiAction"].(map[string]interface{})

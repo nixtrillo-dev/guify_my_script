@@ -348,6 +348,8 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         `, mode, funcName, sudoPrefix))
 	} else if sourceType == "javascript" {
 		cpp.WriteString(buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, "targetScript", false))
+	} else if sourceType == "powershell" {
+		cpp.WriteString(buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, "targetScript", false, action.Fields))
 	} else {
 		if action.Sudo {
 			cpp.WriteString(fmt.Sprintf(`
@@ -541,6 +543,8 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
                 args.append(formatPythonArg(rawVal, dataType));
             } else if (QStringLiteral("%[3]s") == "javascript") {
                 args.append(formatJsonArg(rawVal, dataType));
+            } else if (QStringLiteral("%[3]s") == "powershell") {
+                args.append(formatPowerShellArg(rawVal, dataType));
             } else {
                 args.append(rawVal);
             }
