@@ -23,9 +23,28 @@ static QString appLogToggleStyle() {
 }
 
 static QString appLogOutputStyle() {
+    QString fixedFamily = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
+    QString fontFamilies = QString("'%1', 'DejaVu Sans Mono', 'Liberation Mono', 'Noto Sans Mono', 'Consolas', 'Courier New', monospace").arg(fixedFamily);
+
     return isLightTheme()
-        ? "font-family: 'Source Code Pro', 'Cascadia Code', 'Monospace'; background-color: #f6f8fa; color: #1f2328; border: 1px solid #d0d7de; font-size: 11px;"
-        : "font-family: 'Source Code Pro', 'Cascadia Code', 'Monospace'; background-color: #161819; color: #a9b1d6; border: 1px solid #3a3f44; font-size: 11px;";
+        ? QString("font-family: %1; background-color: #f6f8fa; color: #1f2328; border: 1px solid #d0d7de; font-size: 11px;").arg(fontFamilies)
+        : QString("font-family: %1; background-color: #161819; color: #a9b1d6; border: 1px solid #3a3f44; font-size: 11px;").arg(fontFamilies);
+}
+
+// A QTextEdit owns a QTextDocument, whose default font is not reliably
+// replaced by a QSS font-family rule alone. Set the QFont on both the widget
+// and document, in addition to the QSS font-family, so spaces retain the fixed
+// width needed for terminal-style, column-aligned output.
+static void applyLogOutputStyle(QTextEdit *textEdit) {
+    QFont logFont = QFontDatabase::systemFont(QFontDatabase::FixedFont);
+    logFont.setStyleHint(QFont::Monospace);
+    logFont.setFixedPitch(true);
+    logFont.setPointSize(11);
+
+    textEdit->setFont(logFont);
+    textEdit->document()->setDefaultFont(logFont);
+    textEdit->setCurrentFont(logFont);
+    textEdit->setStyleSheet(appLogOutputStyle());
 }
 
 static QString appAccentButtonStyle(const QString &accent, const QString &hoverAccent = QString()) {

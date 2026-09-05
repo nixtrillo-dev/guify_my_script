@@ -52,12 +52,14 @@ type JsonEndpoints struct {
 
 // UIField maps directly to your C++ application UI schema rules
 type UIField struct {
-	Name                  string           `json:"name"`
-	Type                  string           `json:"type"`
-	DataType              string           `json:"data_type"`
-	ArgName               string           `json:"arg_name,omitempty"`
-	Options               []interface{}    `json:"options,omitempty"`
-	Default               any              `json:"default"`
+	Name     string        `json:"name"`
+	Type     string        `json:"type"`
+	DataType string        `json:"data_type"`
+	ArgName  string        `json:"arg_name,omitempty"`
+	Options  []interface{} `json:"options,omitempty"`
+	Default  any           `json:"default"`
+	// Bounds are meaningful only for MCB, MFL, TIME, DATE, and NUM fields.
+	// Omitting nil values prevents unrelated field types from receiving null bounds.
 	Minimum               *json.RawMessage `json:"minimum,omitempty"`
 	Maximum               *json.RawMessage `json:"maximum,omitempty"`
 	DecimalPlaces         *string          `json:"decimal_places,omitempty"`
@@ -506,9 +508,14 @@ func createField(displayName string, index int) UIField {
 		field.Default = "Initial Value"
 	case "CK":
 		field.Default = "0"
-	case "FD", "FL", "MFL", "FS":
+	case "FD", "FL", "FS":
 		field.Default = ""
 		field.FileTypes = []string{"txt"}
+	case "MFL":
+		field.Default = ""
+		field.FileTypes = []string{"txt"}
+		field.Minimum = nullJSON()
+		field.Maximum = nullJSON()
 	case "LTXT":
 		field.Default = "Initial Long Text Value"
 		field.AutoHeight = true

@@ -7,6 +7,39 @@ import (
 	"testing"
 )
 
+func TestCreateFieldIncludesBoundsOnlyForSupportedFieldTypes(t *testing.T) {
+	boundsSupported := map[string]bool{
+		"MCB":  true,
+		"MFL":  true,
+		"TIME": true,
+		"DATE": true,
+		"NUM":  true,
+	}
+
+	for index, fieldType := range uiFieldTypes {
+		field := createField("example", index)
+		encoded, err := json.Marshal(field)
+		if err != nil {
+			t.Fatalf("marshal %s field: %v", fieldType, err)
+		}
+
+		var object map[string]json.RawMessage
+		if err := json.Unmarshal(encoded, &object); err != nil {
+			t.Fatalf("unmarshal %s field: %v", fieldType, err)
+		}
+		_, hasMinimum := object["minimum"]
+		_, hasMaximum := object["maximum"]
+
+		if boundsSupported[fieldType] {
+			if !hasMinimum || !hasMaximum {
+				t.Errorf("%s fields must include minimum and maximum", fieldType)
+			}
+		} else if hasMinimum || hasMaximum {
+			t.Errorf("%s fields must not include minimum or maximum", fieldType)
+		}
+	}
+}
+
 func TestGenerateGUIConfig_GoSource(t *testing.T) {
 	tempDir := t.TempDir()
 	goFile := filepath.Join(tempDir, "sample.go")

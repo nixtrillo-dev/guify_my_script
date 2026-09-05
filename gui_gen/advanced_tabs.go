@@ -159,7 +159,7 @@ func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) str
             QTextEdit *logOutputWindow_%[1]s = new QTextEdit();
             logOutputWindow_%[1]s->setObjectName("LogOutputWindow_%[1]s");
             logOutputWindow_%[1]s->setReadOnly(true);
-            logOutputWindow_%[1]s->setStyleSheet(appLogOutputStyle());
+            applyLogOutputStyle(logOutputWindow_%[1]s);
 
             // Enforces a standard terminal scrollback limit
             logOutputWindow_%[1]s->document()->setMaximumBlockCount(10000);

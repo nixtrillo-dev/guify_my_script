@@ -45,6 +45,8 @@
 #include <QPixmap>
 #include <QProcess>
 #include <QTextEdit>
+#include <QFont>
+#include <QFontDatabase>
 #include <QClipboard>
 #include <QFile>
 #include <QFileInfo>

@@ -105,7 +105,7 @@ void MainWindow::refreshThemedOverrides() {
 
     for (QTextEdit *textEdit : findChildren<QTextEdit*>()) {
         if (textEdit->objectName().startsWith("LogOutputWindow")) {
-            textEdit->setStyleSheet(appLogOutputStyle());
+            applyLogOutputStyle(textEdit);
         }
     }
 

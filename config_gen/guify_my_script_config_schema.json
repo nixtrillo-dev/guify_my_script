@@ -374,6 +374,8 @@
             "data_type": "string",
             "default": "",
             "file_types": ["txt"],
+            "minimum": null,
+            "maximum": null,
             "enabled": true,
             "advanced_menu": false,
             "json_endpoints": {
@@ -615,11 +617,19 @@
         {
           "if": {
             "properties": {
-              "type": { "enum": ["MCB", "TIME", "DATE", "NUM"] }
+              "type": { "enum": ["MCB", "MFL", "TIME", "DATE", "NUM"] }
             }
           },
           "then": {
             "required": ["minimum", "maximum"]
+          },
+          "else": {
+            "not": {
+              "anyOf": [
+                { "required": ["minimum"] },
+                { "required": ["maximum"] }
+              ]
+            }
           }
         },
         {
@@ -660,6 +670,25 @@
                   "type": "string"
                 }
               },
+              "minimum": {
+                "type": ["string", "null"],
+                "pattern": "^\\d+$"
+              },
+              "maximum": {
+                "type": ["string", "null"],
+                "pattern": "^\\d+$"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": { "const": "MFL" }
+            }
+          },
+          "then": {
+            "properties": {
               "minimum": {
                 "type": ["string", "null"],
                 "pattern": "^\\d+$"
