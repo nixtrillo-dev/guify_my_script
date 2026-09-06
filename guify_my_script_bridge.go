@@ -161,6 +161,19 @@ func GoGetMostRepresentedFileType(path *C.char, logLevel C.int) C.int {
 	return 1
 }
 
+//export GoIsCompilable
+func GoIsCompilable(path *C.char, logLevel C.int) C.int {
+	
+	go_path := C.GoString(path)
+	
+	go_logLevel := logger.LogLevel(int(logLevel))
+	
+	
+	endpoint_utils.IsCompilable(go_path, go_logLevel)
+	
+	return 1
+}
+
 //export GoModifyPath
 func GoModifyPath(filePath *C.char, appendString *C.char, newExtension *C.char, logLevel *C.char) C.int {
 	
@@ -760,6 +773,35 @@ func main() {
 		
 		
 		endpoint_utils.GetMostRepresentedFileType(cli_path, cli_logLevel)
+		
+		
+	    case "is_compilable":
+		if len(os.Args) < 4 {
+			fmt.Println("Error: is_compilable requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_path := os.Args[2]
+		
+		
+		var cli_logLevel_raw int
+		raw_logLevel := os.Args[3]
+		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
+			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
+			if err_logLevel != nil {
+				fmt.Printf("Error: parameter 'logLevel' must be a valid integer: %v\n", err_logLevel)
+				os.Exit(1)
+			}
+			cli_logLevel_raw = parsed_logLevel
+		}
+		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
+		
+		
+		
+		endpoint_utils.IsCompilable(cli_path, cli_logLevel)
 		
 		
 	    case "modify_path":

@@ -7,8 +7,8 @@ import (
 	"strings"
 
 	"guify_my_script/go_gen"
-	"guify_my_script/rust_gen"
 	"guify_my_script/logger"
+	"guify_my_script/rust_gen"
 )
 
 // DirectoryStatus represents the JSON structure for the directory check.
@@ -19,6 +19,11 @@ type DirectoryStatus struct {
 // Result represents the JSON structure returned for the script type check.
 type ScriptStatus struct {
 	FileType string `json:"file_type"`
+}
+
+// CompilableStatus represents the JSON structure for the compilation support check.
+type CompilableStatus struct {
+	IsCompilable bool `json:"is_compilable"`
 }
 
 // IsValidDirectory checks if a path is a valid directory, logs the result, and returns a JSON string.
@@ -89,10 +94,10 @@ func GetNonMainPackagesJSON(inputPath string, scriptType, logLevel string) (stri
 	}
 
 	switch scriptType {
-		case "GO":
-			return go_gen.GetGoNonMainPackagesJSON(inputPath,logLevel)
-		case "RUST":
-			return rust_gen.GetRustNonMainPackagesJSON(inputPath,logLevel)
+	case "GO":
+		return go_gen.GetGoNonMainPackagesJSON(inputPath, logLevel)
+	case "RUST":
+		return rust_gen.GetRustNonMainPackagesJSON(inputPath, logLevel)
 	}
 
 	emptyJSON := "[]"
@@ -101,65 +106,126 @@ func GetNonMainPackagesJSON(inputPath string, scriptType, logLevel string) (stri
 }
 
 // GetMostRepresentedFileType scans the directory recursively and returns
-// a JSON-marshaled byte slice indicating whether "GO", "RUST", or tie (defaults to "GO") is most common.
-func GetMostRepresentedFileType(path string, logLevel logger.LogLevel) (string) {
-    var goCount, rsCount int
-    var jsonString string
+// a JSON-marshaled string indicating whether "GO", "RUST", or tie (defaults to "GO") is most common.
+// If the path is a file, it returns the file's extension in uppercase.
+func GetMostRepresentedFileType(path string, logLevel logger.LogLevel) string {
+	var goCount, rsCount int
+	var jsonString string
 
-    // Guard Clause: Return empty JSON array immediately if input string is empty
-    if path == "" {
-	logger.Debug(logLevel, "Guard Clause: Returning empty JSON array immediately as input string is empty")
-        jsonString := "[]"
-        logger.Info(logLevel, "%s", jsonString)
-        return jsonString
-    }
+	// Guard Clause: Return empty JSON array immediately if input string is empty
+	if path == "" {
+		logger.Debug(logLevel, "Guard Clause: Returning empty JSON array immediately as input string is empty")
+		jsonString := "[]"
+		logger.Info(logLevel, "%s", jsonString)
+		return jsonString
+	}
 
-    // Walk through the directory and subdirectories efficiently using WalkDir
-    err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
-        if err != nil {
-            return err
-        }
+	// Check if path is a file instead of a directory
+	info, err := os.Stat(path)
+	if err == nil && !info.IsDir() {
+		// Extract extension, remove the dot, and convert to uppercase
+		ext := strings.ToUpper(strings.TrimPrefix(filepath.Ext(path), "."))
+		res := ScriptStatus{FileType: ext}
 
-        // Only check files, ignore directories
-        if !d.IsDir() {
-            ext := strings.ToLower(filepath.Ext(path))
-            switch ext {
-            case ".go":
-                goCount++
-            case ".rs":
-                rsCount++
-            }
-        }
-        return nil
-    })
+		jsonBytes, err := json.Marshal(res)
+		if err != nil {
+			logger.Debug(logLevel, "JSON marshaling failed for file extension output: %v", err)
+			jsonString = `[]`
+		} else {
+			jsonString = string(jsonBytes)
+		}
+		logger.Info(logLevel, "%s", jsonString)
+		return jsonString
+	}
 
-    if err != nil {
-	logger.Debug(logLevel, "filepath.WalkDir failed for array generation: %v", err)
-        jsonString := "[]"
-        logger.Info(logLevel, "%s", jsonString)
-        return jsonString
-    }
+	// Walk through the directory and subdirectories efficiently using WalkDir
+	err = filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 
-    // Determine the most represented file type - "GO" is the tie breaker value
-    winner := "GO"
-    if goCount > rsCount {
-        winner = "GO"
-    } else if rsCount > goCount {
-        winner = "RUST"
-    }
+		// Only check files, ignore directories
+		if !d.IsDir() {
+			ext := strings.ToLower(filepath.Ext(path))
+			switch ext {
+			case ".go":
+				goCount++
+			case ".rs":
+				rsCount++
+			}
+		}
+		return nil
+	})
 
-    // Marshal the result into JSON
-    res := ScriptStatus{FileType: winner}
+	if err != nil {
+		logger.Debug(logLevel, "filepath.WalkDir failed for array generation: %v", err)
+		jsonString := "[]"
+		logger.Info(logLevel, "%s", jsonString)
+		return jsonString
+	}
 
-    jsonBytes, err := json.Marshal(res)
+	// Determine the most represented file type - "GO" is the tie breaker value
+	winner := "GO"
+	if goCount > rsCount {
+		winner = "GO"
+	} else if rsCount > goCount {
+		winner = "RUST"
+	}
 
-    if err != nil {
-        logger.Debug(logLevel, "JSON marshaling failed for array generation: %v", err)
-        jsonString = `[]`
-    } else {
-        jsonString = string(jsonBytes)
-    }
+	// Marshal the result into JSON
+	res := ScriptStatus{FileType: winner}
 
-    logger.Info(logLevel, "%s", jsonString)
-    return jsonString
+	jsonBytes, err := json.Marshal(res)
+
+	if err != nil {
+		logger.Debug(logLevel, "JSON marshaling failed for array generation: %v", err)
+		jsonString = `[]`
+	} else {
+		jsonString = string(jsonBytes)
+	}
+
+	logger.Info(logLevel, "%s", jsonString)
+	return jsonString
+}
+
+// IsCompilable checks if the most represented file type in a path (or the file itself)
+// is currently supported for compiling, returning a JSON string.
+func IsCompilable(path string, logLevel logger.LogLevel) string {
+	isCompilable := false
+	var status ScriptStatus
+
+	// Get the file type JSON string by evaluating the path
+	var scriptStatusJSON string
+	if logLevel == 4 { // INFO level
+		// Passing "WARNING" here as we have no interest in INFO here under the context of this function...
+		scriptStatusJSON = GetMostRepresentedFileType(path, 3) // 3 corresponds to WARNING level
+	} else {
+		scriptStatusJSON = GetMostRepresentedFileType(path, logLevel)
+	}
+
+	// Unmarshal the JSON from GetMostRepresentedFileType
+	err := json.Unmarshal([]byte(scriptStatusJSON), &status)
+	if err == nil {
+		// Currently only GO and RUST are supported for compiling
+		if status.FileType == "GO" || status.FileType == "RUST" || status.FileType == "RS" {
+			isCompilable = true
+		}
+		logger.Debug(logLevel, "Parsed ScriptStatus: %s, Compilable: %v", status.FileType, isCompilable)
+	} else {
+		logger.Debug(logLevel, "Failed to parse ScriptStatus JSON in IsCompilable: %v", err)
+	}
+
+	res := CompilableStatus{IsCompilable: isCompilable}
+	jsonBytes, err := json.Marshal(res)
+
+	var jsonString string
+	if err != nil {
+		logger.Debug(logLevel, "JSON marshaling failed for IsCompilable: %v", err)
+		jsonString = `{"is_compilable": false}`
+	} else {
+		jsonString = string(jsonBytes)
+	}
+
+	logger.Info(logLevel, "%s", jsonString)
+	return jsonString
 }

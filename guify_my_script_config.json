@@ -204,12 +204,12 @@
                             "INFO"
                         ],
                         "get_enabled_endpoint": [
-                            "is_valid_directory",
+                            "is_compilable",
                             "{Input Script or Source Directory}",
                             "4"
                         ],
-                        "path_to_default": "modified_path",
-                        "path_to_enabled": "is_valid"
+                        "path_to_enabled": "is_compilable",
+                        "path_to_default": "modified_path"
                     }
                 },
                 {
@@ -232,12 +232,12 @@
                             "INFO"
                         ],
                         "get_enabled_endpoint": [
-                            "is_valid_directory",
+                            "is_compilable",
                             "{Input Script or Source Directory}",
                             "4"
                         ],
-                        "path_to_default": "modified_path",
-                        "path_to_enabled": "is_valid"
+                        "path_to_enabled": "is_compilable",
+                        "path_to_default": "modified_path"
                     }
                 },
                 {
@@ -251,12 +251,12 @@
                     "json_endpoints": {
                         "get_defaults_endpoint": null,
                         "get_enabled_endpoint": [
-                            "is_valid_directory",
+                            "is_compilable",
                             "{Input Script or Source Directory}",
                             "4"
                         ],
                         "path_to_default": null,
-                        "path_to_enabled": "is_valid"
+                        "path_to_enabled": "is_compilable"
                     }
                 },
                 {
@@ -310,12 +310,12 @@
                     "json_endpoints": {
                         "get_defaults_endpoint": [],
                         "get_enabled_endpoint": [
-                            "is_valid_directory",
+                            "is_compilable",
                             "{Input Script or Source Directory}",
                             "4"
                         ],
                         "path_to_default": null,
-                        "path_to_enabled": "is_valid"
+                        "path_to_enabled": "is_compilable"
                     }
                 },
                 {

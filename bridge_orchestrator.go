@@ -80,6 +80,63 @@ func CompileScriptWithGuiConfig(inputPath, scriptType, outputJSON, excludePackag
 			}
 		}
 	} else if strings.ToUpper(scriptType) == "RS" || strings.ToUpper(scriptType) == "RUST" {
+		// Single-file .rs promotion: if inputPath is a plain .rs file, scaffold a minimal
+		// Cargo project around it before any further processing.
+		{
+			absInput, err := filepath.Abs(inputPath)
+			if err != nil {
+				return fmt.Errorf("RUST: failed to resolve inputPath: %w", err)
+			}
+			if fi, statErr := os.Stat(absInput); statErr == nil && !fi.IsDir() && strings.ToLower(filepath.Ext(absInput)) == ".rs" {
+				stem := strings.TrimSuffix(filepath.Base(absInput), filepath.Ext(absInput))
+				projectDir := filepath.Join(filepath.Dir(absInput), stem)
+				expectedSrcDir := filepath.Join(projectDir, "src")
+
+				// Validate outputBridge before touching anything on disk.
+				// "" is explicitly allowed — GenerateRustBridge will default to src/main.rs.
+				// Any non-empty value must resolve to a file directly inside projectDir/src/
+				// with a non-empty filename; anything else is an error.
+				if outputBridge != "" {
+					absOutBridge, err := filepath.Abs(outputBridge)
+					if err != nil {
+						return fmt.Errorf("RUST: single-file promotion: failed to resolve outputBridge %q: %w", outputBridge, err)
+					}
+					bridgeParent := filepath.Clean(filepath.Dir(absOutBridge))
+					bridgeFile := filepath.Base(absOutBridge)
+					if bridgeParent != filepath.Clean(expectedSrcDir) || bridgeFile == "" || bridgeFile == "." {
+						return fmt.Errorf("RUST: single-file promotion: outputBridge %q must be a file directly inside %q (e.g. %s)", outputBridge, expectedSrcDir, filepath.Join(expectedSrcDir, stem+"_bridge.rs"))
+					}
+				}
+
+				// Guard: error out before touching anything if the target directory already exists.
+				if _, dirErr := os.Stat(projectDir); dirErr == nil {
+					return fmt.Errorf("RUST: cannot promote single-file %q: directory %q already exists", absInput, projectDir)
+				}
+
+				// Create <stem>/src/
+				srcDir := filepath.Join(projectDir, "src")
+				if err := os.MkdirAll(srcDir, 0755); err != nil {
+					return fmt.Errorf("RUST: failed to create project src directory %q: %w", srcDir, err)
+				}
+
+				// Move <stem>.rs → <stem>/src/<stem>.rs
+				destFile := filepath.Join(srcDir, filepath.Base(absInput))
+				if err := os.Rename(absInput, destFile); err != nil {
+					return fmt.Errorf("RUST: failed to move %q to %q: %w", absInput, destFile, err)
+				}
+				logger.Info(parsedLogLevel, "RUST: Promoted single file %q → %q", absInput, destFile)
+
+				// Do NOT write Cargo.toml here — ensureRootCargo (called during CompileRust)
+				// handles generation with the correct bridge path already known. Writing one
+				// now would either point at the wrong file or be overwritten anyway.
+
+				// Redirect inputPath to the scaffolded project directory.
+				// outputBridge is either "" (use default) or already validated above to be
+				// correctly placed inside projectDir/src/, so no further adjustment needed.
+				inputPath = projectDir
+			}
+		}
+
 		// Enforce: outputBridge must live inside inputPath/src/ for RUST projects.
 		if outputBridge != "" {
 			absInput, err := filepath.Abs(inputPath)
