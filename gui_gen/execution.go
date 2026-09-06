@@ -58,7 +58,7 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
 		sudoPrefix = "pkexec "
 	}
 
-	if sourceType == "go" || sourceType == "binary" {
+	if sourceType == "go" || sourceType == "binary" || sourceType == "rust" {
 		cpp.WriteString(fmt.Sprintf(`
         QString shell_cmd;
         if ("%[1]s" == "g" || "%[1]s" == "s" || "%[1]s" == "d") {

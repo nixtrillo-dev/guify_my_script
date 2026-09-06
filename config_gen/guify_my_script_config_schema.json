@@ -15,7 +15,7 @@
           "script_alias": "${3:script_name}",
           "source_script_amd64": "${4:/path/to/script_amd64}",
           "source_script_arm64": "${5:/path/to/script_arm64}",
-          "source_type": "${6|go,bash,python,javascript,powershell|}",
+          "source_type": "${6|go,bash,python,javascript,powershell,rust|}",
           "startup": "tray",
           "tray_on_minimize": true,
           "instance_mode": "replace",
@@ -93,7 +93,7 @@
             "script_alias": "${3:script_name}",
             "source_script_amd64": "${4:/path/to/script_amd64}",
             "source_script_arm64": "${5:/path/to/script_arm64}",
-            "source_type": "${6|go,bash,python,javascript,powershell|}",
+            "source_type": "${6|go,bash,python,javascript,powershell,rust|}",
             "startup": "tray",
             "tray_on_minimize": true,
             "instance_mode": "replace",
@@ -133,7 +133,7 @@
         "source_script_arm64": { "type": "string" },
         "source_type": {
           "type": "string",
-          "enum": ["go", "bash", "python", "javascript", "powershell"]
+          "enum": ["go", "bash", "python", "javascript", "powershell", "rust"]
         },
         "startup": { "type": "string" },
         "tray_on_minimize": { "type": "boolean" },

@@ -3,13 +3,22 @@ package endpoint_utils
 import (
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"strings"
 
+	"guify_my_script/go_gen"
+	"guify_my_script/rust_gen"
 	"guify_my_script/logger"
 )
 
 // DirectoryStatus represents the JSON structure for the directory check.
 type DirectoryStatus struct {
 	IsValid bool `json:"is_valid"`
+}
+
+// Result represents the JSON structure returned for the script type check.
+type ScriptStatus struct {
+	FileType string `json:"file_type"`
 }
 
 // IsValidDirectory checks if a path is a valid directory, logs the result, and returns a JSON string.
@@ -66,4 +75,91 @@ func GetDirectoryListIfValid(path string, logLevel logger.LogLevel) string {
 
 	logger.Info(logLevel, "%s", jsonString)
 	return jsonString
+}
+
+// GetNonMainPackagesJSON takes a project directory path and depending on the script type outputs all non-main packages as a JSON array.
+func GetNonMainPackagesJSON(inputPath string, scriptType, logLevel string) (string, error) {
+	lvl := logger.ParseLogLevel(logLevel)
+
+	// Guard Clause: Return empty JSON array immediately if input string is empty
+	if inputPath == "" {
+		emptyJSON := "[]"
+		logger.Info(lvl, "%s", emptyJSON)
+		return emptyJSON, nil
+	}
+
+	switch scriptType {
+		case "GO":
+			return go_gen.GetGoNonMainPackagesJSON(inputPath,logLevel)
+		case "RUST":
+			return rust_gen.GetRustNonMainPackagesJSON(inputPath,logLevel)
+	}
+
+	emptyJSON := "[]"
+	logger.Info(lvl, "%s", emptyJSON)
+	return emptyJSON, nil
+}
+
+// GetMostRepresentedFileType scans the directory recursively and returns
+// a JSON-marshaled byte slice indicating whether "GO", "RUST", or tie (defaults to "GO") is most common.
+func GetMostRepresentedFileType(path string, logLevel logger.LogLevel) (string) {
+    var goCount, rsCount int
+    var jsonString string
+
+    // Guard Clause: Return empty JSON array immediately if input string is empty
+    if path == "" {
+	logger.Debug(logLevel, "Guard Clause: Returning empty JSON array immediately as input string is empty")
+        jsonString := "[]"
+        logger.Info(logLevel, "%s", jsonString)
+        return jsonString
+    }
+
+    // Walk through the directory and subdirectories efficiently using WalkDir
+    err := filepath.WalkDir(path, func(path string, d os.DirEntry, err error) error {
+        if err != nil {
+            return err
+        }
+
+        // Only check files, ignore directories
+        if !d.IsDir() {
+            ext := strings.ToLower(filepath.Ext(path))
+            switch ext {
+            case ".go":
+                goCount++
+            case ".rs":
+                rsCount++
+            }
+        }
+        return nil
+    })
+
+    if err != nil {
+	logger.Debug(logLevel, "filepath.WalkDir failed for array generation: %v", err)
+        jsonString := "[]"
+        logger.Info(logLevel, "%s", jsonString)
+        return jsonString
+    }
+
+    // Determine the most represented file type - "GO" is the tie breaker value
+    winner := "GO"
+    if goCount > rsCount {
+        winner = "GO"
+    } else if rsCount > goCount {
+        winner = "RUST"
+    }
+
+    // Marshal the result into JSON
+    res := ScriptStatus{FileType: winner}
+
+    jsonBytes, err := json.Marshal(res)
+
+    if err != nil {
+        logger.Debug(logLevel, "JSON marshaling failed for array generation: %v", err)
+        jsonString = `[]`
+    } else {
+        jsonString = string(jsonBytes)
+    }
+
+    logger.Info(logLevel, "%s", jsonString)
+    return jsonString
 }

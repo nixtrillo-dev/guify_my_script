@@ -171,7 +171,7 @@ func main() {
 `
 
 // GetNonMainPackagesJSON takes a Go project directory path and outputs all non-main packages as a JSON array.
-func GetNonMainPackagesJSON(inputPath string, logLevel string) (string, error) {
+func GetGoNonMainPackagesJSON(inputPath string, logLevel string) (string, error) {
 	lvl := logger.ParseLogLevel(logLevel)
 
 	// Guard Clause: Return empty JSON array immediately if input string is empty
@@ -227,7 +227,7 @@ func GetNonMainPackagesJSON(inputPath string, logLevel string) (string, error) {
 	}
 
 	// Leverage extractMetadata to scrape all the import paths logic
-	dynamicImports, _, _ := extractMetadata(targetDir, moduleBaseName, targetFiles, nil, lvl, false)
+	dynamicImports, _, _, _ := extractMetadata(targetDir, moduleBaseName, targetFiles, nil, lvl, false)
 
 	jsonData, err := json.Marshal(dynamicImports)
 	if err != nil {
@@ -242,11 +242,12 @@ func GetNonMainPackagesJSON(inputPath string, logLevel string) (string, error) {
 }
 
 // extractMetadata isolates the AST parsing logic to discover packages, imports, and function signatures.
-func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, excludeMap map[string]bool, lvl logger.LogLevel, includeFuncParams bool) ([]string, []FuncMetaData, bool) {
+func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, excludeMap map[string]bool, lvl logger.LogLevel, includeFuncParams bool) ([]string, []FuncMetaData, bool, error) {
 	var functions []FuncMetaData
 	importMap := make(map[string]bool)
 	fset := token.NewFileSet()
 	needsStrconv := false
+	seenBashNames := make(map[string]string) // bashName → "package.GoName" of first occurrence
 
 	// Pre-scan all target files to identify declared struct, interface, and composite types
 	compositeTypes := make(map[string]bool)
@@ -412,6 +413,17 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 				needsStrconv = true
 			}
 
+			// Duplicate endpoint name guard: two public functions from different packages that
+			// share the same bash_name would produce colliding //export and CLI switch entries.
+			qualifiedName := fmt.Sprintf("%s.%s", parsedPackageName, goName)
+			if firstSeen, collision := seenBashNames[bashName]; collision {
+				return nil, nil, false, fmt.Errorf(
+					"duplicate endpoint name %q: %s and %s both map to the same CLI/export name — rename one of the exported functions to resolve the collision",
+					bashName, firstSeen, qualifiedName,
+				)
+			}
+			seenBashNames[bashName] = qualifiedName
+
 			functions = append(functions, FuncMetaData{
 				GoName:         goName,
 				BashName:       bashName,
@@ -428,7 +440,7 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 		dynamicImports = append(dynamicImports, imp)
 	}
 
-	return dynamicImports, functions, needsStrconv
+	return dynamicImports, functions, needsStrconv, nil
 }
 
 // GenerateBridge accepts an 'excludePackages' comma-separated string, 'logLevelStr', and 'includeFuncParams' flag
@@ -512,7 +524,10 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 	}
 
 	// 2. Delegate the parsing process to the shared abstraction function with the new flag
-	dynamicImports, functions, needsStrconv := extractMetadata(targetDir, moduleBaseName, targetFiles, excludeMap, lvl, includeFuncParams)
+	dynamicImports, functions, needsStrconv, err := extractMetadata(targetDir, moduleBaseName, targetFiles, excludeMap, lvl, includeFuncParams)
+	if err != nil {
+		return "", "", err
+	}
 
 	funcMap := template.FuncMap{
 		"add": func(a, b int) int { return a + b },

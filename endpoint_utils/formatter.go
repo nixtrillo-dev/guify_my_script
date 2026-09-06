@@ -161,3 +161,84 @@ func GetExtension(filePath, logLevel string) (string, error) {
 
 	return jsonString, nil
 }
+
+// InsertParentFolder inserts a new directory immediately before the last element of the path,
+// logs the JSON result as info, and returns it as a string.
+func InsertParentFolder(originalPath, newFolder, logLevel string) (string, error) {
+	// Parse the string into your internal LogLevel type
+	lvl := logger.ParseLogLevel(logLevel)
+
+	var newPath string
+	if originalPath == "" {
+		newPath = newFolder
+	} else {
+		// Extract everything EXCEPT the last element (e.g., "/var/log")
+		dir := filepath.Dir(originalPath)
+
+		// Extract ONLY the last element (e.g., "app.log")
+		base := filepath.Base(originalPath)
+
+		// Stitch them back together with the new folder in the middle
+		newPath = filepath.Join(dir, newFolder, base)
+	}
+
+	// Package it into the existing struct
+	result := PathResult{
+		OriginalPath: originalPath,
+		ModifiedPath: newPath,
+	}
+
+	// Marshal the struct into JSON bytes
+	jsonData, err := json.Marshal(result)
+	if err != nil {
+		logger.Error(lvl, "Failed to marshal path result: %v", err)
+		return "", err
+	}
+
+	jsonString := string(jsonData)
+
+	// Output the JSON string as an INFO level log
+	logger.Info(lvl, "%s", jsonString)
+
+	return jsonString, nil
+}
+
+// GetDefaultBinaryPathForScript generates a default binary path based on the script type.
+// For Go scripts, it appends "_bridge.go" to the base name. For Rust scripts, it appends "_bridge.rs"
+// and places the file in a "src" subdirectory. The result is returned as a JSON string.
+func GetDefaultBinaryPathForScript(dirPath, scriptType, logLevel string) (string, error) {
+	switch scriptType {
+	case "GO":
+		return GeneratePathFromDir(dirPath, "_bridge", ".go", logLevel)
+	case "RUST":
+		var generatedJSON string
+		var err error
+
+		// 1. Generate the initial path string (which is a JSON string)
+		if logLevel == "INFO" {
+			// INFO returns the JSON string, but we are updating the modified_path in the next step,
+			// so we don't want to log it twice. Use WARNING to suppress the INFO log.
+			generatedJSON, err = GeneratePathFromDir(dirPath, "_bridge", ".rs", "WARNING")
+		} else {
+			generatedJSON, err = GeneratePathFromDir(dirPath, "_bridge", ".rs", logLevel)
+		}
+
+		if err != nil {
+			return "", err
+		}
+
+		// 2. We only want the modified_path so unmarshal the JSON back into our struct
+		// to isolate the path
+		var parsedResult PathResult
+		if err := json.Unmarshal([]byte(generatedJSON), &parsedResult); err != nil {
+			lvl := logger.ParseLogLevel(logLevel)
+			logger.Error(lvl, "Failed to unmarshal generated path JSON: %v", err)
+			return "", err
+		}
+
+		// 3. Move the generated path into a "src" subdirectory and return the new JSON string
+		return InsertParentFolder(parsedResult.ModifiedPath, "src", logLevel)
+	default:
+		return GeneratePathFromDir(dirPath, "_bridge", "", logLevel)
+	}
+}

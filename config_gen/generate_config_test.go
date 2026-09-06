@@ -382,3 +382,53 @@ func TestSchemaContainsRequiredProperties(t *testing.T) {
 		t.Errorf("Field 'arg_name' is missing from uiField properties (required for JavaScript/parameter naming)")
 	}
 }
+
+func TestGenerateGUIConfig_RustSource(t *testing.T) {
+	tempDir := t.TempDir()
+	rsFile := filepath.Join(tempDir, "main.rs")
+	rsContent := `
+pub fn print_greeting(name: &str) {}
+pub fn print_sum(a: i32, b: i32) {}
+`
+	if err := os.WriteFile(rsFile, []byte(rsContent), 0644); err != nil {
+		t.Fatalf("Failed creating dummy rs file: %v", err)
+	}
+
+	outputJSON := filepath.Join(tempDir, "config.json")
+	err := GenerateGUIConfig(rsFile, outputJSON, "my_rust_binary", true, "DEBUG", false)
+	if err != nil {
+		t.Fatalf("GenerateGUIConfig failed: %v", err)
+	}
+
+	data, err := os.ReadFile(outputJSON)
+	if err != nil {
+		t.Fatalf("Failed reading generated JSON: %v", err)
+	}
+
+	var root RootGUIConfig
+	if err := json.Unmarshal(data, &root); err != nil {
+		t.Fatalf("Failed unmarshaling config JSON: %v", err)
+	}
+
+	expectedBase, _ := filepath.Abs("my_rust_binary")
+	expectedAMD64 := expectedBase + "_amd64"
+	expectedARM64 := expectedBase + "_arm64"
+	expectedAlias := "my_rust_binary"
+
+	if root.Config.ScriptAlias != expectedAlias {
+		t.Errorf("Expected script_alias to be %q, got %q", expectedAlias, root.Config.ScriptAlias)
+	}
+	if root.Config.SourceScriptAMD64 != expectedAMD64 {
+		t.Errorf("Expected source_script_amd64 to be %q, got %q", expectedAMD64, root.Config.SourceScriptAMD64)
+	}
+	if root.Config.SourceScriptARM64 != expectedARM64 {
+		t.Errorf("Expected source_script_arm64 to be %q, got %q", expectedARM64, root.Config.SourceScriptARM64)
+	}
+	if root.Config.SourceType != "rust" {
+		t.Errorf("Expected source_type to be 'rust', got %q", root.Config.SourceType)
+	}
+	if len(root.Actions) != 2 {
+		t.Fatalf("Expected 2 actions, got %d", len(root.Actions))
+	}
+}
+

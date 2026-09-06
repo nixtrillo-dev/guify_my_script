@@ -247,6 +247,16 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		scriptAlias = filepath.Base(sourceScriptBase)
 		sourceScriptAMD64 = sourceScriptBase + "_amd64"
 		sourceScriptARM64 = sourceScriptBase + "_arm64"
+	} else if ext == ".rs" {
+		actions, err = parseRustFile(absInput)
+		if err != nil {
+			return fmt.Errorf("failed to parse Rust source %q: %w", absInput, err)
+		}
+		sourceType = "rust"
+		sourceScriptBase := strings.TrimSuffix(sourceScript, inputExt)
+		scriptAlias = filepath.Base(sourceScriptBase)
+		sourceScriptAMD64 = sourceScriptBase + "_amd64"
+		sourceScriptARM64 = sourceScriptBase + "_arm64"
 	} else if ext == ".py" {
 		actions, err = parsePythonFile(absInput)
 		if err != nil {

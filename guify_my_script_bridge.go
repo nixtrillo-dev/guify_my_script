@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"guify_my_script/package_installer"
+	"guify_my_script/rust_gen"
+	"guify_my_script/config_gen"
+	"guify_my_script/endpoint_utils"
 	"guify_my_script/go_gen"
 	"guify_my_script/gui_gen"
 	"guify_my_script/internal_utils"
 	"guify_my_script/logger"
-	"guify_my_script/package_installer"
-	"guify_my_script/config_gen"
-	"guify_my_script/endpoint_utils"
 	
 )
 
@@ -128,6 +129,38 @@ func GoGetDirectoryListIfValid(path *C.char, logLevel C.int) C.int {
 	return 1
 }
 
+//export GoGetNonMainPackagesJSON
+func GoGetNonMainPackagesJSON(inputPath *C.char, scriptType *C.char, logLevel *C.char) C.int {
+	
+	go_inputPath := C.GoString(inputPath)
+	
+	go_scriptType := C.GoString(scriptType)
+	
+	go_logLevel := C.GoString(logLevel)
+	
+	
+	_, err := endpoint_utils.GetNonMainPackagesJSON(go_inputPath, go_scriptType, go_logLevel)
+	if err != nil {
+		fmt.Printf("Pipeline Error in GetNonMainPackagesJSON: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoGetMostRepresentedFileType
+func GoGetMostRepresentedFileType(path *C.char, logLevel C.int) C.int {
+	
+	go_path := C.GoString(path)
+	
+	go_logLevel := logger.LogLevel(int(logLevel))
+	
+	
+	endpoint_utils.GetMostRepresentedFileType(go_path, go_logLevel)
+	
+	return 1
+}
+
 //export GoModifyPath
 func GoModifyPath(filePath *C.char, appendString *C.char, newExtension *C.char, logLevel *C.char) C.int {
 	
@@ -187,17 +220,55 @@ func GoGetExtension(filePath *C.char, logLevel *C.char) C.int {
 	return 1
 }
 
-//export GoGetNonMainPackagesJSON
-func GoGetNonMainPackagesJSON(inputPath *C.char, logLevel *C.char) C.int {
+//export GoInsertParentFolder
+func GoInsertParentFolder(originalPath *C.char, newFolder *C.char, logLevel *C.char) C.int {
+	
+	go_originalPath := C.GoString(originalPath)
+	
+	go_newFolder := C.GoString(newFolder)
+	
+	go_logLevel := C.GoString(logLevel)
+	
+	
+	_, err := endpoint_utils.InsertParentFolder(go_originalPath, go_newFolder, go_logLevel)
+	if err != nil {
+		fmt.Printf("Pipeline Error in InsertParentFolder: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoGetDefaultBinaryPathForScript
+func GoGetDefaultBinaryPathForScript(dirPath *C.char, scriptType *C.char, logLevel *C.char) C.int {
+	
+	go_dirPath := C.GoString(dirPath)
+	
+	go_scriptType := C.GoString(scriptType)
+	
+	go_logLevel := C.GoString(logLevel)
+	
+	
+	_, err := endpoint_utils.GetDefaultBinaryPathForScript(go_dirPath, go_scriptType, go_logLevel)
+	if err != nil {
+		fmt.Printf("Pipeline Error in GetDefaultBinaryPathForScript: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoGetGoNonMainPackagesJSON
+func GoGetGoNonMainPackagesJSON(inputPath *C.char, logLevel *C.char) C.int {
 	
 	go_inputPath := C.GoString(inputPath)
 	
 	go_logLevel := C.GoString(logLevel)
 	
 	
-	_, err := go_gen.GetNonMainPackagesJSON(go_inputPath, go_logLevel)
+	_, err := go_gen.GetGoNonMainPackagesJSON(go_inputPath, go_logLevel)
 	if err != nil {
-		fmt.Printf("Pipeline Error in GetNonMainPackagesJSON: %v\n", err)
+		fmt.Printf("Pipeline Error in GetGoNonMainPackagesJSON: %v\n", err)
 		return 0
 	}
 	
@@ -317,6 +388,67 @@ func GoInstallLocalPackage(pkgPath *C.char, updateFirst C.int, logLevel C.int) C
 	err := package_installer.InstallLocalPackage(go_pkgPath, go_updateFirst, go_logLevel)
 	if err != nil {
 		fmt.Printf("Pipeline Error in InstallLocalPackage: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoGetRustNonMainPackagesJSON
+func GoGetRustNonMainPackagesJSON(inputPath *C.char, logLevel *C.char) C.int {
+	
+	go_inputPath := C.GoString(inputPath)
+	
+	go_logLevel := C.GoString(logLevel)
+	
+	
+	_, err := rust_gen.GetRustNonMainPackagesJSON(go_inputPath, go_logLevel)
+	if err != nil {
+		fmt.Printf("Pipeline Error in GetRustNonMainPackagesJSON: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoGenerateRustBridge
+func GoGenerateRustBridge(inputPath *C.char, outputPath *C.char, excludePackages *C.char, logLevelStr *C.char, includeFuncParams C.int) C.int {
+	
+	go_inputPath := C.GoString(inputPath)
+	
+	go_outputPath := C.GoString(outputPath)
+	
+	go_excludePackages := C.GoString(excludePackages)
+	
+	go_logLevelStr := C.GoString(logLevelStr)
+	
+	go_includeFuncParams := includeFuncParams == 1
+	
+	
+	_, _, err := rust_gen.GenerateRustBridge(go_inputPath, go_outputPath, go_excludePackages, go_logLevelStr, go_includeFuncParams)
+	if err != nil {
+		fmt.Printf("Pipeline Error in GenerateRustBridge: %v\n", err)
+		return 0
+	}
+	
+	return 1
+}
+
+//export GoCompileRust
+func GoCompileRust(targetDir *C.char, absBridge *C.char, binaryName *C.char, logLevelStr *C.char) C.int {
+	
+	go_targetDir := C.GoString(targetDir)
+	
+	go_absBridge := C.GoString(absBridge)
+	
+	go_binaryName := C.GoString(binaryName)
+	
+	go_logLevelStr := C.GoString(logLevelStr)
+	
+	
+	err := rust_gen.CompileRust(go_targetDir, go_absBridge, go_binaryName, go_logLevelStr)
+	if err != nil {
+		fmt.Printf("Pipeline Error in CompileRust: %v\n", err)
 		return 0
 	}
 	
@@ -576,6 +708,60 @@ func main() {
 		endpoint_utils.GetDirectoryListIfValid(cli_path, cli_logLevel)
 		
 		
+	    case "get_non_main_packages_json":
+		if len(os.Args) < 5 {
+			fmt.Println("Error: get_non_main_packages_json requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_inputPath := os.Args[2]
+		
+		
+		cli_scriptType := os.Args[3]
+		
+		
+		cli_logLevel := os.Args[4]
+		
+		
+		_, err := endpoint_utils.GetNonMainPackagesJSON(cli_inputPath, cli_scriptType, cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "get_most_represented_file_type":
+		if len(os.Args) < 4 {
+			fmt.Println("Error: get_most_represented_file_type requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_path := os.Args[2]
+		
+		
+		var cli_logLevel_raw int
+		raw_logLevel := os.Args[3]
+		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
+			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
+			if err_logLevel != nil {
+				fmt.Printf("Error: parameter 'logLevel' must be a valid integer: %v\n", err_logLevel)
+				os.Exit(1)
+			}
+			cli_logLevel_raw = parsed_logLevel
+		}
+		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
+		
+		
+		
+		endpoint_utils.GetMostRepresentedFileType(cli_path, cli_logLevel)
+		
+		
 	    case "modify_path":
 		if len(os.Args) < 6 {
 			fmt.Println("Error: modify_path requires parameters")
@@ -654,9 +840,59 @@ func main() {
 		}
 		
 		
-	    case "get_non_main_packages_json":
+	    case "insert_parent_folder":
+		if len(os.Args) < 5 {
+			fmt.Println("Error: insert_parent_folder requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_originalPath := os.Args[2]
+		
+		
+		cli_newFolder := os.Args[3]
+		
+		
+		cli_logLevel := os.Args[4]
+		
+		
+		_, err := endpoint_utils.InsertParentFolder(cli_originalPath, cli_newFolder, cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "get_default_binary_path_for_script":
+		if len(os.Args) < 5 {
+			fmt.Println("Error: get_default_binary_path_for_script requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_dirPath := os.Args[2]
+		
+		
+		cli_scriptType := os.Args[3]
+		
+		
+		cli_logLevel := os.Args[4]
+		
+		
+		_, err := endpoint_utils.GetDefaultBinaryPathForScript(cli_dirPath, cli_scriptType, cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "get_go_non_main_packages_json":
 		if len(os.Args) < 4 {
-			fmt.Println("Error: get_non_main_packages_json requires parameters")
+			fmt.Println("Error: get_go_non_main_packages_json requires parameters")
 			os.Exit(1)
 		}
 
@@ -669,7 +905,7 @@ func main() {
 		cli_logLevel := os.Args[3]
 		
 		
-		_, err := go_gen.GetNonMainPackagesJSON(cli_inputPath, cli_logLevel)
+		_, err := go_gen.GetGoNonMainPackagesJSON(cli_inputPath, cli_logLevel)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -871,6 +1107,97 @@ func main() {
 		
 		
 		err := package_installer.InstallLocalPackage(cli_pkgPath, cli_updateFirst, cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "get_rust_non_main_packages_json":
+		if len(os.Args) < 4 {
+			fmt.Println("Error: get_rust_non_main_packages_json requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_inputPath := os.Args[2]
+		
+		
+		cli_logLevel := os.Args[3]
+		
+		
+		_, err := rust_gen.GetRustNonMainPackagesJSON(cli_inputPath, cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "generate_rust_bridge":
+		if len(os.Args) < 7 {
+			fmt.Println("Error: generate_rust_bridge requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_inputPath := os.Args[2]
+		
+		
+		cli_outputPath := os.Args[3]
+		
+		
+		cli_excludePackages := os.Args[4]
+		
+		
+		cli_logLevelStr := os.Args[5]
+		
+		
+		cli_includeFuncParams, err_includeFuncParams := strconv.ParseBool(os.Args[6])
+		if err_includeFuncParams != nil {
+			if os.Args[6] == "1" {
+				cli_includeFuncParams = true
+			} else if os.Args[6] == "0" {
+				cli_includeFuncParams = false
+			} else {
+				fmt.Printf("Error: parameter 'includeFuncParams' must be a valid boolean evaluation: %v\n", err_includeFuncParams)
+				os.Exit(1)
+			}
+		}
+		
+		
+		_, _, err := rust_gen.GenerateRustBridge(cli_inputPath, cli_outputPath, cli_excludePackages, cli_logLevelStr, cli_includeFuncParams)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		
+		
+	    case "compile_rust":
+		if len(os.Args) < 6 {
+			fmt.Println("Error: compile_rust requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_targetDir := os.Args[2]
+		
+		
+		cli_absBridge := os.Args[3]
+		
+		
+		cli_binaryName := os.Args[4]
+		
+		
+		cli_logLevelStr := os.Args[5]
+		
+		
+		err := rust_gen.CompileRust(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
