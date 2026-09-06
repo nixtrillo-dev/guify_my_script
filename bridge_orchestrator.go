@@ -62,6 +62,73 @@ func CompileScriptWithGuiConfig(inputPath, scriptType, outputJSON, excludePackag
 	logger.Debug(parsedLogLevel, "scriptType: %s", scriptType)
 
 	if strings.ToUpper(scriptType) == "GO" {
+		// Single-file .go promotion: if inputPath is a plain .go file, scaffold a minimal
+		// project directory around it before any further processing.
+		{
+			absInput, err := filepath.Abs(inputPath)
+			if err != nil {
+				return fmt.Errorf("GO: failed to resolve inputPath: %w", err)
+			}
+			if fi, statErr := os.Stat(absInput); statErr == nil && !fi.IsDir() && strings.ToLower(filepath.Ext(absInput)) == ".go" {
+				stem := strings.TrimSuffix(filepath.Base(absInput), filepath.Ext(absInput))
+				projectDir := filepath.Join(filepath.Dir(absInput), stem)
+
+				// Validate outputBridge before touching anything on disk.
+				// "" is explicitly allowed — GenerateBridge will default to a file inside projectDir.
+				// Any non-empty value must resolve to a file directly inside projectDir
+				// with a non-empty filename; anything else is an error.
+				if outputBridge != "" {
+					absOutBridge, err := filepath.Abs(outputBridge)
+					if err != nil {
+						return fmt.Errorf("GO: single-file promotion: failed to resolve outputBridge %q: %w", outputBridge, err)
+					}
+					bridgeParent := filepath.Clean(filepath.Dir(absOutBridge))
+					bridgeFile := filepath.Base(absOutBridge)
+					if bridgeParent != filepath.Clean(projectDir) || bridgeFile == "" || bridgeFile == "." {
+						return fmt.Errorf("GO: single-file promotion: outputBridge %q must be a file directly inside %q (e.g. %s)", outputBridge, projectDir, filepath.Join(projectDir, stem+"_bridge.go"))
+					}
+				}
+
+				// Guard: error out before touching anything if the target directory already exists.
+				if _, dirErr := os.Stat(projectDir); dirErr == nil {
+					return fmt.Errorf("GO: cannot promote single-file %q: directory %q already exists", absInput, projectDir)
+				}
+
+				// Create <stem>/
+				if err := os.MkdirAll(projectDir, 0755); err != nil {
+					return fmt.Errorf("GO: failed to create project directory %q: %w", projectDir, err)
+				}
+
+				// Move <stem>.go → <stem>/<stem>.go
+				destFile := filepath.Join(projectDir, filepath.Base(absInput))
+				if err := os.Rename(absInput, destFile); err != nil {
+					return fmt.Errorf("GO: failed to move %q to %q: %w", absInput, destFile, err)
+				}
+				logger.Info(parsedLogLevel, "GO: Promoted single file %q → %q", absInput, destFile)
+
+				// Redirect inputPath to the scaffolded project directory.
+				inputPath = projectDir
+			}
+		}
+
+		// Enforce: outputBridge must live inside inputPath for GO projects.
+		if outputBridge != "" {
+			absInput, err := filepath.Abs(inputPath)
+			if err != nil {
+				return fmt.Errorf("GO: failed to resolve inputPath: %w", err)
+			}
+			absOutBridge, err := filepath.Abs(outputBridge)
+			if err != nil {
+				return fmt.Errorf("GO: failed to resolve outputBridge: %w", err)
+			}
+			// Bridge must be inside inputPath (when inputPath is a directory)
+			if fi, err := os.Stat(absInput); err == nil && fi.IsDir() {
+				if !strings.HasPrefix(absOutBridge, absInput+string(filepath.Separator)) {
+					return fmt.Errorf("GO: outputBridge %q must be located inside inputPath %q", outputBridge, inputPath)
+				}
+			}
+		}
+
 		// 1. Run the Go code generator (from generate_go_bridge.go)
 		targetDir, absBridge, err := go_gen.GenerateBridge(inputPath, outputBridge, excludePackages, logLevel, includeFuncParams)
 		if err != nil {

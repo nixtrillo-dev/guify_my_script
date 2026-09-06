@@ -92,7 +92,8 @@
                         "js",
                         "mjs",
                         "psm1",
-                        "rs"
+                        "rs",
+                        "go"
                     ],
                     "json_endpoints": {
                         "get_defaults_endpoint": [],

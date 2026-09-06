@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"guify_my_script/endpoint_utils"
 	"guify_my_script/go_gen"
 	"guify_my_script/gui_gen"
 	"guify_my_script/internal_utils"
@@ -13,6 +12,7 @@ import (
 	"guify_my_script/package_installer"
 	"guify_my_script/rust_gen"
 	"guify_my_script/config_gen"
+	"guify_my_script/endpoint_utils"
 	
 )
 
