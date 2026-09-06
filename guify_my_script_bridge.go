@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"guify_my_script/package_installer"
-	"guify_my_script/rust_gen"
-	"guify_my_script/config_gen"
 	"guify_my_script/endpoint_utils"
 	"guify_my_script/go_gen"
 	"guify_my_script/gui_gen"
 	"guify_my_script/internal_utils"
 	"guify_my_script/logger"
+	"guify_my_script/package_installer"
+	"guify_my_script/rust_gen"
+	"guify_my_script/config_gen"
 	
 )
 
@@ -252,8 +252,8 @@ func GoInsertParentFolder(originalPath *C.char, newFolder *C.char, logLevel *C.c
 	return 1
 }
 
-//export GoGetDefaultBinaryPathForScript
-func GoGetDefaultBinaryPathForScript(dirPath *C.char, scriptType *C.char, logLevel *C.char) C.int {
+//export GoGetDefaultBridgePathForScript
+func GoGetDefaultBridgePathForScript(dirPath *C.char, scriptType *C.char, logLevel *C.char) C.int {
 	
 	go_dirPath := C.GoString(dirPath)
 	
@@ -262,9 +262,9 @@ func GoGetDefaultBinaryPathForScript(dirPath *C.char, scriptType *C.char, logLev
 	go_logLevel := C.GoString(logLevel)
 	
 	
-	_, err := endpoint_utils.GetDefaultBinaryPathForScript(go_dirPath, go_scriptType, go_logLevel)
+	_, err := endpoint_utils.GetDefaultBridgePathForScript(go_dirPath, go_scriptType, go_logLevel)
 	if err != nil {
-		fmt.Printf("Pipeline Error in GetDefaultBinaryPathForScript: %v\n", err)
+		fmt.Printf("Pipeline Error in GetDefaultBridgePathForScript: %v\n", err)
 		return 0
 	}
 	
@@ -907,9 +907,9 @@ func main() {
 		}
 		
 		
-	    case "get_default_binary_path_for_script":
+	    case "get_default_bridge_path_for_script":
 		if len(os.Args) < 5 {
-			fmt.Println("Error: get_default_binary_path_for_script requires parameters")
+			fmt.Println("Error: get_default_bridge_path_for_script requires parameters")
 			os.Exit(1)
 		}
 
@@ -925,7 +925,7 @@ func main() {
 		cli_logLevel := os.Args[4]
 		
 		
-		_, err := endpoint_utils.GetDefaultBinaryPathForScript(cli_dirPath, cli_scriptType, cli_logLevel)
+		_, err := endpoint_utils.GetDefaultBridgePathForScript(cli_dirPath, cli_scriptType, cli_logLevel)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)

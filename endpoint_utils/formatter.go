@@ -82,9 +82,15 @@ func GeneratePathFromDir(dirPath, appendString, newExtension, logLevel string) (
 	// 2. Determine if the path provided is actually a file or directory.
 	if info, err := os.Stat(cleanPath); err == nil {
 		if !info.IsDir() {
+			ext := filepath.Ext(cleanPath)
 			targetDir = filepath.Dir(cleanPath)
 			// Use the file name (without extension) instead of the directory name
-			baseName = strings.TrimSuffix(filepath.Base(cleanPath), filepath.Ext(cleanPath))
+			baseName = strings.TrimSuffix(filepath.Base(cleanPath), ext)
+
+			// Inject base name as a new parent directory for .go and .rs files
+			if ext == ".go" || ext == ".rs" {
+				targetDir = filepath.Join(targetDir, baseName)
+			}
 		} else {
 			baseName = filepath.Base(cleanPath)
 		}
@@ -92,6 +98,11 @@ func GeneratePathFromDir(dirPath, appendString, newExtension, logLevel string) (
 		// Fallback: If it doesn't exist on disk but has an extension, treat it as a file
 		targetDir = filepath.Dir(cleanPath)
 		baseName = strings.TrimSuffix(filepath.Base(cleanPath), ext)
+
+		// Inject base name as a new parent directory for .go and .rs files
+		if ext == ".go" || ext == ".rs" {
+			targetDir = filepath.Join(targetDir, baseName)
+		}
 	} else {
 		// Fallback: Assume it's a directory
 		baseName = filepath.Base(cleanPath)
@@ -203,10 +214,22 @@ func InsertParentFolder(originalPath, newFolder, logLevel string) (string, error
 	return jsonString, nil
 }
 
-// GetDefaultBinaryPathForScript generates a default binary path based on the script type.
+// GetDefaultBridgePathForScript generates a default binary path based on the script type.
 // For Go scripts, it appends "_bridge.go" to the base name. For Rust scripts, it appends "_bridge.rs"
 // and places the file in a "src" subdirectory. The result is returned as a JSON string.
-func GetDefaultBinaryPathForScript(dirPath, scriptType, logLevel string) (string, error) {
+// If scriptType is an empty string, it will attempt to derive it from the dirPath extension.
+func GetDefaultBridgePathForScript(dirPath, scriptType, logLevel string) (string, error) {
+	// Derive scriptType from the extension if it is empty
+	if scriptType == "" {
+		ext := strings.ToUpper(strings.TrimPrefix(filepath.Ext(dirPath), "."))
+		switch ext {
+		case "RS":
+			scriptType = "RUST"
+		case "GO":
+			scriptType = "GO"
+		}
+	}
+
 	switch scriptType {
 	case "GO":
 		return GeneratePathFromDir(dirPath, "_bridge", ".go", logLevel)

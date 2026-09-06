@@ -198,7 +198,7 @@
                     ],
                     "json_endpoints": {
                         "get_defaults_endpoint": [
-                            "get_default_binary_path_for_script",
+                            "get_default_bridge_path_for_script",
                             "{Input Script or Source Directory}",
                             "{Script Type}",
                             "INFO"
