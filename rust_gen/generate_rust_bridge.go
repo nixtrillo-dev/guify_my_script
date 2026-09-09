@@ -263,9 +263,9 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 	// targetDir is now the resolved Cargo project root. When the root project is a
 	// binary wrapper (has a [[bin]] but no lib.rs), the actual library sources live
 	// in a subdirectory crate. Scan subdirectories for a lib crate to use as the
-	// source-of-truth for crate name and function metadata.
+	// source-of-truth for the primary crate name and function metadata.
 	//
-	// Priority:
+	// Priority for the primary lib crate:
 	//   1. If targetDir itself has src/lib.rs → it IS the lib crate, use it directly.
 	//   2. Otherwise scan immediate subdirectories for a Cargo.toml + src/lib.rs.
 	libCrateDir := targetDir
@@ -286,6 +286,10 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 			}
 		}
 	}
+
+	// Discover all lib crates under targetDir (generates missing Cargo.toml files).
+	// libCrateDir is always the first entry; additional crates are appended.
+	allLibCrateDirs := discoverLibCrates(targetDir, libCrateDir, lvl)
 
 	crateName := getCrateName(libCrateDir)
 	if crateName == "" {
@@ -315,30 +319,86 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 		return "", "", fmt.Errorf("failed creating src directory: %w", err)
 	}
 
-	// Gather target Rust source files from the lib crate's src/ directory.
+	// Gather Rust source files from every discovered lib crate's src/ directory.
+	// Files from the primary libCrateDir are collected first so that the primary
+	// crate's functions appear first in the bridge; additional crates follow.
 	var targetFiles []string
-	srcDir := filepath.Join(libCrateDir, "src")
-	if fi, err := os.Stat(srcDir); err == nil && fi.IsDir() {
-		_ = filepath.WalkDir(srcDir, func(path string, d os.DirEntry, err error) error {
-			if err != nil {
-				return err
+	seenFiles := make(map[string]bool)
+
+	for _, crateDir := range allLibCrateDirs {
+		srcDir := filepath.Join(crateDir, "src")
+		if fi, statErr := os.Stat(srcDir); statErr == nil && fi.IsDir() {
+			_ = filepath.WalkDir(srcDir, func(path string, d os.DirEntry, walkErr error) error {
+				if walkErr != nil {
+					return walkErr
+				}
+				absPath, _ := filepath.Abs(path)
+				if !d.IsDir() && filepath.Ext(absPath) == ".rs" && absPath != absOutput && !seenFiles[absPath] {
+					seenFiles[absPath] = true
+					targetFiles = append(targetFiles, absPath)
+					logger.Info(lvl, "  • Found Rust source: %s", absPath)
+				}
+				return nil
+			})
+		} else if crateDir == libCrateDir && !fi.IsDir() && filepath.Ext(absInput) == ".rs" {
+			// Single-file input that was not yet wrapped in a src/ dir.
+			if !seenFiles[absInput] {
+				seenFiles[absInput] = true
+				targetFiles = append(targetFiles, absInput)
 			}
-			absPath, _ := filepath.Abs(path)
-			if !d.IsDir() && filepath.Ext(absPath) == ".rs" && absPath != absOutput {
-				targetFiles = append(targetFiles, absPath)
-				logger.Info(lvl, "  • Found Rust source: %s", absPath)
-			}
-			return nil
-		})
-	} else if !fi.IsDir() && filepath.Ext(absInput) == ".rs" {
-		targetFiles = append(targetFiles, absInput)
+		}
 	}
 
-	// Extract functions and metadata from the lib crate sources.
-	dynamicImports, functions, needsStrconv, err := extractRustMetadata(libCrateDir, crateName, targetFiles, excludeMap, lvl, includeFuncParams)
-	if err != nil {
-		return "", "", err
+	// Extract functions and metadata from all collected sources.
+	// extractRustMetadata resolves module paths relative to the file's owning crate
+	// directory. We process each crate separately and merge the results so the
+	// module paths (e.g. "core_utils::payments") are always correct.
+	var (
+		allDynamicImports []string
+		allFunctions      []FuncMetaData
+		allNeedsStrconv   bool
+	)
+	importSet := make(map[string]bool)
+
+	for _, crateDir := range allLibCrateDirs {
+		cName := getCrateName(crateDir)
+		if cName == "" {
+			cName = filepath.Base(crateDir)
+			cName = strings.ReplaceAll(cName, " ", "_")
+			cName = strings.ReplaceAll(cName, "-", "_")
+		}
+
+		// Collect only the files belonging to this crate.
+		var crateFiles []string
+		cSrc := filepath.Join(crateDir, "src")
+		for _, f := range targetFiles {
+			if strings.HasPrefix(f, cSrc+string(filepath.Separator)) || f == cSrc {
+				crateFiles = append(crateFiles, f)
+			}
+		}
+		if len(crateFiles) == 0 {
+			continue
+		}
+
+		imports, fns, ns, err := extractRustMetadata(crateDir, cName, crateFiles, excludeMap, lvl, includeFuncParams)
+		if err != nil {
+			return "", "", err
+		}
+		for _, imp := range imports {
+			if !importSet[imp] {
+				importSet[imp] = true
+				allDynamicImports = append(allDynamicImports, imp)
+			}
+		}
+		allFunctions = append(allFunctions, fns...)
+		if ns {
+			allNeedsStrconv = true
+		}
 	}
+
+	dynamicImports := allDynamicImports
+	functions := allFunctions
+	needsStrconv := allNeedsStrconv
 
 	// sameDir: the source files are siblings of the bridge inside the same crate
 	// (single-file promoted layout — no separate lib sub-crate).
@@ -346,8 +406,10 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 	// rather than external-crate `use` statements.  We also need to strip the
 	// double-qualified "crateName::stem" import entries down to just "stem" so
 	// the generated `use` lines match the inline module path.
+	//
+	// sameDir only applies when there is exactly one crate and it equals targetDir.
 	var mods []string
-	sameDir := filepath.Clean(libCrateDir) == filepath.Clean(targetDir)
+	sameDir := len(allLibCrateDirs) == 1 && filepath.Clean(libCrateDir) == filepath.Clean(targetDir)
 	if sameDir {
 		// Collect the stem of every source file that is not lib.rs / main.rs.
 		modSet := make(map[string]bool)
@@ -441,9 +503,9 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 	}
 
 	// absTargetDir is now the build root (the project that owns the Cargo.toml we'll
-	// run `cargo build` from). Find the lib crate dir — either absTargetDir itself
-	// (when it has src/lib.rs) or the first immediate subdirectory that does.
-	// This is needed for rlib resolution in the .so step.
+	// run `cargo build` from). Find the primary lib crate dir — either absTargetDir
+	// itself (when it has src/lib.rs) or the first immediate subdirectory that does.
+	// This is used for rlib resolution in the .so step.
 	libCrateDir := absTargetDir
 	if _, err := os.Stat(filepath.Join(absTargetDir, "src", "lib.rs")); os.IsNotExist(err) {
 		if entries, readErr := os.ReadDir(absTargetDir); readErr == nil {
@@ -463,9 +525,13 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 		}
 	}
 
-	// Ensure the root project has a Cargo.toml (generate one if absent).
+	// Discover all lib crates (generates missing Cargo.toml files for new src dirs).
+	allLibCrateDirs := discoverLibCrates(absTargetDir, libCrateDir, lvl)
+
+	// Ensure the root project has a Cargo.toml that lists every lib crate as a
+	// path dependency (generate one if absent).
 	if absBridge != "" {
-		if err := ensureRootCargo(absTargetDir, libCrateDir, absBridge, lvl); err != nil {
+		if err := ensureRootCargo(absTargetDir, allLibCrateDirs, absBridge, lvl); err != nil {
 			return fmt.Errorf("failed to scaffold root Cargo.toml: %w", err)
 		}
 	}
@@ -724,9 +790,11 @@ func findRlibInDir(dir, name string) string {
 
 // ensureRootCargo creates a Cargo.toml at rootDir if one does not already exist.
 // The generated manifest declares a binary target pointing at absBridge and adds
-// absLibCrateDir as a path dependency so `cargo build` can resolve it.
+// every entry in absLibCrateDirs as a path dependency so `cargo build` can resolve
+// all of them. Entries whose resolved path equals rootDir are treated as the same
+// crate and are omitted from [dependencies] to avoid a cyclic self-reference.
 //
-// Generated layout (rootDir = rust_test_script):
+// Generated layout (rootDir = rust_test_script, two lib crates):
 //
 //	[package]
 //	name = "rust_test_script"
@@ -738,8 +806,9 @@ func findRlibInDir(dir, name string) string {
 //	path = "src/rust_test_script_bridge.rs"
 //
 //	[dependencies]
-//	core_utils = { path = "core_utils" }
-func ensureRootCargo(rootDir, absLibCrateDir, absBridge string, lvl logger.LogLevel) error {
+//	core_utils  = { path = "core_utils" }
+//	extra_utils = { path = "extra_utils" }
+func ensureRootCargo(rootDir string, absLibCrateDirs []string, absBridge string, lvl logger.LogLevel) error {
 	cargoPath := filepath.Join(rootDir, "Cargo.toml")
 	if _, err := os.Stat(cargoPath); err == nil {
 		// Already exists — leave it alone.
@@ -757,27 +826,37 @@ func ensureRootCargo(rootDir, absLibCrateDir, absBridge string, lvl logger.LogLe
 	}
 	bridgeRel = filepath.ToSlash(bridgeRel)
 
-	// Path of lib crate relative to rootDir (e.g. "core_utils")
-	libCrateRel, err := filepath.Rel(rootDir, absLibCrateDir)
-	if err != nil {
-		return fmt.Errorf("cannot compute relative path from %s to %s: %w", rootDir, absLibCrateDir, err)
+	// Build [dependencies] entries, one per lib crate dir that is not rootDir itself.
+	type depEntry struct{ name, relPath string }
+	var deps []depEntry
+	seen := make(map[string]bool)
+
+	for _, absLibCrateDir := range absLibCrateDirs {
+		// Skip self-references (same-dir / single-file-promoted layout).
+		if filepath.Clean(absLibCrateDir) == filepath.Clean(rootDir) {
+			continue
+		}
+
+		libCrateRel, err := filepath.Rel(rootDir, absLibCrateDir)
+		if err != nil {
+			return fmt.Errorf("cannot compute relative path from %s to %s: %w", rootDir, absLibCrateDir, err)
+		}
+		libCrateRel = filepath.ToSlash(libCrateRel)
+
+		libCrateName := getCrateName(absLibCrateDir)
+		if libCrateName == "" {
+			libCrateName = filepath.Base(absLibCrateDir)
+			libCrateName = strings.ReplaceAll(libCrateName, "-", "_")
+		}
+
+		if !seen[libCrateName] {
+			seen[libCrateName] = true
+			deps = append(deps, depEntry{name: libCrateName, relPath: libCrateRel})
+		}
 	}
-	libCrateRel = filepath.ToSlash(libCrateRel)
 
-	libCrateName := getCrateName(absLibCrateDir)
-	if libCrateName == "" {
-		libCrateName = filepath.Base(absLibCrateDir)
-		libCrateName = strings.ReplaceAll(libCrateName, "-", "_")
-	}
-
-	// When libCrateDir == rootDir there is no separate library sub-crate (e.g. a
-	// promoted single-file project). Adding a [dependencies] entry pointing at "."
-	// would create a cyclic self-dependency, so we omit it in that case.
-	sameDir := filepath.Clean(rootDir) == filepath.Clean(absLibCrateDir)
-
-	var contents string
-	if sameDir {
-		contents = fmt.Sprintf(`# Auto-generated by guify_my_script. You may extend this file freely.
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(`# Auto-generated by guify_my_script. You may extend this file freely.
 [package]
 name = "%s"
 version = "0.1.0"
@@ -786,28 +865,109 @@ edition = "2021"
 [[bin]]
 name = "%s"
 path = "%s"
-`, pkgName, pkgName, bridgeRel)
-	} else {
-		contents = fmt.Sprintf(`# Auto-generated by guify_my_script. You may extend this file freely.
-[package]
-name = "%s"
-version = "0.1.0"
-edition = "2021"
+`, pkgName, pkgName, bridgeRel))
 
-[[bin]]
-name = "%s"
-path = "%s"
-
-[dependencies]
-%s = { path = "%s" }
-`, pkgName, pkgName, bridgeRel, libCrateName, libCrateRel)
+	if len(deps) > 0 {
+		sb.WriteString("\n[dependencies]\n")
+		for _, dep := range deps {
+			sb.WriteString(fmt.Sprintf("%s = { path = \"%s\" }\n", dep.name, dep.relPath))
+		}
 	}
 
-	if err := os.WriteFile(cargoPath, []byte(contents), 0644); err != nil {
+	if err := os.WriteFile(cargoPath, []byte(sb.String()), 0644); err != nil {
 		return fmt.Errorf("failed writing Cargo.toml: %w", err)
 	}
 	logger.Info(lvl, "  • Generated root Cargo.toml: %s", cargoPath)
 	return nil
+}
+
+// discoverLibCrates scans all immediate subdirectories of rootDir for Rust source
+// folders that are not already the known libCrateDir. A subdirectory qualifies when
+// it contains at least one .rs file under a src/ sub-folder. For each qualifying
+// directory that is missing a Cargo.toml, a minimal library manifest is generated
+// so the crate can be consumed as a path dependency.
+//
+// The function returns a deduplicated, sorted slice of absolute paths to every lib
+// crate found (including absLibCrateDir itself when it is non-empty and valid).
+func discoverLibCrates(rootDir, absLibCrateDir string, lvl logger.LogLevel) []string {
+	seen := make(map[string]bool)
+	var result []string
+
+	addCrate := func(dir string) {
+		clean := filepath.Clean(dir)
+		if !seen[clean] {
+			seen[clean] = true
+			result = append(result, clean)
+		}
+	}
+
+	// Always include the primary lib crate when provided.
+	if absLibCrateDir != "" {
+		if _, err := os.Stat(absLibCrateDir); err == nil {
+			addCrate(absLibCrateDir)
+		}
+	}
+
+	entries, err := os.ReadDir(rootDir)
+	if err != nil {
+		return result
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		sub := filepath.Join(rootDir, entry.Name())
+
+		// Skip the bridge output dir itself (same as rootDir or already added).
+		if filepath.Clean(sub) == filepath.Clean(rootDir) {
+			continue
+		}
+
+		// A qualifying lib crate must have at least one .rs file under src/.
+		srcDir := filepath.Join(sub, "src")
+		hasRust := false
+		_ = filepath.WalkDir(srcDir, func(p string, d os.DirEntry, walkErr error) error {
+			if walkErr != nil {
+				return nil
+			}
+			if !d.IsDir() && strings.HasSuffix(p, ".rs") {
+				hasRust = true
+				return filepath.SkipAll
+			}
+			return nil
+		})
+		if !hasRust {
+			continue
+		}
+
+		// Generate a Cargo.toml if one does not exist.
+		cargoPath := filepath.Join(sub, "Cargo.toml")
+		if _, statErr := os.Stat(cargoPath); os.IsNotExist(statErr) {
+			crateName := filepath.Base(sub)
+			crateName = strings.ReplaceAll(crateName, " ", "_")
+			crateName = strings.ReplaceAll(crateName, "-", "_")
+			contents := fmt.Sprintf(`# Auto-generated by guify_my_script. You may extend this file freely.
+[package]
+name = "%s"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "%s"
+path = "src/lib.rs"
+`, crateName, crateName)
+			if writeErr := os.WriteFile(cargoPath, []byte(contents), 0644); writeErr == nil {
+				logger.Info(lvl, "  • Generated Cargo.toml for discovered crate: %s", sub)
+			} else {
+				logger.Info(lvl, "  • Warning: could not generate Cargo.toml for %s: %v", sub, writeErr)
+			}
+		}
+
+		addCrate(sub)
+	}
+
+	return result
 }
 
 // hasBinaryTarget returns true if the Cargo.toml in dir declares a [[bin]] section

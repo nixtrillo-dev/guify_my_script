@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"guify_my_script/go_gen"
-	"guify_my_script/gui_gen"
-	"guify_my_script/internal_utils"
 	"guify_my_script/logger"
 	"guify_my_script/package_installer"
 	"guify_my_script/rust_gen"
 	"guify_my_script/config_gen"
 	"guify_my_script/endpoint_utils"
+	"guify_my_script/go_gen"
+	"guify_my_script/gui_gen"
+	"guify_my_script/internal_utils"
 	
 )
 
@@ -196,7 +196,7 @@ func GoModifyPath(filePath *C.char, appendString *C.char, newExtension *C.char, 
 }
 
 //export GoGeneratePathFromDir
-func GoGeneratePathFromDir(dirPath *C.char, appendString *C.char, newExtension *C.char, logLevel *C.char) C.int {
+func GoGeneratePathFromDir(dirPath *C.char, appendString *C.char, newExtension *C.char, logLevel *C.char, omitBaseName C.int) C.int {
 	
 	go_dirPath := C.GoString(dirPath)
 	
@@ -206,8 +206,10 @@ func GoGeneratePathFromDir(dirPath *C.char, appendString *C.char, newExtension *
 	
 	go_logLevel := C.GoString(logLevel)
 	
+	go_omitBaseName := omitBaseName == 1
 	
-	_, err := endpoint_utils.GeneratePathFromDir(go_dirPath, go_appendString, go_newExtension, go_logLevel)
+	
+	_, err := endpoint_utils.GeneratePathFromDir(go_dirPath, go_appendString, go_newExtension, go_logLevel, go_omitBaseName)
 	if err != nil {
 		fmt.Printf("Pipeline Error in GeneratePathFromDir: %v\n", err)
 		return 0
@@ -833,7 +835,7 @@ func main() {
 		
 		
 	    case "generate_path_from_dir":
-		if len(os.Args) < 6 {
+		if len(os.Args) < 7 {
 			fmt.Println("Error: generate_path_from_dir requires parameters")
 			os.Exit(1)
 		}
@@ -853,7 +855,20 @@ func main() {
 		cli_logLevel := os.Args[5]
 		
 		
-		_, err := endpoint_utils.GeneratePathFromDir(cli_dirPath, cli_appendString, cli_newExtension, cli_logLevel)
+		cli_omitBaseName, err_omitBaseName := strconv.ParseBool(os.Args[6])
+		if err_omitBaseName != nil {
+			if os.Args[6] == "1" {
+				cli_omitBaseName = true
+			} else if os.Args[6] == "0" {
+				cli_omitBaseName = false
+			} else {
+				fmt.Printf("Error: parameter 'omitBaseName' must be a valid boolean evaluation: %v\n", err_omitBaseName)
+				os.Exit(1)
+			}
+		}
+		
+		
+		_, err := endpoint_utils.GeneratePathFromDir(cli_dirPath, cli_appendString, cli_newExtension, cli_logLevel, cli_omitBaseName)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)

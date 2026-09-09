@@ -150,7 +150,8 @@
                             "{Input Script or Source Directory}",
                             "_config",
                             "json",
-                            "INFO"
+                            "INFO",
+                            "0"
                         ],
                         "get_enabled_endpoint": [],
                         "path_to_default": "modified_path",
@@ -230,7 +231,8 @@
                             "{Input Script or Source Directory}",
                             "",
                             "",
-                            "INFO"
+                            "INFO",
+                            "0"
                         ],
                         "get_enabled_endpoint": [
                             "is_compilable",

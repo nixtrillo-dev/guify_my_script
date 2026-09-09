@@ -64,27 +64,26 @@ func ModifyPath(filePath, appendString, newExtension, logLevel string) (string, 
 	return jsonString, nil
 }
 
-// GeneratePathFromDir takes a directory or file path. If it's a directory,
-// it extracts its base name to create a file name. If it's a file, it uses
-// the file's base name (without extension). It then appends an optional string
-// and extension, placing the new file in the target directory, and outputs
-// the result as a JSON string.
-func GeneratePathFromDir(dirPath, appendString, newExtension, logLevel string) (string, error) {
-	// Parse the string into your internal LogLevel type
+// GeneratePathFromDir takes a directory or file path. It detects user intent based
+// on trailing slashes before cleaning the path. It then safely appends an optional
+// string and extension without risking string duplication or double slashes.
+func GeneratePathFromDir(dirPath, appendString, newExtension, logLevel string, omitBaseName bool) (string, error) {
 	lvl := logger.ParseLogLevel(logLevel)
 
-	// 1. Clean the path to handle edge cases (like trailing slashes) safely
+	// 1. Detect explicit directory intent before filepath.Clean strips it
+	hasTrailingSlash := strings.HasSuffix(dirPath, "/") || strings.HasSuffix(dirPath, string(os.PathSeparator))
+
+	// 2. Clean the path to handle edge cases safely
 	cleanPath := filepath.Clean(dirPath)
 
-	targetDir := cleanPath
+	var targetDir string
 	var baseName string
 
-	// 2. Determine if the path provided is actually a file or directory.
+	// 3. Determine if the path provided is actually a file or directory
 	if info, err := os.Stat(cleanPath); err == nil {
 		if !info.IsDir() {
 			ext := filepath.Ext(cleanPath)
 			targetDir = filepath.Dir(cleanPath)
-			// Use the file name (without extension) instead of the directory name
 			baseName = strings.TrimSuffix(filepath.Base(cleanPath), ext)
 
 			// Inject base name as a new parent directory for .go and .rs files
@@ -92,40 +91,54 @@ func GeneratePathFromDir(dirPath, appendString, newExtension, logLevel string) (
 				targetDir = filepath.Join(targetDir, baseName)
 			}
 		} else {
+			// It is a valid directory on disk
+			targetDir = cleanPath
 			baseName = filepath.Base(cleanPath)
 		}
-	} else if ext := filepath.Ext(cleanPath); ext != "" {
-		// Fallback: If it doesn't exist on disk but has an extension, treat it as a file
-		targetDir = filepath.Dir(cleanPath)
-		baseName = strings.TrimSuffix(filepath.Base(cleanPath), ext)
-
-		// Inject base name as a new parent directory for .go and .rs files
-		if ext == ".go" || ext == ".rs" {
-			targetDir = filepath.Join(targetDir, baseName)
-		}
 	} else {
-		// Fallback: Assume it's a directory
-		baseName = filepath.Base(cleanPath)
+		// Fallbacks if the path does not exist on disk yet
+		if hasTrailingSlash {
+			// Intent: Directory (due to trailing slash)
+			targetDir = cleanPath
+			baseName = filepath.Base(cleanPath)
+		} else if ext := filepath.Ext(cleanPath); ext != "" {
+			// Intent: File with extension
+			targetDir = filepath.Dir(cleanPath)
+			baseName = strings.TrimSuffix(filepath.Base(cleanPath), ext)
+
+			// Inject base name as a new parent directory for .go and .rs files
+			if ext == ".go" || ext == ".rs" {
+				targetDir = filepath.Join(targetDir, baseName)
+			}
+		} else {
+			// Intent: File prefix (no extension, no trailing slash)
+			targetDir = filepath.Dir(cleanPath)
+			baseName = filepath.Base(cleanPath)
+		}
 	}
 
-	// 3. Ensure the new extension has a leading dot if one was provided
+	// 4. Ensure the new extension has a leading dot
 	if newExtension != "" && !strings.HasPrefix(newExtension, ".") {
 		newExtension = "." + newExtension
 	}
 
-	// 4. Construct the new filename
-	fileName := baseName + appendString + newExtension
+	// 5. Construct the new filename, gating the baseName if requested
+	var fileName string
+	if omitBaseName {
+		fileName = appendString + newExtension
+	} else {
+		fileName = baseName + appendString + newExtension
+	}
 
-	// 5. Join the resolved directory path with the new filename
+	// 6. Join the resolved directory path with the new filename (prevents double slashes)
 	newPath := filepath.Join(targetDir, fileName)
 
-	// 6. Package it into our existing struct, keeping the original raw input
+	// 7. Package it into our struct
 	result := PathResult{
 		OriginalPath: dirPath,
 		ModifiedPath: newPath,
 	}
 
-	// 7. Marshal the struct into JSON bytes
 	jsonData, err := json.Marshal(result)
 	if err != nil {
 		logger.Error(lvl, "Failed to marshal directory path result: %v", err)
@@ -133,8 +146,6 @@ func GeneratePathFromDir(dirPath, appendString, newExtension, logLevel string) (
 	}
 
 	jsonString := string(jsonData)
-
-	// 8. Output the JSON string as an INFO level log
 	logger.Info(lvl, "%s", jsonString)
 
 	return jsonString, nil
@@ -232,7 +243,7 @@ func GetDefaultBridgePathForScript(dirPath, scriptType, logLevel string) (string
 
 	switch scriptType {
 	case "GO":
-		return GeneratePathFromDir(dirPath, "_bridge", ".go", logLevel)
+		return GeneratePathFromDir(dirPath, "main", ".go", logLevel, true)
 	case "RUST":
 		var generatedJSON string
 		var err error
@@ -241,9 +252,9 @@ func GetDefaultBridgePathForScript(dirPath, scriptType, logLevel string) (string
 		if logLevel == "INFO" {
 			// INFO returns the JSON string, but we are updating the modified_path in the next step,
 			// so we don't want to log it twice. Use WARNING to suppress the INFO log.
-			generatedJSON, err = GeneratePathFromDir(dirPath, "_bridge", ".rs", "WARNING")
+			generatedJSON, err = GeneratePathFromDir(dirPath, "main", ".rs", "WARNING", true)
 		} else {
-			generatedJSON, err = GeneratePathFromDir(dirPath, "_bridge", ".rs", logLevel)
+			generatedJSON, err = GeneratePathFromDir(dirPath, "main", ".rs", logLevel, true)
 		}
 
 		if err != nil {
@@ -262,6 +273,6 @@ func GetDefaultBridgePathForScript(dirPath, scriptType, logLevel string) (string
 		// 3. Move the generated path into a "src" subdirectory and return the new JSON string
 		return InsertParentFolder(parsedResult.ModifiedPath, "src", logLevel)
 	default:
-		return GeneratePathFromDir(dirPath, "_bridge", "", logLevel)
+		return GeneratePathFromDir(dirPath, "main", "", logLevel, true)
 	}
 }
