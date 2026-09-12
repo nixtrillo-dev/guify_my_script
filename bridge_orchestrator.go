@@ -214,15 +214,12 @@ func CompileScriptWithGuiConfig(inputPath, scriptType, outputJSON, excludePackag
 			if err != nil {
 				return fmt.Errorf("RUST: failed to resolve outputBridge: %w", err)
 			}
-			// Rule 1: bridge must be inside inputPath (when inputPath is a directory)
+			// bridge's immediate parent must be the root 'src' directory directly inside inputPath
 			if fi, err := os.Stat(absInput); err == nil && fi.IsDir() {
-				if !strings.HasPrefix(absOutBridge, absInput+string(filepath.Separator)) {
-					return fmt.Errorf("RUST: outputBridge %q must be located inside inputPath %q", outputBridge, inputPath)
+				expectedSrcDir := filepath.Join(absInput, "src")
+				if filepath.Clean(filepath.Dir(absOutBridge)) != filepath.Clean(expectedSrcDir) {
+					return fmt.Errorf("RUST: outputBridge %q must have the root src directory %q as its parent folder", outputBridge, expectedSrcDir)
 				}
-			}
-			// Rule 2: bridge's immediate parent must be a directory named "src"
-			if filepath.Base(filepath.Dir(absOutBridge)) != "src" {
-				return fmt.Errorf("RUST: outputBridge %q must be placed inside a 'src' directory (got parent %q)", outputBridge, filepath.Base(filepath.Dir(absOutBridge)))
 			}
 		}
 

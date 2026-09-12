@@ -7,7 +7,7 @@ import (
 )
 
 func TestCompileScriptWithGuiConfig_RustProject(t *testing.T) {
-	projectDir := "example/rust_support_implementation/rust_test_script/core_utils"
+	projectDir := "examples/rust_test_script/core_utils"
 	absProjectDir, err := filepath.Abs(projectDir)
 	if err != nil {
 		t.Fatalf("Failed to resolve absolute path: %v", err)
@@ -60,7 +60,7 @@ func TestCompileScriptWithGuiConfig_RustProject(t *testing.T) {
 }
 
 func TestCompileScriptWithGuiConfig_RustProjectAutoDetect(t *testing.T) {
-	parentDir := "example/rust_support_implementation/rust_test_script"
+	parentDir := "examples/rust_test_script"
 	absParentDir, err := filepath.Abs(parentDir)
 	if err != nil {
 		t.Fatalf("Failed to resolve absolute path: %v", err)
@@ -75,7 +75,7 @@ func TestCompileScriptWithGuiConfig_RustProjectAutoDetect(t *testing.T) {
 		outputJSON,
 		"",
 		"",
-		"core_utils",
+		"rust_test_script",
 		true,
 		true,
 		"DEBUG",
