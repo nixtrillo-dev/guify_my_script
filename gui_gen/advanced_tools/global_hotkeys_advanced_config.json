@@ -3,13 +3,13 @@
     "tab_title": "Global Hotkeys",
     "package_uuid": "com.nixtrillo.globalhotkeymapper",
     "package_version": "0.0.1",
-    "source_script": "/opt/com.nixtrillo.globalhotkeymapper/global_hotkey_api",
+    "source_script": "/opt/com.nixtrillo.globalhotkeymapper/global_hotkey_mapper",
     "source_type": "go",
     "source_gui": "/opt/com.nixtrillo.globalhotkeymapper/com.nixtrillo.globalhotkeymapper"
   },
   "actions": [
-    {
-      "label": "Add Kde Hotkey",
+      {
+      "label": "Add KDE Hotkey",
       "func": "add_kde_hotkey",
       "mode": "g",
       "refresh_fields_on_tab_open": [
@@ -19,11 +19,17 @@
       "quick_launch": false,
       "width": 600,
       "sudo": false,
+      "exec_label": "Add KDE Hotkey",
+      "exec_in_progress_label": "Adding KDE Hotkey...",
+      "stop_label": "Abort",
       "fields": [
         {
           "name": "Modifiers",
           "type": "MCB",
-          "default": "",
+          "options": [],
+          "default": [],
+          "data_type": "string",
+          "enabled": true,
           "minimum": "0",
           "maximum": "2",
           "advanced_menu": false,
@@ -44,7 +50,10 @@
         {
           "name": "Primary Key",
           "type": "MCB",
-          "default": "",
+          "default": [],
+          "options": [],
+          "data_type": "string",
+          "enabled": true,
           "minimum": "1",
           "maximum": "1",
           "advanced_menu": false,
@@ -92,6 +101,8 @@
             "FATAL",
             "SILENT"
           ],
+          "data_type": "string",
+          "enabled": true,
           "default": "INFO",
           "advanced_menu": true,
           "json_endpoints": {
@@ -108,6 +119,8 @@
           "name": "Replace Instead of Append?",
           "type": "CK",
           "default": "0",
+          "data_type": "string",
+          "enabled": true,
           "advanced_menu": false,
           "json_endpoints": {
             "array_endpoint": [],
@@ -122,7 +135,7 @@
       ]
     },
     {
-      "label": "Remove Command From Kde Hotkey",
+      "label": "Remove Command From KDE Hotkey",
       "func": "remove_command_from_kde_hotkey",
       "mode": "g",
       "refresh_fields_on_tab_open": [
@@ -136,11 +149,17 @@
       "quick_launch": false,
       "width": 600,
       "sudo": false,
+      "exec_label": "Remove Command From KDE Hotkey",
+      "exec_in_progress_label": "Removing Command...",
+      "stop_label": "Abort",
       "fields": [
         {
           "name": "Hotkey",
           "type": "MCB",
-          "default": "",
+          "options": [],
+          "default": [],
+          "data_type": "string",
+          "enabled": true,
           "minimum": "1",
           "maximum": "1",
           "advanced_menu": false,
@@ -163,8 +182,12 @@
         {
           "name": "Commands",
           "type": "MCB",
-          "default": "",
+          "default": [],
+          "options": [],
+          "data_type": "string",
           "minimum": "1",
+          "maximum": "0",
+          "enabled": true,
           "advanced_menu": false,
           "json_endpoints": {
             "array_endpoint": [
@@ -190,7 +213,8 @@
             "ERROR",
             "FATAL",
             "SILENT"
-          ],
+          ],"data_type": "string",
+          "enabled": true,
           "default": "INFO",
           "advanced_menu": true,
           "json_endpoints": {
@@ -205,7 +229,7 @@
         }
       ]
     },
-    {
+        {
       "label": "Backup All",
       "func": "backup_all",
       "mode": "g",
@@ -214,11 +238,16 @@
       "quick_launch": false,
       "width": 600,
       "sudo": false,
+      "exec_label": "Backup Now",
+      "exec_in_progress_label": "Backing Up...",
+      "stop_label": "Abort",
       "fields": [
         {
           "name": "Output Directory",
           "type": "DIR",
-          "default": "~/backups/com.nixtrillo.global_hotkey_mapper/",
+          "default": "~/backups/com.nixtrillo.globalhotkeymapper/",
+          "data_type": "string",
+          "enabled": true,
           "advanced_menu": false,
           "json_endpoints": {
             "array_endpoint": [],
@@ -241,6 +270,8 @@
             "FATAL",
             "SILENT"
           ],
+          "data_type": "string",
+          "enabled": true,
           "default": "INFO",
           "advanced_menu": true,
           "json_endpoints": {
@@ -264,11 +295,17 @@
       "quick_launch": false,
       "width": 600,
       "sudo": true,
+      "exec_label": "Restore",
+      "exec_in_progress_label": "Restoring...",
+      "stop_label": "Abort",
       "fields": [
         {
           "name": "Keyd Input Path",
           "type": "FL",
           "default": "~/backups/com.nixtrillo.globalhotkeymapper/",
+          "file_types": [],
+          "data_type": "string",
+          "enabled": true,
           "advanced_menu": false,
           "json_endpoints": {
             "array_endpoint": [],
@@ -281,9 +318,12 @@
           "refresh_fields_on_change": []
         },
         {
-          "name": "Kde Input Path",
+          "name": "KDE Input Path",
           "type": "FL",
           "default": "~/backups/com.nixtrillo.globalhotkeymapper/",
+          "data_type": "string",
+          "enabled": true,
+          "file_types": [],
           "advanced_menu": false,
           "json_endpoints": {
             "array_endpoint": [],
@@ -306,6 +346,8 @@
             "FATAL",
             "SILENT"
           ],
+          "data_type": "string",
+          "enabled": true,
           "default": "INFO",
           "advanced_menu": true,
           "json_endpoints": {
