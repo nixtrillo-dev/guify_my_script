@@ -1244,12 +1244,10 @@ func extractRustMetadata(targetDir, crateName string, targetFiles []string, excl
 		modulePath := crateName
 		if relPath != "src/lib.rs" && relPath != "src/main.rs" && !strings.HasPrefix(relPath, "..") {
 			cleanMod := strings.TrimSuffix(filepath.Base(relPath), ".rs")
-			if cleanMod != crateName {
-				modulePath = fmt.Sprintf("%s::%s", crateName, cleanMod)
-			}
+			modulePath = fmt.Sprintf("%s::%s", crateName, cleanMod)
 		}
 
-		if excludeMap != nil && excludeMap[modulePath] {
+		if excludeMap != nil && (excludeMap[modulePath] || excludeMap[crateName]) {
 			logger.Info(lvl, "  • Skipping excluded module path: %s", modulePath)
 			continue
 		}
