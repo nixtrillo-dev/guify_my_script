@@ -333,7 +333,7 @@
           "description": "Scaffolds a standard text input field.",
           "body": {
             "name": "${1:Text Input}",
-            "type": "TXT",
+            "field_type": "TXT",
             "data_type": "string",
             "default": "Initial Value",
             "enabled": true,
@@ -354,7 +354,7 @@
           "description": "Scaffolds a directory picker field.",
           "body": {
             "name": "${1:Directory Picker}",
-            "type": "DIR",
+            "field_type": "DIR",
             "data_type": "string",
             "default": "/home",
             "enabled": true,
@@ -375,7 +375,7 @@
           "description": "Scaffolds a single file picker field.",
           "body": {
             "name": "${1:File Picker}",
-            "type": "FL",
+            "field_type": "FL",
             "data_type": "string",
             "default": "",
             "file_types": ["txt"],
@@ -397,7 +397,7 @@
           "description": "Scaffolds a multi-file picker field.",
           "body": {
             "name": "${1:Multi-File Picker}",
-            "type": "MFL",
+            "field_type": "MFL",
             "data_type": "string",
             "default": "",
             "file_types": ["txt"],
@@ -421,7 +421,7 @@
           "description": "Scaffolds a save file picker field.",
           "body": {
             "name": "${1:Save File Picker}",
-            "type": "FS",
+            "field_type": "FS",
             "data_type": "string",
             "default": "",
             "file_types": ["txt"],
@@ -443,7 +443,7 @@
           "description": "Scaffolds a single-select dropdown field.",
           "body": {
             "name": "${1:Combo Box}",
-            "type": "CB",
+            "field_type": "CB",
             "data_type": "string",
             "options": ["Option1", "Option2", "Option3"],
             "default": "Option1",
@@ -465,7 +465,7 @@
           "description": "Scaffolds a boolean checkbox field.",
           "body": {
             "name": "${1:Checkbox}",
-            "type": "CK",
+            "field_type": "CK",
             "data_type": "bool",
             "default": "0",
             "enabled": true,
@@ -486,7 +486,7 @@
           "description": "Scaffolds a hybrid file or directory picker.",
           "body": {
             "name": "${1:File or Directory Picker}",
-            "type": "FD",
+            "field_type": "FD",
             "data_type": "string",
             "default": "",
             "file_types": ["txt"],
@@ -508,7 +508,7 @@
           "description": "Scaffolds a multi-select dropdown field.",
           "body": {
             "name": "${1:Multi-Combo Box}",
-            "type": "MCB",
+            "field_type": "MCB",
             "data_type": "list",
             "options": ["Option1", "Option2", "Option3"],
             "default": ["Option2", "Option3"],
@@ -532,7 +532,7 @@
           "description": "Scaffolds a multi-line text area field.",
           "body": {
             "name": "${1:Long Text}",
-            "type": "LTXT",
+            "field_type": "LTXT",
             "data_type": "string",
             "default": "Initial Long Text Value",
             "auto_height": true,
@@ -555,7 +555,7 @@
           "description": "Scaffolds a time picker field.",
           "body": {
             "name": "${1:Time Picker}",
-            "type": "TIME",
+            "field_type": "TIME",
             "data_type": "string",
             "default": "12:00:00",
             "minimum": null,
@@ -578,7 +578,7 @@
           "description": "Scaffolds a date picker field.",
           "body": {
             "name": "${1:Date Picker}",
-            "type": "DATE",
+            "field_type": "DATE",
             "data_type": "string",
             "default": "2026-01-01",
             "minimum": null,
@@ -601,7 +601,7 @@
           "description": "Scaffolds a numeric input field.",
           "body": {
             "name": "${1:Number Input}",
-            "type": "NUM",
+            "field_type": "NUM",
             "data_type": "int",
             "default": "0",
             "minimum": null,
@@ -623,19 +623,32 @@
       ],
       "required": [
         "name",
-        "type",
         "data_type",
         "enabled",
         "advanced_menu",
         "json_endpoints",
         "refresh_fields_on_change"
       ],
+      "anyOf": [
+        { "required": ["field_type"] },
+        { "required": ["type"] }
+      ],
+      "not": {
+        "required": ["type", "field_type"]
+      },
       "allOf": [
         {
           "if": {
-            "properties": {
-              "type": { "enum": ["CB", "MCB"] }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "enum": ["CB", "MCB"] } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "enum": ["CB", "MCB"] } }
+              }
+            ]
           },
           "then": {
             "required": ["options"]
@@ -643,9 +656,16 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "enum": ["MCB", "MFL", "TIME", "DATE", "NUM"] }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "enum": ["MCB", "MFL", "TIME", "DATE", "NUM"] } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "enum": ["MCB", "MFL", "TIME", "DATE", "NUM"] } }
+              }
+            ]
           },
           "then": {
             "required": ["minimum", "maximum"]
@@ -661,9 +681,16 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "const": "NUM" }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "const": "NUM" } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "const": "NUM" } }
+              }
+            ]
           },
           "then": {
             "required": ["decimal_places"],
@@ -685,9 +712,16 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "const": "MCB" }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "const": "MCB" } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "const": "MCB" } }
+              }
+            ]
           },
           "then": {
             "properties": {
@@ -710,9 +744,16 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "const": "MFL" }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "const": "MFL" } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "const": "MFL" } }
+              }
+            ]
           },
           "then": {
             "properties": {
@@ -729,9 +770,16 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "const": "DATE" }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "const": "DATE" } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "const": "DATE" } }
+              }
+            ]
           },
           "then": {
             "properties": {
@@ -752,9 +800,16 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "const": "TIME" }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "const": "TIME" } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "const": "TIME" } }
+              }
+            ]
           },
           "then": {
             "properties": {
@@ -775,9 +830,16 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "const": "CK" }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "const": "CK" } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "const": "CK" } }
+              }
+            ]
           },
           "then": {
             "properties": {
@@ -790,9 +852,24 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "enum": ["CB", "TXT", "DIR", "FL", "MFL", "FS", "FD", "LTXT"] }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": {
+                  "field_type": {
+                    "enum": ["CB", "TXT", "DIR", "FL", "MFL", "FS", "FD", "LTXT"]
+                  }
+                }
+              },
+              {
+                "required": ["type"],
+                "properties": {
+                  "type": {
+                    "enum": ["CB", "TXT", "DIR", "FL", "MFL", "FS", "FD", "LTXT"]
+                  }
+                }
+              }
+            ]
           },
           "then": {
             "properties": {
@@ -804,9 +881,16 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "enum": ["FL", "MFL", "FS", "FD"] }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "enum": ["FL", "MFL", "FS", "FD"] } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "enum": ["FL", "MFL", "FS", "FD"] } }
+              }
+            ]
           },
           "then": {
             "required": ["file_types"]
@@ -814,9 +898,16 @@
         },
         {
           "if": {
-            "properties": {
-              "type": { "const": "LTXT" }
-            }
+            "anyOf": [
+              {
+                "required": ["field_type"],
+                "properties": { "field_type": { "const": "LTXT" } }
+              },
+              {
+                "required": ["type"],
+                "properties": { "type": { "const": "LTXT" } }
+              }
+            ]
           },
           "then": {
             "required": ["auto_height", "min_height"]
@@ -829,10 +920,48 @@
           "type": "string",
           "description": "Original parameter/argument name from the source script (e.g. JavaScript identifier used in object destructuring calls)."
         },
-        "type": {
+        "field_type": {
           "type": "string",
+          "description": "UI field widget type. Accepted values: TXT (Single-line text input), DIR (Directory picker), FL (Single file picker), MFL (Multi-file picker), FS (Save file picker), CB (Combo box / dropdown), CK (Checkbox boolean toggle), FD (File or directory hybrid picker), MCB (Multi-select combo box), LTXT (Multi-line text area), TIME (Time picker), DATE (Date picker), NUM (Numeric input).",
           "enum": [
             "TXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"
+          ],
+          "enumDescriptions": [
+            "TXT: Single-line text input field",
+            "DIR: Directory picker dialog",
+            "FL: Single file picker dialog",
+            "MFL: Multi-file picker dialog",
+            "FS: Save file picker dialog",
+            "CB: Single-select combo box / dropdown",
+            "CK: Checkbox boolean toggle",
+            "FD: Hybrid file or directory picker dialog",
+            "MCB: Multi-select combo box dropdown",
+            "LTXT: Multi-line text area",
+            "TIME: Time picker (HH:MM:SS)",
+            "DATE: Date picker (YYYY-MM-DD)",
+            "NUM: Numeric input with decimal precision"
+          ]
+        },
+        "type": {
+          "type": "string",
+          "description": "Deprecated alias for field_type. Do not define both type and field_type on the same field.",
+          "enum": [
+            "TXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"
+          ],
+          "enumDescriptions": [
+            "TXT: Single-line text input field",
+            "DIR: Directory picker dialog",
+            "FL: Single file picker dialog",
+            "MFL: Multi-file picker dialog",
+            "FS: Save file picker dialog",
+            "CB: Single-select combo box / dropdown",
+            "CK: Checkbox boolean toggle",
+            "FD: Hybrid file or directory picker dialog",
+            "MCB: Multi-select combo box dropdown",
+            "LTXT: Multi-line text area",
+            "TIME: Time picker (HH:MM:SS)",
+            "DATE: Date picker (YYYY-MM-DD)",
+            "NUM: Numeric input with decimal precision"
           ]
         },
         "data_type": {

@@ -70,7 +70,8 @@ func generateRuntimeState(root RootConfig) ([]byte, []byte, error) {
 				actMap[field.Name] = defStr
 
 				metaActMap[field.Name] = map[string]interface{}{
-					"type":           field.Type,
+					"type":           field.GetFieldType(),
+					"field_type":     field.GetFieldType(),
 					"options":        field.Options,
 					"default":        defStr,
 					"enabled":        field.IsEnabled(),

@@ -286,7 +286,7 @@ func buildActionTabs(actions []UIAction, sourceType string, actionOnStartup stri
 `, actIdxStr))
 			for _, field := range action.Fields {
 				defVal := getDefaultString(field.Default)
-				if field.Type == "CK" && defVal != "1" {
+				if field.GetFieldType() == "CK" && defVal != "1" {
 					defVal = "0"
 				}
 				cpp.WriteString(fmt.Sprintf("        defArgs.append(getRuntimeDefault(\"%s\", \"%s\", \"%s\"));\n", label, field.Name, cppStringLiteral(defVal)))
@@ -325,7 +325,7 @@ func buildActionTabs(actions []UIAction, sourceType string, actionOnStartup stri
 
 		for _, field := range action.Fields {
 			defVal := getDefaultString(field.Default)
-			if field.Type == "CK" && defVal != "1" {
+			if field.GetFieldType() == "CK" && defVal != "1" {
 				defVal = "0"
 			}
 			cpp.WriteString(fmt.Sprintf("            defArgs.append(getRuntimeDefault(\"%s\", \"%s\", \"%s\"));\n", label, field.Name, cppStringLiteral(defVal)))

@@ -11,7 +11,7 @@
       {
       "label": "Add KDE Hotkey",
       "func": "add_kde_hotkey",
-      "mode": "g",
+      "execution_mode": "g",
       "refresh_fields_on_tab_open": [
         "Quick Launch Triggers"
       ],
@@ -25,7 +25,7 @@
       "fields": [
         {
           "name": "Modifiers",
-          "type": "MCB",
+          "field_type": "MCB",
           "options": [],
           "default": [],
           "data_type": "string",
@@ -49,7 +49,7 @@
         },
         {
           "name": "Primary Key",
-          "type": "MCB",
+          "field_type": "MCB",
           "default": [],
           "options": [],
           "data_type": "string",
@@ -73,7 +73,7 @@
         },
         {
           "name": "Quick Launch Triggers",
-          "type": "MCB",
+          "field_type": "MCB",
           "default": "",
           "minimum": "1",
           "maximum": "1",
@@ -92,7 +92,7 @@
         },
         {
           "name": "Log Level",
-          "type": "CB",
+          "field_type": "CB",
           "options": [
             "TRACE",
             "INFO",
@@ -117,7 +117,7 @@
         },
         {
           "name": "Replace Instead of Append?",
-          "type": "CK",
+          "field_type": "CK",
           "default": "0",
           "data_type": "string",
           "enabled": true,
@@ -137,7 +137,7 @@
     {
       "label": "Remove Command From KDE Hotkey",
       "func": "remove_command_from_kde_hotkey",
-      "mode": "g",
+      "execution_mode": "g",
       "refresh_fields_on_tab_open": [
         "Hotkey",
         "Commands"
@@ -155,7 +155,7 @@
       "fields": [
         {
           "name": "Hotkey",
-          "type": "MCB",
+          "field_type": "MCB",
           "options": [],
           "default": [],
           "data_type": "string",
@@ -181,7 +181,7 @@
         },
         {
           "name": "Commands",
-          "type": "MCB",
+          "field_type": "MCB",
           "default": [],
           "options": [],
           "data_type": "string",
@@ -205,7 +205,7 @@
         },
         {
           "name": "Log Level",
-          "type": "CB",
+          "field_type": "CB",
           "options": [
             "TRACE",
             "INFO",
@@ -232,7 +232,7 @@
         {
       "label": "Backup All",
       "func": "backup_all",
-      "mode": "g",
+      "execution_mode": "g",
       "refresh_fields_on_tab_open": [],
       "refresh_fields_on_completion": [],
       "quick_launch": false,
@@ -244,7 +244,7 @@
       "fields": [
         {
           "name": "Output Directory",
-          "type": "DIR",
+          "field_type": "DIR",
           "default": "~/backups/com.nixtrillo.globalhotkeymapper/",
           "data_type": "string",
           "enabled": true,
@@ -261,7 +261,7 @@
         },
         {
           "name": "Log Level",
-          "type": "CB",
+          "field_type": "CB",
           "options": [
             "TRACE",
             "INFO",
@@ -289,7 +289,7 @@
     {
       "label": "Restore All",
       "func": "restore_all",
-      "mode": "g",
+      "execution_mode": "g",
       "refresh_fields_on_tab_open": [],
       "refresh_fields_on_completion": [],
       "quick_launch": false,
@@ -301,7 +301,7 @@
       "fields": [
         {
           "name": "Keyd Input Path",
-          "type": "FL",
+          "field_type": "FL",
           "default": "~/backups/com.nixtrillo.globalhotkeymapper/",
           "file_types": [],
           "data_type": "string",
@@ -319,7 +319,7 @@
         },
         {
           "name": "KDE Input Path",
-          "type": "FL",
+          "field_type": "FL",
           "default": "~/backups/com.nixtrillo.globalhotkeymapper/",
           "data_type": "string",
           "enabled": true,
@@ -337,7 +337,7 @@
         },
         {
           "name": "Log Level",
-          "type": "CB",
+          "field_type": "CB",
           "options": [
             "TRACE",
             "INFO",

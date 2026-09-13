@@ -87,7 +87,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 	}
 	// -----------------------------------------------------
 
-	switch field.Type {
+	switch field.GetFieldType() {
 	case "TXT":
 		cpp.WriteString(fmt.Sprintf("    QLineEdit *txt_%s = new QLineEdit(def_%s);\n", varSuffix, varSuffix))
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(txt_%s);\n", targetLayout, varSuffix))
@@ -283,7 +283,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(fieldFrame);\n", targetLayout))
 		cpp.WriteString(fmt.Sprintf("    %s.push_back({fl_%s, \"FL\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = fl_%[3]s;\n", label, field.Name, varSuffix))
-		if field.Type == "FL" {
+		if field.GetFieldType() == "FL" {
 			cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, fl_%s]() {\n", cppFlBtn, varSuffix))
 			cpp.WriteString(fmt.Sprintf("        QString f = QFileDialog::getOpenFileName(this, \"Select File\", fl_%s->text(), %s);\n", varSuffix, filterArg))
 			cpp.WriteString(fmt.Sprintf("        if(!f.isEmpty()) {\n"))
@@ -467,7 +467,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 	// --- DYNAMIC REFRESH SIGNAL REGISTRATION ---
 	if len(field.RefreshFieldsOnChange) > 0 {
 		var targetVar, signalType string
-		switch field.Type {
+		switch field.GetFieldType() {
 		case "CB":
 			targetVar = fmt.Sprintf("cb_%s", varSuffix)
 			signalType = "QComboBox::activated"

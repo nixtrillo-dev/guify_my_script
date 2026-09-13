@@ -70,7 +70,8 @@ type JsonEndpoints struct {
 
 type UIField struct {
 	Name                  string        `json:"name"`
-	Type                  string        `json:"type"`
+	FieldType             string        `json:"field_type,omitempty"`
+	Type                  string        `json:"type,omitempty"`
 	DataType              string        `json:"data_type"`
 	ArgName               string        `json:"arg_name,omitempty"`
 	Options               []interface{} `json:"options,omitempty"`
@@ -87,12 +88,70 @@ type UIField struct {
 	RefreshFieldsOnChange []string      `json:"refresh_fields_on_change,omitempty"`
 }
 
+// GetFieldType returns the field type, preferring FieldType over Type.
+func (f UIField) GetFieldType() string {
+	if f.FieldType != "" {
+		return f.FieldType
+	}
+	return f.Type
+}
+
 // IsEnabled returns true if Enabled is not set (nil) or set to true.
 func (f UIField) IsEnabled() bool {
 	if f.Enabled == nil {
 		return true
 	}
 	return *f.Enabled
+}
+
+func (f *UIField) UnmarshalJSON(data []byte) error {
+	type Alias UIField
+	aux := &struct {
+		RawType      *string `json:"type"`
+		RawFieldType *string `json:"field_type"`
+		*Alias
+	}{
+		Alias: (*Alias)(f),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	fieldIdentifier := f.Name
+	if fieldIdentifier == "" {
+		fieldIdentifier = f.ArgName
+	}
+
+	// Fail early if a field tries to define both "type" and "field_type" simultaneously
+	if aux.RawType != nil && aux.RawFieldType != nil {
+		return fmt.Errorf("field %q cannot define both 'type' and 'field_type'; specify only one", fieldIdentifier)
+	}
+
+	if aux.RawFieldType != nil {
+		f.FieldType = *aux.RawFieldType
+		f.Type = *aux.RawFieldType
+	} else if aux.RawType != nil {
+		f.FieldType = *aux.RawType
+		f.Type = *aux.RawType
+	} else if f.FieldType != "" {
+		f.Type = f.FieldType
+	} else if f.Type != "" {
+		f.FieldType = f.Type
+	}
+
+	return nil
+}
+
+func (f UIField) MarshalJSON() ([]byte, error) {
+	type Alias UIField
+	copy := f
+	if copy.FieldType != "" {
+		copy.Type = ""
+	} else if copy.Type != "" {
+		copy.FieldType = copy.Type
+		copy.Type = ""
+	}
+	return json.Marshal((*Alias)(&copy))
 }
 
 type UIAction struct {

@@ -323,3 +323,108 @@ func TestLoadAndPrepareConfig_RealGuifyMyScriptConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestUIField_FieldTypeAndLegacyType(t *testing.T) {
+	fieldTypes := []string{
+		"TXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM",
+	}
+
+	for _, ft := range fieldTypes {
+		// 1. Test "field_type" property
+		jsonFieldType := fmt.Sprintf(`{"name":"test_field","field_type":%q,"data_type":"string"}`, ft)
+		var f1 UIField
+		if err := json.Unmarshal([]byte(jsonFieldType), &f1); err != nil {
+			t.Fatalf("Failed unmarshaling field_type=%q: %v", ft, err)
+		}
+		if f1.FieldType != ft {
+			t.Errorf("Expected FieldType=%q, got %q", ft, f1.FieldType)
+		}
+		if f1.Type != ft {
+			t.Errorf("Expected backwards-compatible Type=%q, got %q", ft, f1.Type)
+		}
+		if f1.GetFieldType() != ft {
+			t.Errorf("Expected GetFieldType()=%q, got %q", ft, f1.GetFieldType())
+		}
+
+		// 2. Test legacy "type" property
+		jsonLegacyType := fmt.Sprintf(`{"name":"test_field","type":%q,"data_type":"string"}`, ft)
+		var f2 UIField
+		if err := json.Unmarshal([]byte(jsonLegacyType), &f2); err != nil {
+			t.Fatalf("Failed unmarshaling legacy type=%q: %v", ft, err)
+		}
+		if f2.FieldType != ft {
+			t.Errorf("Expected FieldType=%q from legacy type, got %q", ft, f2.FieldType)
+		}
+		if f2.Type != ft {
+			t.Errorf("Expected Type=%q from legacy type, got %q", ft, f2.Type)
+		}
+		if f2.GetFieldType() != ft {
+			t.Errorf("Expected GetFieldType()=%q from legacy type, got %q", ft, f2.GetFieldType())
+		}
+	}
+}
+
+func TestUIField_MutualExclusivityFailsEarly(t *testing.T) {
+	// Attempt to define both "type" and "field_type" on the same field
+	jsonConflict := `{"name":"ConflictField","type":"TXT","field_type":"TXT","data_type":"string"}`
+	var f UIField
+	err := json.Unmarshal([]byte(jsonConflict), &f)
+	if err == nil {
+		t.Fatal("Expected error when both 'type' and 'field_type' are defined on the same field, got nil")
+	}
+	expectedSub := "cannot define both 'type' and 'field_type'"
+	if !strings.Contains(err.Error(), expectedSub) {
+		t.Errorf("Expected error to contain %q, got %q", expectedSub, err.Error())
+	}
+
+	// Test with different values
+	jsonConflictDiff := `{"name":"DiffConflict","type":"CB","field_type":"TXT","data_type":"string"}`
+	var fDiff UIField
+	errDiff := json.Unmarshal([]byte(jsonConflictDiff), &fDiff)
+	if errDiff == nil {
+		t.Fatal("Expected error when both 'type' and 'field_type' are defined on the same field, got nil")
+	}
+	if !strings.Contains(errDiff.Error(), expectedSub) {
+		t.Errorf("Expected error to contain %q, got %q", expectedSub, errDiff.Error())
+	}
+
+	// Test that loading a config with conflict fails early in loadAndPrepareConfig
+	tempDir := t.TempDir()
+	configJSON := `{
+		"config": {
+			"title": "Conflict App",
+			"uuid": "com.example.conflict",
+			"script_alias": "test.sh",
+			"source_script_amd64": "/tmp/test.sh",
+			"source_type": "bash"
+		},
+		"actions": [
+			{
+				"label": "Test Action",
+				"func": "test_fn",
+				"execution_mode": "GUI",
+				"fields": [
+					{
+						"name": "BadField",
+						"type": "TXT",
+						"field_type": "TXT",
+						"data_type": "string"
+					}
+				]
+			}
+		]
+	}`
+	configPath := filepath.Join(tempDir, "config.json")
+	if writeErr := os.WriteFile(configPath, []byte(configJSON), 0644); writeErr != nil {
+		t.Fatalf("Failed writing temp config: %v", writeErr)
+	}
+
+	_, configErr := loadAndPrepareConfig(configPath, "debug")
+	if configErr == nil {
+		t.Fatal("Expected loadAndPrepareConfig to fail early when a field defines both 'type' and 'field_type', got nil")
+	}
+	if !strings.Contains(configErr.Error(), expectedSub) {
+		t.Errorf("Expected error to contain %q, got %q", expectedSub, configErr.Error())
+	}
+}
+

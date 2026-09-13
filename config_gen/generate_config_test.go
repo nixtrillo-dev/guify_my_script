@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -386,15 +387,74 @@ func TestSchemaContainsRequiredProperties(t *testing.T) {
 		}
 	}
 
-	for _, field := range []string{"name", "type", "data_type", "enabled", "advanced_menu", "json_endpoints", "refresh_fields_on_change"} {
+	for _, field := range []string{"name", "data_type", "enabled", "advanced_menu", "json_endpoints", "refresh_fields_on_change"} {
 		if !reqMap[field] {
 			t.Errorf("Field %q is missing from uiField required list", field)
 		}
 	}
 
+	anyOf, ok := uiField["anyOf"].([]interface{})
+	if !ok || len(anyOf) != 2 {
+		t.Fatalf("Expected uiField to define anyOf with 2 branches for field_type and type, got %v", uiField["anyOf"])
+	}
+	hasFieldTypeAnyOf := false
+	hasTypeAnyOf := false
+	for _, branch := range anyOf {
+		if bMap, ok := branch.(map[string]interface{}); ok {
+			if bReq, ok := bMap["required"].([]interface{}); ok {
+				for _, r := range bReq {
+					if r == "field_type" {
+						hasFieldTypeAnyOf = true
+					}
+					if r == "type" {
+						hasTypeAnyOf = true
+					}
+				}
+			}
+		}
+	}
+	if !hasFieldTypeAnyOf || !hasTypeAnyOf {
+		t.Errorf("Expected anyOf to require field_type or type, got %v", anyOf)
+	}
+
+	notClause, ok := uiField["not"].(map[string]interface{})
+	if !ok {
+		t.Errorf("Expected uiField to define 'not' clause for mutual exclusivity")
+	} else if notReq, ok := notClause["required"].([]interface{}); !ok || len(notReq) != 2 {
+		t.Errorf("Expected 'not' clause to specify required: ['type', 'field_type'], got %v", notClause)
+	}
+
 	props, ok := uiField["properties"].(map[string]interface{})
 	if !ok {
 		t.Fatalf("Missing properties in uiField")
+	}
+
+	fieldTypeProp, exists := props["field_type"].(map[string]interface{})
+	if !exists {
+		t.Errorf("Field 'field_type' is missing from uiField properties")
+	} else {
+		desc, hasDesc := fieldTypeProp["description"].(string)
+		if !hasDesc || desc == "" {
+			t.Errorf("Expected 'field_type' to have a non-empty description")
+		}
+		enums, hasEnums := fieldTypeProp["enum"].([]interface{})
+		if !hasEnums || len(enums) != 13 {
+			t.Errorf("Expected 'field_type' enum to contain 13 types, got %v", enums)
+		}
+		enumDescs, hasEnumDescs := fieldTypeProp["enumDescriptions"].([]interface{})
+		if !hasEnumDescs || len(enumDescs) != 13 {
+			t.Errorf("Expected 'field_type' enumDescriptions to contain 13 items, got %v", enumDescs)
+		}
+	}
+
+	typeProp, exists := props["type"].(map[string]interface{})
+	if !exists {
+		t.Errorf("Field 'type' is missing from uiField properties (needed for backwards compatibility)")
+	} else {
+		desc, hasDesc := typeProp["description"].(string)
+		if !hasDesc || !strings.Contains(desc, "Deprecated") {
+			t.Errorf("Expected 'type' property to be marked as deprecated alias, got description: %q", desc)
+		}
 	}
 
 	if _, exists := props["data_type"]; !exists {

@@ -81,7 +81,7 @@
                         "Include Func Params",
                         "Compile?"
                     ],
-                    "type": "FD",
+                    "field_type": "FD",
                     "advanced_menu": false,
                     "data_type": "string",
                     "default": "",
@@ -111,7 +111,7 @@
                     "refresh_fields_on_change": [
                         "Binary Output"
                     ],
-                    "type": "CB",
+                    "field_type": "CB",
                     "advanced_menu": false,
                     "data_type": "string",
                     "default": "GO",
@@ -136,7 +136,7 @@
                 {
                     "name": "Output JSON Path",
                     "refresh_fields_on_change": [],
-                    "type": "FS",
+                    "field_type": "FS",
                     "advanced_menu": false,
                     "data_type": "string",
                     "default": "",
@@ -162,7 +162,7 @@
                     "name": "Exclude Packages",
                     "options": [],
                     "refresh_fields_on_change": [],
-                    "type": "MCB",
+                    "field_type": "MCB",
                     "advanced_menu": true,
                     "data_type": "string",
                     "default": [],
@@ -190,7 +190,7 @@
                 {
                     "name": "Output Bridge Path",
                     "refresh_fields_on_change": null,
-                    "type": "FS",
+                    "field_type": "FS",
                     "advanced_menu": false,
                     "data_type": "string",
                     "default": "",
@@ -217,7 +217,7 @@
                 {
                     "name": "Binary Output",
                     "refresh_fields_on_change": [],
-                    "type": "FS",
+                    "field_type": "FS",
                     "advanced_menu": false,
                     "data_type": "string",
                     "default": "",
@@ -246,7 +246,7 @@
                 {
                     "name": "Compile?",
                     "refresh_fields_on_change": [],
-                    "type": "CK",
+                    "field_type": "CK",
                     "advanced_menu": true,
                     "data_type": "string",
                     "default": "1",
@@ -275,7 +275,7 @@
                     },
                     "name": "Overwrite JSON? (if exists)",
                     "refresh_fields_on_change": [],
-                    "type": "CK"
+                    "field_type": "CK"
                 },
                 {
                     "name": "Log Level",
@@ -288,7 +288,7 @@
                         "SILENT"
                     ],
                     "refresh_fields_on_change": [],
-                    "type": "CB",
+                    "field_type": "CB",
                     "advanced_menu": true,
                     "data_type": "string",
                     "default": "INFO",
@@ -305,7 +305,7 @@
                 {
                     "name": "Include Func Params",
                     "refresh_fields_on_change": [],
-                    "type": "CK",
+                    "field_type": "CK",
                     "advanced_menu": true,
                     "data_type": "string",
                     "default": "0",
@@ -324,7 +324,7 @@
                 {
                     "name": "Auto Open Ouput JSON",
                     "refresh_fields_on_change": [],
-                    "type": "CK",
+                    "field_type": "CK",
                     "advanced_menu": false,
                     "data_type": "string",
                     "default": "1",
@@ -354,7 +354,7 @@
                 {
                     "name": "JSON Config Path",
                     "refresh_fields_on_change": [],
-                    "type": "FL",
+                    "field_type": "FL",
                     "advanced_menu": false,
                     "data_type": "string",
                     "default": "",
@@ -376,7 +376,7 @@
                         "production"
                     ],
                     "refresh_fields_on_change": [],
-                    "type": "CB",
+                    "field_type": "CB",
                     "advanced_menu": true,
                     "data_type": "string",
                     "default": "production",
@@ -401,7 +401,7 @@
                         "SILENT"
                     ],
                     "refresh_fields_on_change": [],
-                    "type": "CB",
+                    "field_type": "CB",
                     "advanced_menu": true,
                     "data_type": "string",
                     "default": "INFO",
@@ -418,7 +418,7 @@
                 {
                     "name": "Clear Dependency Cache?",
                     "refresh_fields_on_change": [],
-                    "type": "CK",
+                    "field_type": "CK",
                     "advanced_menu": true,
                     "data_type": "string",
                     "default": "0",
@@ -443,7 +443,7 @@
                         ".rpm_arm64"
                     ],
                     "refresh_fields_on_change": [],
-                    "type": "MCB",
+                    "field_type": "MCB",
                     "advanced_menu": true,
                     "data_type": "string",
                     "default": [
@@ -484,7 +484,7 @@
                 {
                     "name": "Pkg Path",
                     "refresh_fields_on_change": [],
-                    "type": "FL",
+                    "field_type": "FL",
                     "advanced_menu": false,
                     "data_type": "string",
                     "default": "",
@@ -506,7 +506,7 @@
                 {
                     "name": "Update First",
                     "refresh_fields_on_change": [],
-                    "type": "CK",
+                    "field_type": "CK",
                     "advanced_menu": false,
                     "data_type": "string",
                     "default": "1",
@@ -549,7 +549,7 @@
                         ]
                     ],
                     "refresh_fields_on_change": [],
-                    "type": "CB",
+                    "field_type": "CB",
                     "advanced_menu": true,
                     "data_type": "string",
                     "default": "4 - INFO",
