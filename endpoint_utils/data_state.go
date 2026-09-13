@@ -50,7 +50,7 @@ func IsValidDirectory(path string, logLevel logger.LogLevel) string {
 		jsonString = string(jsonBytes)
 	}
 
-	logger.Info(logLevel, "%s", jsonString)
+	logger.Data(logLevel, "%s", jsonString)
 	return jsonString
 }
 
@@ -78,18 +78,18 @@ func GetDirectoryListIfValid(path string, logLevel logger.LogLevel) string {
 		jsonString = string(jsonBytes)
 	}
 
-	logger.Info(logLevel, "%s", jsonString)
+	logger.Data(logLevel, "%s", jsonString)
 	return jsonString
 }
 
 // GetNonMainPackagesJSON takes a project directory path and depending on the script type outputs all non-main packages as a JSON array.
-func GetNonMainPackagesJSON(inputPath string, scriptType, logLevel string) (string, error) {
+func GetNonMainPackagesJSON(inputPath string, scriptType, logLevel string, noUpdateMode bool) (string, error) {
 	lvl := logger.ParseLogLevel(logLevel)
 
 	// Guard Clause: Return empty JSON array immediately if input string is empty
 	if inputPath == "" {
 		emptyJSON := "[]"
-		logger.Info(lvl, "%s", emptyJSON)
+		logger.Data(lvl, "%s", emptyJSON)
 		return emptyJSON, nil
 	}
 
@@ -97,11 +97,11 @@ func GetNonMainPackagesJSON(inputPath string, scriptType, logLevel string) (stri
 	case "GO":
 		return go_gen.GetGoNonMainPackagesJSON(inputPath, logLevel)
 	case "RUST":
-		return rust_gen.GetRustNonMainPackagesJSON(inputPath, logLevel)
+		return rust_gen.GetRustNonMainPackagesJSON(inputPath, logLevel, noUpdateMode)
 	}
 
 	emptyJSON := "[]"
-	logger.Info(lvl, "%s", emptyJSON)
+	logger.Data(lvl, "%s", emptyJSON)
 	return emptyJSON, nil
 }
 
@@ -116,7 +116,7 @@ func GetMostRepresentedFileType(path string, logLevel logger.LogLevel) string {
 	if path == "" {
 		logger.Debug(logLevel, "Guard Clause: Returning empty JSON array immediately as input string is empty")
 		jsonString := "[]"
-		logger.Info(logLevel, "%s", jsonString)
+		logger.Data(logLevel, "%s", jsonString)
 		return jsonString
 	}
 
@@ -134,7 +134,7 @@ func GetMostRepresentedFileType(path string, logLevel logger.LogLevel) string {
 		} else {
 			jsonString = string(jsonBytes)
 		}
-		logger.Info(logLevel, "%s", jsonString)
+		logger.Data(logLevel, "%s", jsonString)
 		return jsonString
 	}
 
@@ -160,7 +160,7 @@ func GetMostRepresentedFileType(path string, logLevel logger.LogLevel) string {
 	if err != nil {
 		logger.Debug(logLevel, "filepath.WalkDir failed for array generation: %v", err)
 		jsonString := "[]"
-		logger.Info(logLevel, "%s", jsonString)
+		logger.Data(logLevel, "%s", jsonString)
 		return jsonString
 	}
 
@@ -184,7 +184,7 @@ func GetMostRepresentedFileType(path string, logLevel logger.LogLevel) string {
 		jsonString = string(jsonBytes)
 	}
 
-	logger.Info(logLevel, "%s", jsonString)
+	logger.Data(logLevel, "%s", jsonString)
 	return jsonString
 }
 
@@ -196,9 +196,9 @@ func IsCompilable(path string, logLevel logger.LogLevel) string {
 
 	// Get the file type JSON string by evaluating the path
 	var scriptStatusJSON string
-	if logLevel == 4 { // INFO level
-		// Passing "WARNING" here as we have no interest in INFO here under the context of this function...
-		scriptStatusJSON = GetMostRepresentedFileType(path, 3) // 3 corresponds to WARNING level
+	if logLevel == 99 { // DATA level
+		// Passing "ERROR" here as we have no interest in DATA here under the context of this function...
+		scriptStatusJSON = GetMostRepresentedFileType(path, 2) // 2 corresponds to ERROR level
 	} else {
 		scriptStatusJSON = GetMostRepresentedFileType(path, logLevel)
 	}
@@ -226,6 +226,6 @@ func IsCompilable(path string, logLevel logger.LogLevel) string {
 		jsonString = string(jsonBytes)
 	}
 
-	logger.Info(logLevel, "%s", jsonString)
+	logger.Data(logLevel, "%s", jsonString)
 	return jsonString
 }

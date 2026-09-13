@@ -58,8 +58,8 @@ func ModifyPath(filePath, appendString, newExtension, logLevel string) (string, 
 
 	jsonString := string(jsonData)
 
-	// 7. Output the JSON string as an INFO level log
-	logger.Info(lvl, "%s", jsonString)
+	// 7. Output the JSON string as an DATA level log
+	logger.Data(lvl, "%s", jsonString)
 
 	return jsonString, nil
 }
@@ -146,7 +146,7 @@ func GeneratePathFromDir(dirPath, appendString, newExtension, logLevel string, o
 	}
 
 	jsonString := string(jsonData)
-	logger.Info(lvl, "%s", jsonString)
+	logger.Data(lvl, "%s", jsonString)
 
 	return jsonString, nil
 }
@@ -178,8 +178,8 @@ func GetExtension(filePath, logLevel string) (string, error) {
 
 	jsonString := string(jsonData)
 
-	// 5. Output the JSON string as an INFO level log
-	logger.Info(lvl, "%s", jsonString)
+	// 5. Output the JSON string as an DATA level log
+	logger.Data(lvl, "%s", jsonString)
 
 	return jsonString, nil
 }
@@ -219,8 +219,8 @@ func InsertParentFolder(originalPath, newFolder, logLevel string) (string, error
 
 	jsonString := string(jsonData)
 
-	// Output the JSON string as an INFO level log
-	logger.Info(lvl, "%s", jsonString)
+	// Output the JSON string as an DATA level log
+	logger.Data(lvl, "%s", jsonString)
 
 	return jsonString, nil
 }
@@ -249,10 +249,10 @@ func GetDefaultBridgePathForScript(dirPath, scriptType, logLevel string) (string
 		var err error
 
 		// 1. Generate the initial path string (which is a JSON string)
-		if logLevel == "INFO" {
-			// INFO returns the JSON string, but we are updating the modified_path in the next step,
-			// so we don't want to log it twice. Use WARNING to suppress the INFO log.
-			generatedJSON, err = GeneratePathFromDir(dirPath, "main", ".rs", "WARNING", true)
+		if logLevel == "DATA" { // DATA level
+			// DATA returns the JSON string, but we are updating the modified_path in the next step,
+			// so we don't want to log it twice. Use ERROR to suppress the DATA log.
+			generatedJSON, err = GeneratePathFromDir(dirPath, "main", ".rs", "ERROR", true)
 		} else {
 			generatedJSON, err = GeneratePathFromDir(dirPath, "main", ".rs", logLevel, true)
 		}

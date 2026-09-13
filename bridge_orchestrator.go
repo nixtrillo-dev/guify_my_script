@@ -23,8 +23,8 @@ func CompileScriptWithGuiConfig(inputPath, scriptType, outputJSON, excludePackag
 		var extJsonStr string
 		var err error
 
-		if logLevel == "INFO" {
-			extJsonStr, err = endpoint_utils.GetExtension(inputPath, "WARNING") // Passing "WARNING" here as we have no interest in INFO here under the context of this function...
+		if logLevel == "INFO" || logLevel == "DATA" { // INFO or DATA level
+			extJsonStr, err = endpoint_utils.GetExtension(inputPath, "WARNING") // Passing "WARNING" here as we have no interest in DATA here under the context of this function...
 		} else {
 			extJsonStr, err = endpoint_utils.GetExtension(inputPath, logLevel)
 		}

@@ -236,7 +236,7 @@ func GetGoNonMainPackagesJSON(inputPath string, logLevel string) (string, error)
 
 	// Convert bytes to string for both logging and returning
 	jsonString := string(jsonData)
-	logger.Info(lvl, "%s", jsonString)
+	logger.Data(lvl, "%s", jsonString)
 
 	return jsonString, nil
 }
@@ -327,9 +327,9 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 			}
 
 			var args []ArgMetaData
-			hasFuncParam := false      // Track if a func() parameter is detected
+			hasFuncParam := false        // Track if a func() parameter is detected
 			hasUnsupportedParam := false // Track if struct/composite parameters are detected
-			localNeedsStrconv := false // Track strconv needs for this function only
+			localNeedsStrconv := false   // Track strconv needs for this function only
 
 			if fn.Type.Params != nil {
 				for _, field := range fn.Type.Params.List {
@@ -364,7 +364,7 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 								localNeedsStrconv = true
 							}
 						}
-					// Parse pointer expressions (*bool)
+						// Parse pointer expressions (*bool)
 					} else if starExpr, ok := field.Type.(*ast.StarExpr); ok {
 						if ident, ok := starExpr.X.(*ast.Ident); ok {
 							if ident.Name == "bool" {
@@ -376,7 +376,7 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 						} else {
 							hasUnsupportedParam = true
 						}
-					// Parse selector expressions (e.g., logger.LogLevel)
+						// Parse selector expressions (e.g., logger.LogLevel)
 					} else if selExpr, ok := field.Type.(*ast.SelectorExpr); ok {
 						if xIdent, ok := selExpr.X.(*ast.Ident); ok {
 							typeStr = "int"
@@ -458,7 +458,7 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 				excludeMap[strings.TrimSpace(pkg)] = true
 			}
 		} else {
-			logger.Info(lvl, "Warning: failed to parse excludePackages as CSV: %v", err)
+			logger.Warn(lvl, "failed to parse excludePackages as CSV: %v", err)
 		}
 	}
 
@@ -618,7 +618,7 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 		cmdCLI := exec.Command("go", "build", "-o", cliBinName, ".")
 		cmdCLI.Dir = targetDir
 		cmdCLI.Env = append(os.Environ(),
-			"CGO_ENABLED=1",         // Explicitly enable CGO for the CLI
+			"CGO_ENABLED=1", // Explicitly enable CGO for the CLI
 			"GOARCH="+target.GOARCH,
 			"GOOS=linux",
 			"CC="+target.CC, // Supply the cross-compiler mapping

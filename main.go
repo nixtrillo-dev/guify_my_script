@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"guify_my_script/endpoint_utils"
 	"guify_my_script/go_gen"
 	"guify_my_script/gui_gen"
 	"guify_my_script/internal_utils"
@@ -13,6 +12,7 @@ import (
 	"guify_my_script/package_installer"
 	"guify_my_script/rust_gen"
 	"guify_my_script/config_gen"
+	"guify_my_script/endpoint_utils"
 	
 )
 
@@ -130,7 +130,7 @@ func GoGetDirectoryListIfValid(path *C.char, logLevel C.int) C.int {
 }
 
 //export GoGetNonMainPackagesJSON
-func GoGetNonMainPackagesJSON(inputPath *C.char, scriptType *C.char, logLevel *C.char) C.int {
+func GoGetNonMainPackagesJSON(inputPath *C.char, scriptType *C.char, logLevel *C.char, noUpdateMode C.int) C.int {
 	
 	go_inputPath := C.GoString(inputPath)
 	
@@ -138,8 +138,10 @@ func GoGetNonMainPackagesJSON(inputPath *C.char, scriptType *C.char, logLevel *C
 	
 	go_logLevel := C.GoString(logLevel)
 	
+	go_noUpdateMode := noUpdateMode == 1
 	
-	_, err := endpoint_utils.GetNonMainPackagesJSON(go_inputPath, go_scriptType, go_logLevel)
+	
+	_, err := endpoint_utils.GetNonMainPackagesJSON(go_inputPath, go_scriptType, go_logLevel, go_noUpdateMode)
 	if err != nil {
 		fmt.Printf("Pipeline Error in GetNonMainPackagesJSON: %v\n", err)
 		return 0
@@ -443,14 +445,16 @@ func GoInstallLocalPackage(pkgPath *C.char, updateFirst C.int, logLevel C.int) C
 }
 
 //export GoGetRustNonMainPackagesJSON
-func GoGetRustNonMainPackagesJSON(inputPath *C.char, logLevel *C.char) C.int {
+func GoGetRustNonMainPackagesJSON(inputPath *C.char, logLevel *C.char, noUpdateMode C.int) C.int {
 	
 	go_inputPath := C.GoString(inputPath)
 	
 	go_logLevel := C.GoString(logLevel)
 	
+	go_noUpdateMode := noUpdateMode == 1
 	
-	_, err := rust_gen.GetRustNonMainPackagesJSON(go_inputPath, go_logLevel)
+	
+	_, err := rust_gen.GetRustNonMainPackagesJSON(go_inputPath, go_logLevel, go_noUpdateMode)
 	if err != nil {
 		fmt.Printf("Pipeline Error in GetRustNonMainPackagesJSON: %v\n", err)
 		return 0
@@ -757,7 +761,7 @@ func main() {
 		
 		
 	    case "get_non_main_packages_json":
-		if len(os.Args) < 5 {
+		if len(os.Args) < 6 {
 			fmt.Println("Error: get_non_main_packages_json requires parameters")
 			os.Exit(1)
 		}
@@ -774,7 +778,20 @@ func main() {
 		cli_logLevel := os.Args[4]
 		
 		
-		_, err := endpoint_utils.GetNonMainPackagesJSON(cli_inputPath, cli_scriptType, cli_logLevel)
+		cli_noUpdateMode, err_noUpdateMode := strconv.ParseBool(os.Args[5])
+		if err_noUpdateMode != nil {
+			if os.Args[5] == "1" {
+				cli_noUpdateMode = true
+			} else if os.Args[5] == "0" {
+				cli_noUpdateMode = false
+			} else {
+				fmt.Printf("Error: parameter 'noUpdateMode' must be a valid boolean evaluation: %v\n", err_noUpdateMode)
+				os.Exit(1)
+			}
+		}
+		
+		
+		_, err := endpoint_utils.GetNonMainPackagesJSON(cli_inputPath, cli_scriptType, cli_logLevel, cli_noUpdateMode)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -1249,7 +1266,7 @@ func main() {
 		
 		
 	    case "get_rust_non_main_packages_json":
-		if len(os.Args) < 4 {
+		if len(os.Args) < 5 {
 			fmt.Println("Error: get_rust_non_main_packages_json requires parameters")
 			os.Exit(1)
 		}
@@ -1263,7 +1280,20 @@ func main() {
 		cli_logLevel := os.Args[3]
 		
 		
-		_, err := rust_gen.GetRustNonMainPackagesJSON(cli_inputPath, cli_logLevel)
+		cli_noUpdateMode, err_noUpdateMode := strconv.ParseBool(os.Args[4])
+		if err_noUpdateMode != nil {
+			if os.Args[4] == "1" {
+				cli_noUpdateMode = true
+			} else if os.Args[4] == "0" {
+				cli_noUpdateMode = false
+			} else {
+				fmt.Printf("Error: parameter 'noUpdateMode' must be a valid boolean evaluation: %v\n", err_noUpdateMode)
+				os.Exit(1)
+			}
+		}
+		
+		
+		_, err := rust_gen.GetRustNonMainPackagesJSON(cli_inputPath, cli_logLevel, cli_noUpdateMode)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)

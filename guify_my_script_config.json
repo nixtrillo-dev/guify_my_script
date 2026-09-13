@@ -121,12 +121,12 @@
                         "get_defaults_endpoint": [
                             "get_most_represented_file_type",
                             "{Input Script or Source Directory}",
-                            "4"
+                            "99"
                         ],
                         "get_enabled_endpoint": [
                             "is_valid_directory",
                             "{Input Script or Source Directory}",
-                            "4"
+                            "99"
                         ],
                         "path_to_array": null,
                         "path_to_default": "file_type",
@@ -150,7 +150,7 @@
                             "{Input Script or Source Directory}",
                             "_config",
                             "json",
-                            "INFO",
+                            "DATA",
                             "0"
                         ],
                         "get_enabled_endpoint": [],
@@ -174,13 +174,14 @@
                             "get_non_main_packages_json",
                             "{Input Script or Source Directory}",
                             "{Script Type}",
-                            "INFO"
+                            "DATA",
+                            "1"
                         ],
                         "get_defaults_endpoint": [],
                         "get_enabled_endpoint": [
                             "is_valid_directory",
                             "{Input Script or Source Directory}",
-                            "4"
+                            "99"
                         ],
                         "path_to_array": null,
                         "path_to_default": null,
@@ -203,12 +204,12 @@
                             "get_default_bridge_path_for_script",
                             "{Input Script or Source Directory}",
                             "{Script Type}",
-                            "INFO"
+                            "DATA"
                         ],
                         "get_enabled_endpoint": [
                             "is_compilable",
                             "{Input Script or Source Directory}",
-                            "4"
+                            "99"
                         ],
                         "path_to_enabled": "is_compilable",
                         "path_to_default": "modified_path"
@@ -231,13 +232,13 @@
                             "{Input Script or Source Directory}",
                             "",
                             "",
-                            "INFO",
+                            "DATA",
                             "0"
                         ],
                         "get_enabled_endpoint": [
                             "is_compilable",
                             "{Input Script or Source Directory}",
-                            "4"
+                            "99"
                         ],
                         "path_to_enabled": "is_compilable",
                         "path_to_default": "modified_path"
@@ -256,7 +257,7 @@
                         "get_enabled_endpoint": [
                             "is_compilable",
                             "{Input Script or Source Directory}",
-                            "4"
+                            "99"
                         ],
                         "path_to_default": null,
                         "path_to_enabled": "is_compilable"
@@ -315,7 +316,7 @@
                         "get_enabled_endpoint": [
                             "is_compilable",
                             "{Input Script or Source Directory}",
-                            "4"
+                            "99"
                         ],
                         "path_to_default": null,
                         "path_to_enabled": "is_compilable"

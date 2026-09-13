@@ -1,6 +1,7 @@
 package rust_gen
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
@@ -180,8 +181,98 @@ fn main() {
 }
 `
 
+// captureFileSnapshot captures the current state of all files under rootDir that match
+// the auto-generated file patterns (Cargo.toml and src/lib.rs).
+func captureFileSnapshot(rootDir string) map[string][]byte {
+	snapshot := make(map[string][]byte)
+
+	_ = filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		// Only capture files that discoverLibCrates might modify
+		if info.IsDir() {
+			return nil
+		}
+
+		relPath, _ := filepath.Rel(rootDir, path)
+		fileName := filepath.Base(path)
+
+		// Capture Cargo.toml files and src/lib.rs files
+		if fileName == "Cargo.toml" || (filepath.Base(filepath.Dir(path)) == "src" && fileName == "lib.rs") {
+			if content, readErr := os.ReadFile(path); readErr == nil {
+				snapshot[relPath] = content
+			}
+		}
+
+		return nil
+	})
+
+	return snapshot
+}
+
+// rollbackFileChanges restores files to their original state from the snapshot.
+// It removes any files that were created and restores modified files.
+func rollbackFileChanges(rootDir string, snapshot map[string][]byte) error {
+	for relPath, originalContent := range snapshot {
+		fullPath := filepath.Join(rootDir, relPath)
+
+		// Check if file still exists
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			// File was deleted, but we only capture existing files, so this shouldn't happen
+			// with our current snapshot logic. However, restore it anyway.
+			if writeErr := os.WriteFile(fullPath, originalContent, 0644); writeErr != nil {
+				return fmt.Errorf("failed to restore deleted file %s: %w", fullPath, writeErr)
+			}
+		} else {
+			// Check if file was modified
+			currentContent, readErr := os.ReadFile(fullPath)
+			if readErr != nil {
+				return fmt.Errorf("failed to read file %s for comparison: %w", fullPath, readErr)
+			}
+
+			if !bytes.Equal(currentContent, originalContent) {
+				// File was modified, restore original
+				if writeErr := os.WriteFile(fullPath, originalContent, 0644); writeErr != nil {
+					return fmt.Errorf("failed to restore modified file %s: %w", fullPath, writeErr)
+				}
+			}
+		}
+	}
+
+	// Now check for newly created files that weren't in the snapshot
+	_ = filepath.Walk(rootDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		relPath, _ := filepath.Rel(rootDir, path)
+		fileName := filepath.Base(path)
+
+		// Only consider files that discoverLibCrates creates
+		isAutoGenFile := fileName == "Cargo.toml" || (filepath.Base(filepath.Dir(path)) == "src" && fileName == "lib.rs")
+
+		if isAutoGenFile {
+			// Check if this file was in the original snapshot
+			if _, exists := snapshot[relPath]; !exists {
+				// This is a newly created file, remove it
+				if removeErr := os.Remove(path); removeErr != nil && !os.IsNotExist(removeErr) {
+					return fmt.Errorf("failed to remove newly created file %s: %w", path, removeErr)
+				}
+			}
+		}
+
+		return nil
+	})
+
+	return nil
+}
+
 // GetRustNonMainPackagesJSON scans the Rust project directory and returns a JSON array of discovered crates/modules.
-func GetRustNonMainPackagesJSON(inputPath string, logLevel string) (string, error) {
+func GetRustNonMainPackagesJSON(inputPath string, logLevel string, noUpdateMode bool) (string, error) {
 	lvl := logger.ParseLogLevel(logLevel)
 
 	if inputPath == "" {
@@ -198,6 +289,12 @@ func GetRustNonMainPackagesJSON(inputPath string, logLevel string) (string, erro
 	targetDir, err := resolveRustProjectDir(absInput)
 	if err != nil {
 		return "", err
+	}
+
+	// If in no-update mode, capture file state before discoverLibCrates and rollback after
+	var fileSnapshot map[string][]byte
+	if noUpdateMode {
+		fileSnapshot = captureFileSnapshot(targetDir)
 	}
 
 	var modules []string
@@ -244,8 +341,15 @@ func GetRustNonMainPackagesJSON(inputPath string, logLevel string) (string, erro
 		return "", fmt.Errorf("failed to encode crates to JSON: %w", err)
 	}
 
+	// Rollback file system changes if in no-update mode
+	if noUpdateMode && fileSnapshot != nil {
+		if rollbackErr := rollbackFileChanges(targetDir, fileSnapshot); rollbackErr != nil {
+			logger.Info(lvl, "Warning: failed to rollback file changes: %v", rollbackErr)
+		}
+	}
+
 	jsonString := string(jsonData)
-	logger.Info(lvl, "%s", jsonString)
+	logger.Data(lvl, "%s", jsonString)
 	return jsonString, nil
 }
 
