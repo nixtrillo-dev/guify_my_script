@@ -676,8 +676,13 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 	binaryName = strings.TrimSuffix(binaryName, ".so")
 	binaryName = strings.TrimSuffix(binaryName, ".dll")
 
-	if !filepath.IsAbs(binaryName) {
-		binaryName = filepath.Join(buildDir, binaryName)
+	// Resolve the binary destination. Bare filenames anchor to the build
+	// directory; relative paths carrying directory components resolve against
+	// the process CWD. The binary is a standalone deliverable — it may land
+	// anywhere, so no project containment is enforced.
+	binaryName, err = internal_utils.ResolveBinaryOutputPath(binaryName, buildDir)
+	if err != nil {
+		return err
 	}
 
 	logger.Info(lvl, "Compiling Rust package in %s (binary: %s)...", buildDir, binaryName)

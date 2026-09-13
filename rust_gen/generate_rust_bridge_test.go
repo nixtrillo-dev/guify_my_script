@@ -248,4 +248,3 @@ func TestDiscoverLibCrates_AutoScaffolding(t *testing.T) {
 		t.Errorf("shouldRegenerateFile returned false for Cargo.toml with auto-gen marker")
 	}
 }
-

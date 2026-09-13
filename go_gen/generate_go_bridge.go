@@ -1,15 +1,18 @@
 package go_gen
 
 import (
+	"bytes"
 	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"go/ast"
+	"go/format"
 	"go/parser"
 	"go/token"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/template"
 
@@ -34,9 +37,8 @@ type FuncMetaData struct {
 }
 
 type TemplateWrapper struct {
-	Imports      []string
-	NeedsStrconv bool
-	Functions    []FuncMetaData
+	Imports   []string
+	Functions []FuncMetaData
 }
 
 // Complete cross-boundary interop boilerplate definitions
@@ -44,12 +46,8 @@ const bridgeTemplate = `package main
 
 import "C"
 import (
-	"fmt"
-	"os"
-	{{if .NeedsStrconv}}"strconv"{{end}}
-	{{range .Imports}}"{{.}}"
-	{{end}}
-)
+{{range .Imports}}	"{{.}}"
+{{end}})
 
 // =====================================================================
 // AUTOMATICALLY GENERATED C++ EXPORTS
@@ -439,6 +437,9 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 	for imp := range importMap {
 		dynamicImports = append(dynamicImports, imp)
 	}
+	// Map iteration order is randomized per run — sort so generated artifacts
+	// (bridge files, JSON package listings) stay byte-stable across regenerations.
+	sort.Strings(dynamicImports)
 
 	return dynamicImports, functions, needsStrconv, nil
 }
@@ -492,12 +493,23 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 	if outputPath == "" {
 		outputPath = filepath.Join(targetDir, "go_external_bridge_bridge.go")
 	} else if !filepath.IsAbs(outputPath) {
-		outputPath = filepath.Join(targetDir, outputPath)
+		// Resolve relative paths from the process CWD, not from targetDir.
+		// Joining a caller-relative path (e.g. "../repo/project/bridge.go")
+		// onto targetDir produces a doubled path when the caller expressed
+		// the destination relative to their own working directory.
+		outputPath, _ = filepath.Abs(outputPath)
 	}
 
 	absOutput, err := filepath.Abs(outputPath)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to canonicalize output path: %w", err)
+	}
+
+	// Enforce: the bridge file must live inside the target project directory —
+	// unlike the compiled binary, where it sits matters because the module
+	// build consumes it from there.
+	if !strings.HasPrefix(filepath.Clean(absOutput), filepath.Clean(targetDir)+string(filepath.Separator)) {
+		return "", "", fmt.Errorf("output bridge file %q must be located inside the target project directory %q", absOutput, targetDir)
 	}
 
 	var targetFiles []string
@@ -544,14 +556,40 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 	}
 	defer outputFile.Close()
 
+	// Compose the full import block — fixed runtime imports plus the dynamic
+	// package imports — as a single sorted set so the generated bridge is
+	// byte-stable across regenerations and matches what gofmt would leave.
+	bridgeImports := append([]string{"fmt", "os"}, dynamicImports...)
+	if needsStrconv {
+		bridgeImports = append(bridgeImports, "strconv")
+	}
+	sort.Strings(bridgeImports)
+
 	wrapperData := TemplateWrapper{
-		Imports:      dynamicImports,
-		NeedsStrconv: needsStrconv,
-		Functions:    functions,
+		Imports:   bridgeImports,
+		Functions: functions,
 	}
 
-	if err := tmpl.Execute(outputFile, wrapperData); err != nil {
+	var rendered bytes.Buffer
+	if err := tmpl.Execute(&rendered, wrapperData); err != nil {
 		return "", "", fmt.Errorf("template write error: %w", err)
+	}
+
+	// Normalize to canonical gofmt formatting (go/format is the engine behind
+	// the gofmt command) so the generated bridge never trips `gofmt -l` —
+	// template range/if actions otherwise leave stray blank lines inside
+	// function bodies. If the rendered source somehow fails to parse, fall
+	// back to the raw template output rather than failing generation over
+	// formatting.
+	content := rendered.Bytes()
+	if formatted, fmtErr := format.Source(content); fmtErr == nil {
+		content = formatted
+	} else {
+		logger.Warn(lvl, "generated bridge is not parseable for gofmt normalization (%v); writing raw template output", fmtErr)
+	}
+
+	if _, err := outputFile.Write(content); err != nil {
+		return "", "", fmt.Errorf("failed writing bridge file: %w", err)
 	}
 
 	logger.Info(lvl, "  • Successfully generated bridge file %s\n", absOutput)
@@ -576,6 +614,17 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 
 	binaryName = strings.TrimSuffix(binaryName, ".so")
 	binaryName = strings.TrimSuffix(binaryName, ".dll")
+
+	// Resolve the binary destination. Bare filenames anchor to the project
+	// directory; relative paths carrying directory components resolve against
+	// the process CWD. The binary is a standalone deliverable — it may land
+	// anywhere, so no project containment is enforced. Resolving to an
+	// absolute path up front also keeps `go build -o` correct regardless of
+	// the cmd.Dir working directory used below.
+	binaryName, err := internal_utils.ResolveBinaryOutputPath(binaryName, targetDir)
+	if err != nil {
+		return err
+	}
 
 	modPath := filepath.Join(targetDir, "go.mod")
 	if _, err := os.Stat(modPath); os.IsNotExist(err) {
@@ -631,7 +680,7 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 		if err := cmdCLI.Run(); err != nil {
 			return fmt.Errorf("CLI binary build failure for %s:\n%s\ninternal error: %w", target.GOARCH, errCLI.String(), err)
 		}
-		_ = os.Chmod(filepath.Join(targetDir, cliBinName), 0755)
+		_ = os.Chmod(cliBinName, 0755) // cliBinName is absolute (resolved above)
 
 		// 2. Build the C++ Shared Library (Requires CGO and specific CC)
 		cmdLib := exec.Command("go", "build", "-o", libBinName, "-buildmode=c-shared", ".")
