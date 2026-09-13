@@ -346,6 +346,28 @@ func TestSchemaContainsRequiredProperties(t *testing.T) {
 	if _, exists := actionProps["invoke_as_object"]; !exists {
 		t.Errorf("Field 'invoke_as_object' is missing from uiAction properties (required for JavaScript object destructuring)")
 	}
+	execModeProp, exists := actionProps["execution_mode"].(map[string]interface{})
+	if !exists {
+		t.Errorf("Property 'execution_mode' is missing from uiAction properties")
+	} else {
+		if defVal, ok := execModeProp["default"].(string); !ok || defVal != "GUI" {
+			t.Errorf("Expected 'execution_mode' default to be 'GUI', got %v", execModeProp["default"])
+		}
+	}
+	actionRequired, ok := uiAction["required"].([]interface{})
+	if !ok {
+		t.Fatalf("Missing required in uiAction")
+	}
+	hasExecModeReq := false
+	for _, r := range actionRequired {
+		if r == "execution_mode" {
+			hasExecModeReq = true
+			break
+		}
+	}
+	if !hasExecModeReq {
+		t.Errorf("Expected 'execution_mode' to be in uiAction required list")
+	}
 
 	uiField, ok := defs["uiField"].(map[string]interface{})
 	if !ok {
@@ -429,6 +451,33 @@ pub fn print_sum(a: i32, b: i32) {}
 	}
 	if len(root.Actions) != 2 {
 		t.Fatalf("Expected 2 actions, got %d", len(root.Actions))
+	}
+	for _, act := range root.Actions {
+		if act.ExecutionMode != "GUI" {
+			t.Errorf("Expected action %q execution_mode to be 'GUI', got %q", act.Label, act.ExecutionMode)
+		}
+	}
+}
+
+func TestUIAction_UnmarshalJSON_ExecutionModeAndLegacyMode(t *testing.T) {
+	// New style with execution_mode
+	newJSON := `{"label":"Test Action","func":"test_fn","execution_mode":"GUI"}`
+	var act1 UIAction
+	if err := json.Unmarshal([]byte(newJSON), &act1); err != nil {
+		t.Fatalf("Failed unmarshaling action with execution_mode: %v", err)
+	}
+	if act1.ExecutionMode != "GUI" {
+		t.Errorf("Expected ExecutionMode to be 'GUI', got %q", act1.ExecutionMode)
+	}
+
+	// Legacy style with mode
+	legacyJSON := `{"label":"Legacy Action","func":"legacy_fn","mode":"g"}`
+	var act2 UIAction
+	if err := json.Unmarshal([]byte(legacyJSON), &act2); err != nil {
+		t.Fatalf("Failed unmarshaling legacy action with mode: %v", err)
+	}
+	if act2.ExecutionMode != "g" {
+		t.Errorf("Expected ExecutionMode fallback to be 'g', got %q", act2.ExecutionMode)
 	}
 }
 

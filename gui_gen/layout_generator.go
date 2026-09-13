@@ -82,14 +82,11 @@ func buildActionTabs(actions []UIAction, sourceType string, actionOnStartup stri
 
 	for actIdx, action := range actions {
 		label := action.Label
-		mode := action.Mode
-		if mode == "" {
-			mode = "c"
-		}
+		mode := action.GetMode()
 		sanitizedLabel := sanitizeIdentifier(label)
 		actIdxStr := strconv.Itoa(actIdx)
 
-		cpp.WriteString(fmt.Sprintf("\n    // Tab Layout Setup: %s (Mode: %s)\n", label, mode))
+		cpp.WriteString(fmt.Sprintf("\n    // Tab Layout Setup: %s (Mode: %s)\n", label, action.GetExecutionMode()))
 		cpp.WriteString("    currentTab = new QWidget();\n")
 
 		// 1. Outer layout for the tab (holds ScrollArea + Logs + Action Buttons)

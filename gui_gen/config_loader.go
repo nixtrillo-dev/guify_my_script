@@ -49,7 +49,7 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 	}
 
 	if err := json.Unmarshal(fileData, &ctx.root); err != nil {
-		return ctx, fmt.Errorf("malformed JSON: %w", err)
+		return ctx, fmt.Errorf("failed to load configuration: %w", err)
 	}
 
 	// --- VALIDATE UNIQUE ACTION LABELS ---
@@ -176,7 +176,7 @@ func loadAdvancedTools(baseDir string) ([]AdvancedToolFile, error) {
 
 		var tool AdvancedToolFile
 		if err := json.Unmarshal(data, &tool); err != nil {
-			return nil, fmt.Errorf("malformed JSON in advanced tool %s: %w", f.Name(), err)
+			return nil, fmt.Errorf("failed to load advanced tool %s: %w", f.Name(), err)
 		}
 
 		tool.FilePath = fullPath

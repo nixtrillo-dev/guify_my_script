@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"guify_my_script/logger"
+	"guify_my_script/package_installer"
+	"guify_my_script/rust_gen"
 	"guify_my_script/config_gen"
 	"guify_my_script/endpoint_utils"
 	"guify_my_script/go_gen"
 	"guify_my_script/gui_gen"
 	"guify_my_script/internal_utils"
-	"guify_my_script/logger"
-	"guify_my_script/package_installer"
-	"guify_my_script/rust_gen"
 	
 )
 
@@ -330,6 +330,39 @@ func GoCompileLocal(targetDir *C.char, absBridge *C.char, binaryName *C.char, lo
 		fmt.Printf("Pipeline Error in CompileLocal: %v\n", err)
 		return 0
 	}
+	
+	return 1
+}
+
+//export GoIsValidExecutionMode
+func GoIsValidExecutionMode(mode *C.char) C.int {
+	
+	go_mode := C.GoString(mode)
+	
+	
+	gui_gen.IsValidExecutionMode(go_mode)
+	
+	return 1
+}
+
+//export GoNormalizeExecutionMode
+func GoNormalizeExecutionMode(mode *C.char) C.int {
+	
+	go_mode := C.GoString(mode)
+	
+	
+	gui_gen.NormalizeExecutionMode(go_mode)
+	
+	return 1
+}
+
+//export GoNormalizeExecutionModeLonghand
+func GoNormalizeExecutionModeLonghand(mode *C.char) C.int {
+	
+	go_mode := C.GoString(mode)
+	
+	
+	gui_gen.NormalizeExecutionModeLonghand(go_mode)
 	
 	return 1
 }
@@ -1036,6 +1069,51 @@ func main() {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
 		}
+		
+		
+	    case "is_valid_execution_mode":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: is_valid_execution_mode requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_mode := os.Args[2]
+		
+		
+		gui_gen.IsValidExecutionMode(cli_mode)
+		
+		
+	    case "normalize_execution_mode":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: normalize_execution_mode requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_mode := os.Args[2]
+		
+		
+		gui_gen.NormalizeExecutionMode(cli_mode)
+		
+		
+	    case "normalize_execution_mode_longhand":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: normalize_execution_mode_longhand requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		
+		
+		cli_mode := os.Args[2]
+		
+		
+		gui_gen.NormalizeExecutionModeLonghand(cli_mode)
 		
 		
 	    case "generate_ui":

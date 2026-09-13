@@ -33,10 +33,7 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
 	}
 	compStr := refreshCompletionStr.String()
 
-	mode := action.Mode
-	if mode == "" {
-		mode = "c"
-	}
+	mode := action.GetMode()
 	funcName := action.Func
 	isAttached := mode == "g" || mode == "gc" || mode == "s"
 
@@ -407,9 +404,10 @@ if (result !== undefined) {
 `
 
 func buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, scriptExpr string, includeGuiModes bool) string {
-	cond := fmt.Sprintf("\"%s\" == \"s\" || \"%s\" == \"d\"", mode, mode)
+	cleanMode := NormalizeExecutionMode(mode)
+	cond := fmt.Sprintf("\"%s\" == \"s\" || \"%s\" == \"d\"", cleanMode, cleanMode)
 	if includeGuiModes {
-		cond = fmt.Sprintf("\"%s\" == \"g\" || \"%s\" == \"s\" || \"%s\" == \"d\"", mode, mode, mode)
+		cond = fmt.Sprintf("\"%s\" == \"g\" || \"%s\" == \"s\" || \"%s\" == \"d\"", cleanMode, cleanMode, cleanMode)
 	}
 	return fmt.Sprintf(`
         QString jsRunner = QString::fromUtf8("%s");
@@ -443,9 +441,10 @@ if ($decodedArgs.Count -gt 2) {
 }`
 
 func buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, scriptExpr string, includeGuiModes bool, fields []UIField) string {
-	cond := fmt.Sprintf("\"%s\" == \"s\" || \"%s\" == \"d\"", mode, mode)
+	cleanMode := NormalizeExecutionMode(mode)
+	cond := fmt.Sprintf("\"%s\" == \"s\" || \"%s\" == \"d\"", cleanMode, cleanMode)
 	if includeGuiModes {
-		cond = fmt.Sprintf("\"%s\" == \"g\" || \"%s\" == \"s\" || \"%s\" == \"d\"", mode, mode, mode)
+		cond = fmt.Sprintf("\"%s\" == \"g\" || \"%s\" == \"s\" || \"%s\" == \"d\"", cleanMode, cleanMode, cleanMode)
 	}
 	var names strings.Builder
 	for _, field := range fields {

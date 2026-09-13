@@ -76,7 +76,8 @@ type UIField struct {
 type UIAction struct {
 	Label                     string           `json:"label"`
 	Func                      string           `json:"func"`
-	Mode                      string           `json:"mode"`
+	ExecutionMode             string           `json:"execution_mode"`
+	Mode                      string           `json:"mode,omitempty"`
 	RefreshFieldsOnTabOpen    *json.RawMessage `json:"refresh_fields_on_tab_open"`
 	RefreshFieldsOnCompletion *json.RawMessage `json:"refresh_fields_on_completion"`
 	QuickLaunch               bool             `json:"quick_launch"`
@@ -87,6 +88,22 @@ type UIAction struct {
 	StopLabel                 string           `json:"stop_label"`
 	InvokeAsObject            bool             `json:"invoke_as_object,omitempty"`
 	Fields                    []UIField        `json:"fields"`
+}
+
+func (a *UIAction) UnmarshalJSON(data []byte) error {
+	type Alias UIAction
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	if a.ExecutionMode == "" && a.Mode != "" {
+		a.ExecutionMode = a.Mode
+	}
+	return nil
 }
 
 // UIConfig sets up high-fidelity platform layout values
@@ -420,7 +437,7 @@ func parseGoFile(path string) ([]UIAction, error) {
 		actions = append(actions, UIAction{
 			Label:                     internal_utils.ToTitleCase(bashName),
 			Func:                      bashName,
-			Mode:                      "g",
+			ExecutionMode:             "GUI",
 			RefreshFieldsOnTabOpen:    emptyArrayJSON(),
 			RefreshFieldsOnCompletion: emptyArrayJSON(),
 			QuickLaunch:               false,
@@ -463,7 +480,7 @@ func parseBashFile(path string) ([]UIAction, error) {
 			actions = append(actions, UIAction{
 				Label:                     internal_utils.ToTitleCase(name),
 				Func:                      name,
-				Mode:                      "g",
+				ExecutionMode:             "GUI",
 				RefreshFieldsOnTabOpen:    emptyArrayJSON(),
 				RefreshFieldsOnCompletion: emptyArrayJSON(),
 				QuickLaunch:               false,
@@ -640,7 +657,7 @@ func parsePythonFile(path string) ([]UIAction, error) {
 		actions = append(actions, UIAction{
 			Label:                     internal_utils.ToTitleCase(name),
 			Func:                      name,
-			Mode:                      "g",
+			ExecutionMode:             "GUI",
 			RefreshFieldsOnTabOpen:    emptyArrayJSON(),
 			RefreshFieldsOnCompletion: emptyArrayJSON(),
 			QuickLaunch:               false,

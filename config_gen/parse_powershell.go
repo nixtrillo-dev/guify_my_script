@@ -45,7 +45,7 @@ func parsePowerShellFile(path string) ([]UIAction, error) {
 			}
 		}
 		actions = append(actions, UIAction{
-			Label: internal_utils.ToTitleCase(name), Func: name, Mode: "g",
+			Label: internal_utils.ToTitleCase(name), Func: name, ExecutionMode: "GUI",
 			RefreshFieldsOnTabOpen: emptyArrayJSON(), RefreshFieldsOnCompletion: emptyArrayJSON(),
 			QuickLaunch: false, Width: 600, Sudo: false,
 			ExecLabel:           fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(name)),

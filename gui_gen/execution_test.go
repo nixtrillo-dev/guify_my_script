@@ -168,3 +168,39 @@ func TestBuildJavaScriptObjectWrapCPP_OnlyActiveForJavaScriptWithObject(t *testi
 		t.Error("Expected arg_name 'first' in generated object wrap code")
 	}
 }
+
+func TestBuildJavaScriptShellCmdCPP_LonghandAndCaseInsensitive(t *testing.T) {
+	for _, mode := range []string{"GUI", "gui", "Gui", "g", "G"} {
+		cpp := buildJavaScriptShellCmdCPP(mode, "testFn", "", "SOURCE_SCRIPT", true)
+		if !strings.Contains(cpp, `"g" == "g" || "g" == "s" || "g" == "d"`) {
+			t.Errorf("Mode %q should normalize to 'g' condition in GUI mode", mode)
+		}
+	}
+
+	for _, mode := range []string{"SILENT", "silent", "Silent", "s", "S"} {
+		cpp := buildJavaScriptShellCmdCPP(mode, "testFn", "", "SOURCE_SCRIPT", false)
+		if !strings.Contains(cpp, `"s" == "s" || "s" == "d"`) {
+			t.Errorf("Mode %q should normalize to 's' condition in non-GUI mode", mode)
+		}
+	}
+}
+
+func TestBuildExecutionLambda_ExecutionModeLonghand(t *testing.T) {
+	// Test with longhand ExecutionMode: "GUI"
+	cppGui := buildExecutionLambda(UIAction{Label: "Test", Func: "test_fn", ExecutionMode: "GUI"}, "Test", "0", "fields_0", "bash")
+	if !strings.Contains(cppGui, "logOutputWindow_0") {
+		t.Errorf("ExecutionMode 'GUI' should set up logOutputWindow")
+	}
+
+	// Test with longhand ExecutionMode: "SILENT"
+	cppSilent := buildExecutionLambda(UIAction{Label: "Test", Func: "test_fn", ExecutionMode: "SILENT"}, "Test", "0", "fields_0", "bash")
+	if strings.Contains(cppSilent, "logOutputWindow_0") {
+		t.Errorf("ExecutionMode 'SILENT' should not set up logOutputWindow")
+	}
+
+	// Test with longhand ExecutionMode: "DETACHED_COMMANDLINE"
+	cppDetached := buildExecutionLambda(UIAction{Label: "Test", Func: "test_fn", ExecutionMode: "DETACHED_COMMANDLINE"}, "Test", "0", "fields_0", "bash")
+	if !strings.Contains(cppDetached, "proc->startDetached();") {
+		t.Errorf("ExecutionMode 'DETACHED_COMMANDLINE' should call startDetached")
+	}
+}

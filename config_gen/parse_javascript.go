@@ -55,7 +55,7 @@ func parseJavaScriptFile(path string) ([]UIAction, error) {
 		actions = append(actions, UIAction{
 			Label:                     internal_utils.ToTitleCase(name),
 			Func:                      name,
-			Mode:                      "g",
+			ExecutionMode:             "GUI",
 			RefreshFieldsOnTabOpen:    emptyArrayJSON(),
 			RefreshFieldsOnCompletion: emptyArrayJSON(),
 			QuickLaunch:               false,

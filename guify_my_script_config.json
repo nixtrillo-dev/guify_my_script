@@ -62,7 +62,7 @@
         {
             "func": "compile_script_with_gui_config",
             "label": "Compile My Script",
-            "mode": "g",
+            "execution_mode": "GUI",
             "quick_launch": false,
             "stop_label": "Stop",
             "sudo": false,
@@ -343,7 +343,7 @@
         {
             "func": "generate_ui",
             "label": "Guify My Script",
-            "mode": "g",
+            "execution_mode": "GUI",
             "quick_launch": false,
             "stop_label": "Stop",
             "sudo": false,
@@ -471,7 +471,7 @@
         {
             "func": "install_local_package",
             "label": "Install My Package",
-            "mode": "gc",
+            "execution_mode": "GUI_COMMANDLINE",
             "quick_launch": false,
             "refresh_fields_on_completion": [],
             "refresh_fields_on_tab_open": [],

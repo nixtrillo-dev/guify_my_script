@@ -1,5 +1,64 @@
 package gui_gen
 
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
+
+// IsValidExecutionMode checks whether the given mode string (case-insensitive) is valid.
+func IsValidExecutionMode(mode string) bool {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "g", "gui",
+		"gc", "gui_commandline",
+		"s", "silent",
+		"d", "detached_commandline",
+		"c", "commandline":
+		return true
+	default:
+		return false
+	}
+}
+
+// NormalizeExecutionMode normalizes an execution mode string to its canonical shorthand
+// representation ("g", "gc", "s", "d", "c"), case-insensitively. Defaults to "c".
+func NormalizeExecutionMode(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "g", "gui":
+		return "g"
+	case "gc", "gui_commandline":
+		return "gc"
+	case "s", "silent":
+		return "s"
+	case "d", "detached_commandline":
+		return "d"
+	case "c", "commandline", "":
+		return "c"
+	default:
+		return "c"
+	}
+}
+
+// NormalizeExecutionModeLonghand normalizes an execution mode string to its canonical
+// longhand representation ("GUI", "GUI_COMMANDLINE", "SILENT", "DETACHED_COMMANDLINE", "COMMANDLINE"),
+// case-insensitively. Defaults to "COMMANDLINE".
+func NormalizeExecutionModeLonghand(mode string) string {
+	switch strings.ToLower(strings.TrimSpace(mode)) {
+	case "g", "gui":
+		return "GUI"
+	case "gc", "gui_commandline":
+		return "GUI_COMMANDLINE"
+	case "s", "silent":
+		return "SILENT"
+	case "d", "detached_commandline":
+		return "DETACHED_COMMANDLINE"
+	case "c", "commandline", "":
+		return "COMMANDLINE"
+	default:
+		return "COMMANDLINE"
+	}
+}
+
 type JsonEndpoints struct {
 	ArrayEndpoint       []string `json:"array_endpoint,omitempty"`
 	PathToArray         string   `json:"path_to_array,omitempty"`
@@ -39,7 +98,8 @@ func (f UIField) IsEnabled() bool {
 type UIAction struct {
 	Label                     string    `json:"label"`
 	Func                      string    `json:"func"`
-	Mode                      string    `json:"mode"`
+	ExecutionMode             string    `json:"execution_mode,omitempty"`
+	Mode                      string    `json:"mode,omitempty"`
 	Width                     int       `json:"width"`
 	QuickLaunch               bool      `json:"quick_launch,omitempty"`
 	Sudo                      bool      `json:"sudo,omitempty"`
@@ -50,6 +110,73 @@ type UIAction struct {
 	RefreshFieldsOnCompletion []string  `json:"refresh_fields_on_completion,omitempty"`
 	InvokeAsObject            bool      `json:"invoke_as_object,omitempty"`
 	Fields                    []UIField `json:"fields"`
+}
+
+// GetMode returns the canonical shorthand mode ("g", "gc", "s", "d", "c") for this action.
+func (a UIAction) GetMode() string {
+	if a.ExecutionMode != "" {
+		return NormalizeExecutionMode(a.ExecutionMode)
+	}
+	return NormalizeExecutionMode(a.Mode)
+}
+
+// GetExecutionMode returns the canonical longhand execution mode ("GUI", "GUI_COMMANDLINE", etc.) for this action.
+func (a UIAction) GetExecutionMode() string {
+	if a.ExecutionMode != "" {
+		return NormalizeExecutionModeLonghand(a.ExecutionMode)
+	}
+	return NormalizeExecutionModeLonghand(a.Mode)
+}
+
+func (a *UIAction) UnmarshalJSON(data []byte) error {
+	type Alias UIAction
+	aux := &struct {
+		RawMode          *string `json:"mode"`
+		RawExecutionMode *string `json:"execution_mode"`
+		*Alias
+	}{
+		Alias: (*Alias)(a),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	actionIdentifier := a.Label
+	if actionIdentifier == "" {
+		actionIdentifier = a.Func
+	}
+
+	// Fail early if someone tries to define both properties under a single action
+	if aux.RawMode != nil && aux.RawExecutionMode != nil {
+		return fmt.Errorf("action %q cannot define both 'mode' and 'execution_mode'; specify only one", actionIdentifier)
+	}
+
+	if aux.RawExecutionMode != nil {
+		val := *aux.RawExecutionMode
+		if !IsValidExecutionMode(val) {
+			return fmt.Errorf("action %q has invalid execution_mode %q: allowed values are GUI (g), GUI_COMMANDLINE (gc), SILENT (s), DETACHED_COMMANDLINE (d), COMMANDLINE (c)", actionIdentifier, val)
+		}
+		a.ExecutionMode = NormalizeExecutionModeLonghand(val)
+		a.Mode = NormalizeExecutionMode(val)
+	} else if aux.RawMode != nil {
+		val := *aux.RawMode
+		if !IsValidExecutionMode(val) {
+			return fmt.Errorf("action %q has invalid mode %q: allowed values are GUI (g), GUI_COMMANDLINE (gc), SILENT (s), DETACHED_COMMANDLINE (d), COMMANDLINE (c)", actionIdentifier, val)
+		}
+		a.ExecutionMode = NormalizeExecutionModeLonghand(val)
+		a.Mode = NormalizeExecutionMode(val)
+	} else if a.ExecutionMode != "" {
+		a.Mode = NormalizeExecutionMode(a.ExecutionMode)
+		a.ExecutionMode = NormalizeExecutionModeLonghand(a.ExecutionMode)
+	} else if a.Mode != "" {
+		a.ExecutionMode = NormalizeExecutionModeLonghand(a.Mode)
+		a.Mode = NormalizeExecutionMode(a.Mode)
+	} else {
+		a.ExecutionMode = "COMMANDLINE"
+		a.Mode = "c"
+	}
+
+	return nil
 }
 
 type MainMenuConfig struct {

@@ -51,7 +51,7 @@ func parseRustFile(path string) ([]UIAction, error) {
 			actions = append(actions, UIAction{
 				Label:                     internal_utils.ToTitleCase(bashName),
 				Func:                      bashName,
-				Mode:                      "g",
+				ExecutionMode:             "GUI",
 				RefreshFieldsOnTabOpen:    emptyArrayJSON(),
 				RefreshFieldsOnCompletion: emptyArrayJSON(),
 				QuickLaunch:               false,
@@ -105,7 +105,7 @@ func parseRustFile(path string) ([]UIAction, error) {
 		actions = append(actions, UIAction{
 			Label:                     internal_utils.ToTitleCase(bashName),
 			Func:                      bashName,
-			Mode:                      "g",
+			ExecutionMode:             "GUI",
 			RefreshFieldsOnTabOpen:    emptyArrayJSON(),
 			RefreshFieldsOnCompletion: emptyArrayJSON(),
 			QuickLaunch:               false,

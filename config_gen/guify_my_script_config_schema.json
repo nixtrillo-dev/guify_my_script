@@ -244,7 +244,7 @@
           "body": {
             "label": "${1:Action Title}",
             "func": "${2:function_name}",
-            "mode": "g",
+            "execution_mode": "GUI",
             "refresh_fields_on_tab_open": [],
             "refresh_fields_on_completion": [],
             "quick_launch": false,
@@ -260,7 +260,7 @@
       "required": [
         "label",
         "func",
-        "mode",
+        "execution_mode",
         "quick_launch",
         "width",
         "sudo",
@@ -272,7 +272,34 @@
       "properties": {
         "label": { "type": "string" },
         "func": { "type": "string" },
-        "mode": { "type": "string" },
+        "execution_mode": {
+          "type": "string",
+          "default": "GUI",
+          "description": "Execution mode for this action. Accepted values: GUI (or g), GUI_COMMANDLINE (or gc), SILENT (or s), DETACHED_COMMANDLINE (or d), COMMANDLINE (or c). Case-insensitive.",
+          "anyOf": [
+            {
+              "enum": [
+                "GUI",
+                "GUI_COMMANDLINE",
+                "SILENT",
+                "DETACHED_COMMANDLINE",
+                "COMMANDLINE",
+                "g",
+                "gc",
+                "s",
+                "d",
+                "c"
+              ]
+            },
+            {
+              "pattern": "^([gG][uU][iI]|[gG][uU][iI]_[cC][oO][mM][mM][aA][nN][dD][lL][iI][nN][eE]|[sS][iI][lL][eE][nN][tT]|[dD][eE][tT][aA][cC][hH][eE][dD]_[cC][oO][mM][mM][aA][nN][dD][lL][iI][nN][eE]|[cC][oO][mM][mM][aA][nN][dD][lL][iI][nN][eE]|[gG]|[gG][cC]|[sS]|[dD]|[cC])$"
+            }
+          ]
+        },
+        "mode": {
+          "type": "string",
+          "description": "Deprecated alias for execution_mode. Do not define both mode and execution_mode on the same action."
+        },
         "refresh_fields_on_tab_open": {
           "type": ["array", "null"],
           "items": { "type": "string" }

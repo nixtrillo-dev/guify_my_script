@@ -123,7 +123,7 @@ func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) str
 			cpp.WriteString(fmt.Sprintf("            currentLayout_%s->addStretch();\n", actIdxStr))
 
 			// ---> LOG UI INJECTION (1:1 Parity with Main Window) <---
-			if action.Mode == "g" || action.Mode == "gc" {
+			if action.GetMode() == "g" || action.GetMode() == "gc" {
 				cpp.WriteString(fmt.Sprintf(`
             // Visual Separator
             QFrame *separator_%[1]s = new QFrame();
@@ -204,7 +204,7 @@ func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) str
 				stopLabel = "Stop"
 			}
 
-			isAttached := action.Mode == "g" || action.Mode == "gc" || action.Mode == "s"
+			isAttached := action.GetMode() == "g" || action.GetMode() == "gc" || action.GetMode() == "s"
 
 			// Execution Buttons
 			cpp.WriteString(fmt.Sprintf(`
@@ -295,10 +295,7 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
 	}
 	compStr := refreshCompletionStr.String()
 
-	mode := action.Mode
-	if mode == "" {
-		mode = "c"
-	}
+	mode := action.GetMode()
 	funcName := action.Func
 
 	// Dynamically update the lambda capture list to access our UI elements!
