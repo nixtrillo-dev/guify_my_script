@@ -125,30 +125,80 @@
         "theme"
       ],
       "properties": {
-        "title": { "type": "string" },
-        "icon": { "type": "string" },
-        "uuid": { "type": "string" },
-        "script_alias": { "type": "string" },
-        "source_script_amd64": { "type": "string" },
-        "source_script_arm64": { "type": "string" },
+        "title": {
+          "type": "string",
+          "description": "The display title of the application. Used as the window title and in package metadata."
+        },
+        "icon": {
+          "type": "string",
+          "description": "Path to the application icon. Can be an absolute path or a system icon name (e.g., 'preferences-desktop'). Used in the system tray, window, and .desktop file."
+        },
+        "uuid": {
+          "type": "string",
+          "description": "Unique identifier for the application in reverse domain notation (e.g., com.user.appname). Used for package naming and instance identification."
+        },
+        "script_alias": {
+          "type": "string",
+          "description": "Internal name for the bundled source script. Used as the filename when bundling the script in production mode."
+        },
+        "source_script_amd64": {
+          "type": "string",
+          "description": "Path to the source script for AMD64/x86_64 architecture. Used in debug mode and bundled in production builds for amd64."
+        },
+        "source_script_arm64": {
+          "type": "string",
+          "description": "Path to the source script for ARM64/aarch64 architecture. Used in debug mode and bundled in production builds for arm64."
+        },
         "source_type": {
           "type": "string",
-          "enum": ["go", "bash", "python", "javascript", "powershell", "rust"]
+          "enum": ["go", "bash", "python", "javascript", "powershell", "rust"],
+          "description": "The programming language/type of the source script. Determines the runtime dependencies and execution behavior. Currently supported types: 'go', 'bash', 'python', 'javascript', 'powershell', 'rust'."
         },
-        "startup": { "type": "string" },
-        "tray_on_minimize": { "type": "boolean" },
-        "instance_mode": { "type": "string" },
-        "action_on_startup": { "type": ["string", "null"] },
-        "default_tab_on_startup": { "type": ["string", "null"] },
-        "close_after_startup_action": { "type": "boolean" },
-        "sudo": { "type": "boolean" },
+        "startup": {
+          "type": "string",
+          "description": "Initial application startup behavior. 'tray' starts minimized to system tray, 'window' or 'normal' starts with the main window visible. NOTE: 'tray' mode may not be supported on all platforms and will fallback to 'window' mode where not supported."
+        },
+        "tray_on_minimize": {
+          "type": "boolean",
+          "description": "When true, the application minimizes to the system tray instead of the taskbar when the window is minimized."
+        },
+        "instance_mode": {
+          "type": "string",
+          "description": "Controls how multiple instances are handled. 'replace' replaces an existing instance, 'duplicate' allows multiple instances, 'single' prevents a new instance from starting when one is already running."
+        },
+        "action_on_startup": {
+          "type": ["string", "null"],
+          "description": "Specifies which action to automatically execute when the application starts. Set to null to disable auto-execution. Must match an action's label."
+        },
+        "default_tab_on_startup": {
+          "type": ["string", "null"],
+          "description": "Specifies which tab to open by default when the application starts. Set to null to use the first tab. Must match an action's label or the tab label for the main menu specified below."
+        },
+        "close_after_startup_action": {
+          "type": "boolean",
+          "description": "When true and action_on_startup is set, the application will exit completely after the startup action completes execution."
+        },
+        "sudo": {
+          "type": "boolean",
+          "description": "When true, all script executions and file operations run with elevated privileges (sudo). Use with caution."
+        },
         "theme": {
           "type": "object",
+          "description": "Application window theme and dimensions configuration.",
           "required": ["color", "width", "height"],
           "properties": {
-            "color": { "type": "string" },
-            "width": { "type": "integer" },
-            "height": { "type": "integer" }
+            "color": {
+              "type": "string",
+              "description": "Application theme defaultcolor scheme. Accepted values: 'dark', 'light', or 'auto' (follows system preference)."
+            },
+            "width": {
+              "type": "integer",
+              "description": "Default width of the main application window in pixels."
+            },
+            "height": {
+              "type": "integer",
+              "description": "Default height of the main application window in pixels."
+            }
           }
         }
       }
@@ -167,9 +217,18 @@
       ],
       "required": ["tab_label"],
       "properties": {
-        "tab_label": { "type": "string" },
-        "welcome_heading_label": { "type": ["string", "null"] },
-        "info_label": { "type": ["string", "null"] }
+        "tab_label": {
+          "type": "string",
+          "description": "The display label for the main menu tab in the application. Defaults to 'Main Menu' if not specified."
+        },
+        "welcome_heading_label": {
+          "type": ["string", "null"],
+          "description": "Heading text displayed at the top of the main menu tab. Set to null to hide the heading section."
+        },
+        "info_label": {
+          "type": ["string", "null"],
+          "description": "Informational/descriptive text displayed below the heading in the main menu tab. Set to null to hide the info section."
+        }
       }
     },
     "deployConfig": {
@@ -209,31 +268,76 @@
         "dependencies"
       ],
       "properties": {
-        "description": { "type": "string" },
-        "version": { "type": "string" },
-        "release_number": { "type": "string" },
-        "summary": { "type": "string" },
-        "license": { "type": "string" },
-        "maintainer": { "type": "string" },
+        "description": {
+          "type": "string",
+          "description": "Detailed description of the package. Used in package manifests (PKGBUILD, DEB control, RPM spec)."
+        },
+        "version": {
+          "type": "string",
+          "description": "Version number of the package in semantic versioning format (e.g., 1.0.0). Used in package metadata."
+        },
+        "release_number": {
+          "type": "string",
+          "description": "Release number for the package. Used in RPM spec files and as the pkgrel in Arch PKGBUILD files."
+        },
+        "summary": {
+          "type": "string",
+          "description": "Short summary/description of the package. Used in .desktop files and package metadata as the comment."
+        },
+        "license": {
+          "type": "string",
+          "description": "Software license for the package (e.g., MIT, GPL-3.0, Apache-2.0). Used in package manifests and metadata."
+        },
+        "maintainer": {
+          "type": "string",
+          "description": "Name of the package maintainer. Used in Debian control files and package metadata."
+        },
         "support_email": {
           "type": "string",
-          "format": "email"
+          "format": "email",
+          "description": "Email address for support and maintainer contact. Used in Debian control files and package metadata."
         },
         "dependencies": {
           "type": "array",
+          "description": "List of distribution-specific package dependencies. Each object in the array can specify dependencies for different package managers.",
           "items": { "$ref": "#/$defs/deployDependency" }
         }
       }
     },
     "deployDependency": {
       "type": "object",
+      "description": "Package dependencies for different Linux distribution package managers. Each property is an array of package names to install.",
       "properties": {
-        "pacman": { "type": "array", "items": { "type": "string" } },
-        "arch": { "type": "array", "items": { "type": "string" } },
-        "apt": { "type": "array", "items": { "type": "string" } },
-        "debian": { "type": "array", "items": { "type": "string" } },
-        "dnf": { "type": "array", "items": { "type": "string" } },
-        "fedora": { "type": "array", "items": { "type": "string" } }
+        "pacman": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Arch Linux dependencies to install via pacman (official repositories)."
+        },
+        "arch": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Arch Linux AUR dependencies to install via yay or other AUR helpers."
+        },
+        "apt": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Debian/Ubuntu dependencies to install via apt."
+        },
+        "debian": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional Debian-specific dependencies. Merged with apt dependencies."
+        },
+        "dnf": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Fedora/RHEL dependencies to install via dnf."
+        },
+        "fedora": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Additional Fedora-specific dependencies. Merged with dnf dependencies."
+        }
       }
     },
     "uiAction": {
@@ -270,8 +374,14 @@
         "fields"
       ],
       "properties": {
-        "label": { "type": "string" },
-        "func": { "type": "string" },
+        "label": {
+          "type": "string",
+          "description": "Display name for this action. Used as the tab title and for quick launch identification. Must be unique across all actions."
+        },
+        "func": {
+          "type": "string",
+          "description": "The function or entry point name in the source script that this action triggers. Must match an exported function in the source script."
+        },
         "execution_mode": {
           "type": "string",
           "default": "GUI",
@@ -302,18 +412,38 @@
         },
         "refresh_fields_on_tab_open": {
           "type": ["array", "null"],
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "List of field names that should have their values refreshed from JSON endpoints when this action's tab is opened."
         },
         "refresh_fields_on_completion": {
           "type": ["array", "null"],
-          "items": { "type": "string" }
+          "items": { "type": "string" },
+          "description": "List of field names that should have their values refreshed from JSON endpoints after this action completes execution."
         },
-        "quick_launch": { "type": "boolean" },
-        "width": { "type": "integer" },
-        "sudo": { "type": "boolean" },
-        "exec_label": { "type": "string" },
-        "exec_in_progress_label": { "type": "string" },
-        "stop_label": { "type": "string" },
+        "quick_launch": {
+          "type": "boolean",
+          "description": "When true, this action appears in the quick launch section of the main menu and can be triggered via --trigger command line argument."
+        },
+        "width": {
+          "type": "integer",
+          "description": "Width of the action's tab content area in pixels. Controls the size of the scrollable fields container."
+        },
+        "sudo": {
+          "type": "boolean",
+          "description": "When true, this action's function executes with elevated privileges (sudo). Overrides the global sudo setting for this specific action."
+        },
+        "exec_label": {
+          "type": "string",
+          "description": "Text displayed on the execute button for this action. Defaults to 'Execute {label}' if not specified."
+        },
+        "exec_in_progress_label": {
+          "type": "string",
+          "description": "Text displayed on the execute button while the action is running. Defaults to 'Executing {label}...' if not specified."
+        },
+        "stop_label": {
+          "type": "string",
+          "description": "Text displayed on the stop button for this action. Defaults to 'Stop' if not specified. Only visible for attached execution modes (GUI, GUI_COMMANDLINE, SILENT)."
+        },
         "invoke_as_object": {
           "type": "boolean",
           "default": false,
@@ -321,6 +451,7 @@
         },
         "fields": {
           "type": "array",
+          "description": "List of UI fields (input controls) for this action. Fields are rendered in the action's tab and their values are passed to the function in the order that they are defined.",
           "items": { "$ref": "#/$defs/uiField" }
         }
       }
@@ -915,7 +1046,10 @@
         }
       ],
       "properties": {
-        "name": { "type": "string" },
+        "name": {
+          "type": "string",
+          "description": "Display label for this field in the UI. Used as the field identifier and in the argument passing to the function."
+        },
         "arg_name": {
           "type": "string",
           "description": "Original parameter/argument name from the source script (e.g. JavaScript identifier used in object destructuring calls)."
@@ -966,15 +1100,20 @@
         },
         "data_type": {
           "type": "string",
-          "default": "string"
+          "default": "string",
+          "description": "The data type for this field's value. Common types include: 'string', 'int', 'float', 'bool', 'list'. Used for type conversions in type hinted programming languages. NOTE: For non-typed languages everything is passed as a string so this would be informational only and would not enforce type checking."
         },
         "options": {
-          "type": "array"
+          "type": "array",
+          "description": "Available options for dropdown/combo box fields (CB, MCB). For CB: array of strings. For MCB: array of strings where multiple can be selected."
         },
-        "default": {},
+        "default": {
+          "description": "Default value for this field. Type and format depend on the field_type. For checkboxes (CK), use '0' or '1'. For dates (DATE), use YYYY-MM-DD format."
+        },
         "minimum": {
           "type": ["string", "null"],
           "default": "0|2026-01-01|12:00:00",
+          "description": "Minimum allowed value for this field. Format depends on field_type: numeric for NUM, date string for DATE (YYYY-MM-DD), time string for TIME (HH:MM:SS), integer for MFL/MCB.",
           "defaultSnippets": [
             {
               "label": "minimum (String)",
@@ -986,6 +1125,7 @@
         "maximum": {
           "type": ["string", "null"],
           "default": "0|2026-01-01|12:00:00",
+          "description": "Maximum allowed value for this field. Format depends on field_type: numeric for NUM, date string for DATE (YYYY-MM-DD), time string for TIME (HH:MM:SS), integer for MFL/MCB.",
           "defaultSnippets": [
             {
               "label": "maximum (String)",
@@ -998,6 +1138,7 @@
           "type": ["string", "null"],
           "pattern": "^\\d+$",
           "default": "0",
+          "description": "Number of decimal places allowed for NUM field types. Must be a non-negative integer string.",
           "defaultSnippets": [
             {
               "label": "decimal_places",
@@ -1006,32 +1147,78 @@
             }
           ]
         },
-        "enabled": { "type": "boolean", "default": true },
-        "advanced_menu": { "type": "boolean", "default": false },
-        "auto_height": { "type": "boolean", "default": true },
-        "min_height": { "type": "integer", "default": 240 },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "When true, the field is interactive and its value is passed to the function. When false, the field is disabled and grayed out in the UI."
+        },
+        "advanced_menu": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, this field is hidden behind an 'Advanced Settings' toggle in the action tab, reducing clutter for power-user options."
+        },
+        "auto_height": {
+          "type": "boolean",
+          "default": true,
+          "description": "For LTXT (long text) fields only. When true, the field height expands automatically based on content. When false, uses min_height as fixed height."
+        },
+        "min_height": {
+          "type": "integer",
+          "default": 240,
+          "description": "For LTXT (long text) fields only. Minimum height in pixels when auto_height is enabled, or fixed height when auto_height is disabled."
+        },
         "file_types": {
           "type": "array",
           "items": { "type": "string" },
-          "default": ["txt"]
+          "default": ["txt"],
+          "description": "File extensions filter for file picker fields (FL, MFL, FS, FD). Array of extension strings without dots (e.g., ['txt', 'png', 'jpg'])."
         },
-        "json_endpoints": { "$ref": "#/$defs/jsonEndpoints" },
+        "json_endpoints": {
+          "$ref": "#/$defs/jsonEndpoints",
+          "description": "JSON endpoint configuration for dynamic field data. Allows this field to fetch its options, defaults, and enabled state from external or script-provided JSON data."
+        },
         "refresh_fields_on_change": {
           "type": ["array", "null"],
           "items": { "type": "string" },
-          "default": []
+          "default": [],
+          "description": "List of field names that should have their values refreshed from JSON endpoints when this field's value changes. Enables cascading field updates."
         }
       }
     },
     "jsonEndpoints": {
       "type": "object",
+      "description": "JSON endpoint configuration for dynamic field data. Allows fields to fetch their options, defaults, and enabled state from external or script-provided JSON data. curly braces {} in the endpoint function name or parameters are replaced with the specified field's value when making the call.",
       "properties": {
-        "array_endpoint": { "type": ["array", "null"], "default": [] },
-        "path_to_array": { "type": ["string", "null"], "default": null },
-        "get_defaults_endpoint": { "type": ["array", "null"], "default": [] },
-        "path_to_default": { "type": ["string", "null"], "default": null },
-        "get_enabled_endpoint": { "type": ["array", "null"], "default": [] },
-        "path_to_enabled": { "type": ["string", "null"], "default": null }
+        "array_endpoint": {
+          "type": ["array", "null"],
+          "default": [],
+          "description": "Gets an array of options for CB or MCB fields. The returned array replaces the static 'options' property. 1st value in the array indicates the function name to call. 2nd parameter onwards are input parameters to be passed to the function."
+        },
+        "path_to_array": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "JSON path (e.g., 'actions/[name]') to extract an array of options from the JSON response of array_endpoint functions. Used with array_endpoint to locate the options within the returned JSON structure. using [] notation around a json key indicates that this is a property name within an array of complex objects and that it should return an array of values for that property from all objects in the array."
+        },
+        "get_defaults_endpoint": {
+          "type": ["array", "null"],
+          "default": [],
+          "description": "Gets the default value for this field. The returned value is used as the field's default if no static default is set. 1st value in the array indicates the function name to call. 2nd parameter onwards are input parameters to be passed to the function."
+        },
+        "path_to_default": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "JSON path to extract the default value from the JSON response of get_defaults_endpoint functions. Used with get_defaults_endpoint to locate the value within the returned JSON structure."
+        },
+        "get_enabled_endpoint": {
+          "type": ["array", "null"],
+          "default": [],
+          "description": "Gets a boolean value indicating if this field should be enabled. The returned value controls the field's enabled state. 1st value in the array indicates the function name to call. 2nd parameter onwards are input parameters to be passed to the function."
+        },
+        "path_to_enabled": {
+          "type": ["string", "null"],
+          "default": null,
+          "description": "JSON path to extract the enabled boolean value from the JSON response of get_enabled_endpoint functions. Used with get_enabled_endpoint to locate the value within the returned JSON structure."
+        }
       }
     }
   }

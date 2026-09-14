@@ -196,9 +196,7 @@
                     "data_type": "string",
                     "default": "",
                     "enabled": true,
-                    "file_types": [
-                        "txt"
-                    ],
+                    "file_types": [],
                     "json_endpoints": {
                         "get_defaults_endpoint": [
                             "get_default_bridge_path_for_script",
@@ -223,9 +221,7 @@
                     "data_type": "string",
                     "default": "",
                     "enabled": true,
-                    "file_types": [
-                        "txt"
-                    ],
+                    "file_types": [],
                     "json_endpoints": {
                         "get_defaults_endpoint": [
                             "generate_path_from_dir",
