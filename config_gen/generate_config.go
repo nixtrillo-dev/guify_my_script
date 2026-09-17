@@ -321,7 +321,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 
 	// Config Section
 	guiConfig.Config.Title = internal_utils.ToTitleCase(targetName)
-	guiConfig.Config.Icon = fmt.Sprintf("/home/%s/Pictures/Icons/gms/com.nixtrillo.gms.png", os.Getenv("USER"))
+	guiConfig.Config.Icon = "/usr/share/icons/hicolor/256x256/apps/com.nixtrillo.guifymyscript.png"
 	guiConfig.Config.UUID = fmt.Sprintf("com.%s.%s", os.Getenv("USER"), toUuidCase(targetName))
 	guiConfig.Config.ScriptAlias = scriptAlias
 	guiConfig.Config.SourceScriptAMD64 = sourceScriptAMD64

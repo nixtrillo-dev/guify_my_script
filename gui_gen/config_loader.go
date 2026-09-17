@@ -28,6 +28,8 @@ type configContext struct {
 	targetArchs       []string
 	trayMinimizeState string
 	startupTrayState  string
+	iconPath          string
+	iconName          string
 }
 
 // loadAndPrepareConfig reads the JSON configuration, sanitizes inputs, derives
@@ -105,6 +107,26 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 	ctx.sourcePathARM64 = ctx.root.Config.SourceScriptARM64
 	if ctx.sourcePathARM64 != "" && !filepath.IsAbs(ctx.sourcePathARM64) {
 		ctx.sourcePathARM64 = filepath.Join(ctx.baseDir, ctx.sourcePathARM64)
+	}
+
+	// Handle icon configuration
+	// iconName is the theme-able icon name (e.g., package name or a system icon name)
+	// iconPath is the absolute filesystem path to the icon file (for debug mode)
+	ctx.iconName = ctx.root.Config.Icon
+	if ctx.iconName == "" {
+		ctx.iconName = "preferences-desktop"
+	}
+
+	// For non-system icons (not starting with a known theme icon), extract the filename without extension
+	if ctx.iconName != "preferences-desktop" && !filepath.IsAbs(ctx.iconName) && ctx.iconName != "" {
+		// This is a relative path to an icon file, use the package name as the icon name
+		ctx.iconName = ctx.packageName
+	}
+
+	// iconPath is the absolute path for debug mode
+	ctx.iconPath = ctx.root.Config.Icon
+	if ctx.iconPath != "" && !filepath.IsAbs(ctx.iconPath) && ctx.iconPath != "preferences-desktop" {
+		ctx.iconPath = filepath.Join(ctx.baseDir, ctx.iconPath)
 	}
 
 	ctx.bundledSourceName = strings.TrimSpace(ctx.root.Config.ScriptAlias)

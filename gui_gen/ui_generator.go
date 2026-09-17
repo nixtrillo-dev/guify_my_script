@@ -268,7 +268,12 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_MAIN_MENU_INFO_LABEL", cppStringLiteral(infoLabel))
 
 	// Icon logic
-	iconVal := ctx.root.Config.Icon
+	// In debug mode, use the absolute icon path so the binary can find it
+	// In production mode, use the icon name so QIcon::fromTheme() can find it in system paths
+	iconVal := ctx.iconName
+	if ctx.compileMode == "debug" && ctx.iconPath != "" {
+		iconVal = ctx.iconPath
+	}
 	if iconVal == "" {
 		iconVal = "preferences-desktop"
 	}
@@ -295,6 +300,8 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 		FinalSourceCode:   finalSource,
 		DefaultsJSON:      defaultsJSONBytes,
 		RootConfig:        ctx.root,
+		IconName:          ctx.iconName,
+		IconPath:          ctx.iconPath,
 		LogLevel:          logLevel,
 		ClearCache:        clearCache,
 		TargetBuilds:      targetBuilds,

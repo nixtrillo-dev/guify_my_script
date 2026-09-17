@@ -45,6 +45,8 @@ type BuildContext struct {
 	FinalSourceCode   string
 	DefaultsJSON      []byte
 	RootConfig        RootConfig
+	IconName          string
+	IconPath          string
 	LogLevel          logger.LogLevel
 	ClearCache        bool
 	TargetBuilds      string
@@ -227,16 +229,9 @@ func runBuildLoop(ctx BuildContext) error {
 				return fmt.Errorf("failed writing production runtime defaults: %w", err)
 			}
 
-			iconName := ctx.PackageName
-			iconVal := ctx.RootConfig.Config.Icon
-			if iconVal == "" {
-				iconVal = "preferences-desktop"
-			}
-			if iconVal != "" {
-				iconPath := iconVal
-				if !filepath.IsAbs(iconPath) {
-					iconPath = filepath.Join(ctx.BaseDir, iconPath)
-				}
+			// Copy icon file to production staging area if it exists
+			iconPath := ctx.IconPath
+			if iconPath != "" {
 				if iconInfo, err := os.Stat(iconPath); err == nil && !iconInfo.IsDir() {
 					iconExt := strings.ToLower(filepath.Ext(iconPath))
 					if iconExt == "" {
@@ -246,8 +241,6 @@ func runBuildLoop(ctx BuildContext) error {
 					if err := copyFile(iconPath, iconDest, 0644); err != nil {
 						return fmt.Errorf("failed copying production icon: %w", err)
 					}
-				} else {
-					iconName = iconVal
 				}
 			}
 
@@ -265,7 +258,7 @@ func runBuildLoop(ctx BuildContext) error {
 			}
 
 			desktopContent := fmt.Sprintf("[Desktop Entry]\nVersion=1.0\nType=Application\nName=%s\nComment=%s\nIcon=%s\nExec=%s\nTerminal=false\nCategories=Utility;\nActions=Settings;\n\n[Desktop Action Settings]\nName=⚙️ Edit Runtime Defaults\nExec=%s --settings\n",
-				ctx.RootConfig.Config.Title, summary, iconName, quoteDesktopExec(installedBinaryPath), quoteDesktopExec(installedBinaryPath))
+				ctx.RootConfig.Config.Title, summary, ctx.IconName, quoteDesktopExec(installedBinaryPath), quoteDesktopExec(installedBinaryPath))
 
 			if err := os.WriteFile(desktopPath, []byte(desktopContent), 0644); err != nil {
 				return err
@@ -289,7 +282,7 @@ func runBuildLoop(ctx BuildContext) error {
 				return err
 			}
 
-			if err := writeProductionPackageFiles(archStageDir, ctx.PackageName, ctx.RootConfig.Config.Title, iconName, ctx.RootConfig.Deploy, targetArch, ctx.RootConfig.Config.SourceType == "python", ctx.RootConfig.Config.SourceType == "javascript", ctx.RootConfig.Config.SourceType == "powershell"); err != nil {
+			if err := writeProductionPackageFiles(archStageDir, ctx.PackageName, ctx.RootConfig.Config.Title, ctx.IconName, ctx.RootConfig.Deploy, targetArch, ctx.RootConfig.Config.SourceType == "python", ctx.RootConfig.Config.SourceType == "javascript", ctx.RootConfig.Config.SourceType == "powershell"); err != nil {
 				return fmt.Errorf("failed writing package metadata for %s: %w", targetArch, err)
 			}
 
@@ -318,8 +311,13 @@ func runBuildLoop(ctx BuildContext) error {
 				summary = ctx.RootConfig.Config.Title
 			}
 
+			// For debug mode, use the absolute icon path if available, otherwise fall back to icon name
+			iconPathForDesktop := ctx.IconPath
+			if iconPathForDesktop == "" {
+				iconPathForDesktop = ctx.IconName
+			}
 			desktopContent := fmt.Sprintf("[Desktop Entry]\nVersion=1.0\nType=Application\nName=%s\nComment=%s\nIcon=%s\nExec='%s'\nTerminal=false\nCategories=Utility;\nActions=Settings;\n\n[Desktop Action Settings]\nName=⚙️ Edit Runtime Defaults\nExec='%s' --settings\n",
-				ctx.RootConfig.Config.Title, summary, ctx.RootConfig.Config.Icon, absBinaryPath, absBinaryPath)
+				ctx.RootConfig.Config.Title, summary, iconPathForDesktop, absBinaryPath, absBinaryPath)
 
 			_ = os.WriteFile(debugDesktopPath, []byte(desktopContent), 0644)
 		}

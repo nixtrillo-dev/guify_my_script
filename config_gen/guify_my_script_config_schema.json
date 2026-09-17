@@ -10,7 +10,7 @@
       "body": {
         "config": {
           "title": "${1:App Title}",
-          "icon": "/home/$USER/Pictures/Icons/gms/com.nixtrillo.gms.png",
+          "icon": "/usr/share/icons/hicolor/256x256/apps/com.nixtrillo.guifymyscript.png",
           "uuid": "com.$USER.${2:uuid}",
           "script_alias": "${3:script_name}",
           "source_script_amd64": "${4:/path/to/script_amd64}",
