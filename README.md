@@ -9,6 +9,8 @@ Guify My Script is a tool for turning a script or source project into a desktop 
 
 This is useful when you aren't requiring a complex gui for your script but you still want to expose a script or command-line tool as a friendly desktop app and have input fields such as dropdowns, file pickers, date pickers etc...
 
+![Guify My Script interface](docs/screenshots/gui.png)
+
 ## Table of contents
 
 - [Supported script languages](#supported-script-languages)
