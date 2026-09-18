@@ -9,6 +9,23 @@ Guify My Script is a tool for turning a script or source project into a desktop 
 
 This is useful when you aren't requiring a complex gui for your script but you still want to expose a script or command-line tool as a friendly desktop app and have input fields such as dropdowns, file pickers, date pickers etc...
 
+## Supported script languages
+
+The project is designed to work with source projects and scripts written in these common languages:
+
+- Go (Input Script or Source Directory)
+- Rust (Input Script or Source Directory)
+- Shell scripts (Input Script Only)
+- Python (Input Script Only)
+- JavaScript / Node.js (Input Script Only)
+- PowerShell (Input Script Only)
+
+For Go and Rust projects, the tool can generate a bridge and compile the project directly. Go and Rust can also be compiled as a single input script (if a single script is selected then it will promote this to a Source Directory and generate the minimum  neccessary boilerplate in order to compile it) 
+
+For the other script types, it can generate the GUI config from the script and then build the desktop app around that workflow.
+
+Note: For the GUI to be able to pass values to the script, try to use primative types like integer / string / boolean. if you need to send multiple values under a single input then the gui tends to send these as CSV (i.e. "1","2","3").
+
 ---
 
 ## 1. Compile My Script
