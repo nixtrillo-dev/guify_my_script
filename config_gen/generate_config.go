@@ -86,6 +86,8 @@ type UIAction struct {
 	ExecLabel                 string           `json:"exec_label"`
 	ExecInProgressLabel       string           `json:"exec_in_progress_label"`
 	StopLabel                 string           `json:"stop_label"`
+	AdvancedMenu              bool             `json:"advanced_menu"`
+	AdvancedMenuTabTitle      string           `json:"advanced_menu_tab_title"`
 	InvokeAsObject            bool             `json:"invoke_as_object,omitempty"`
 	Fields                    []UIField        `json:"fields"`
 }
@@ -473,6 +475,8 @@ func parseGoFile(path string) ([]UIAction, error) {
 			ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(bashName)),
 			ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(bashName)),
 			StopLabel:                 "Stop",
+			AdvancedMenu:              false,
+			AdvancedMenuTabTitle:      "",
 			Fields:                    fields,
 		})
 	}
@@ -516,6 +520,8 @@ func parseBashFile(path string) ([]UIAction, error) {
 				ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(name)),
 				ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(name)),
 				StopLabel:                 "Stop",
+				AdvancedMenu:              false,
+				AdvancedMenuTabTitle:      "",
 				Fields:                    fields,
 			})
 		}
@@ -693,6 +699,8 @@ func parsePythonFile(path string) ([]UIAction, error) {
 			ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(name)),
 			ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(name)),
 			StopLabel:                 "Stop",
+			AdvancedMenu:              false,
+			AdvancedMenuTabTitle:      "",
 			Fields:                    fields,
 		})
 	}

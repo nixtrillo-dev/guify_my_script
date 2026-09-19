@@ -106,12 +106,12 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 			".rpm_linux_amd64":           true,
 			".rpm_linux_aarch64":         true,
 			// Backwards compatibility aliases
-			".pkg.tar.zst_amd64":         true,
-			".pkg.tar.zst_arm64":         true,
-			".deb_amd64":                 true,
-			".deb_arm64":                 true,
-			".rpm_amd64":                 true,
-			".rpm_arm64":                 true,
+			".pkg.tar.zst_amd64": true,
+			".pkg.tar.zst_arm64": true,
+			".deb_amd64":         true,
+			".deb_arm64":         true,
+			".rpm_amd64":         true,
+			".rpm_arm64":         true,
 		}
 
 		for _, b := range builds {
@@ -138,6 +138,9 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	ctx.advancedTools, err = loadAdvancedTools(ctx.baseDir)
 	if err != nil {
 		return fmt.Errorf("failed to process advanced tools: %w", err)
+	}
+	if err := validateAdvancedMenuConfiguration(ctx.root.Actions, ctx.advancedTools); err != nil {
+		return err
 	}
 
 	sourceScriptPath := ""
@@ -220,7 +223,9 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	actionTabsStr := buildActionTabs(ctx.root.Actions, ctx.root.Config.SourceType, ctx.root.Config.ActionOnStartup, ctx.root.Config.CloseAfterStartupAction, ctx.root.Config.DefaultTabOnStartup)
 
 	// Generate dynamic Advanced Tool tabs
-	advancedToolTabsStr := buildAdvancedToolTabs(ctx.advancedTools, ctx.root.Config.UUID)
+	advancedTools := append([]AdvancedToolFile{}, ctx.advancedTools...)
+	advancedTools = append(advancedTools, configuredAdvancedTools(ctx.root.Actions, ctx.root.Config.SourceType)...)
+	advancedToolTabsStr := buildAdvancedToolTabs(advancedTools, ctx.root.Config.UUID)
 
 	// Append generated action tabs and close MainWindow::initUi().
 	mainWindowContent := strings.Replace(cppTemplateActionTabs, "TEMPLATE_ACTION_TABS", actionTabsStr, 1)

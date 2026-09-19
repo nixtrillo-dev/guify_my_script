@@ -7,6 +7,31 @@ import (
 	"strings"
 )
 
+func configuredAdvancedTools(actions []UIAction, sourceType string) []AdvancedToolFile {
+	var tools []AdvancedToolFile
+	indexes := make(map[string]int)
+	for _, action := range actions {
+		if !action.AdvancedMenu {
+			continue
+		}
+		title := strings.TrimSpace(action.AdvancedMenuTabTitle)
+		index, exists := indexes[title]
+		if !exists {
+			index = len(tools)
+			indexes[title] = index
+			tools = append(tools, AdvancedToolFile{
+				Config: AdvancedToolConfig{
+					TabTitle:      title,
+					SourceType:    sourceType,
+					UseMainSource: true,
+				},
+			})
+		}
+		tools[index].Actions = append(tools[index].Actions, action)
+	}
+	return tools
+}
+
 // buildAdvancedToolTabs generates Qt C++ code for all eligible advanced tool tabs.
 func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) string {
 	if len(tools) == 0 {
@@ -45,7 +70,11 @@ func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) str
 		cpp.WriteString(fmt.Sprintf("        QString toolPkgVersion = QStringLiteral(\"%s\");\n", cppStringLiteral(cfg.PackageVersion)))
 		cpp.WriteString(fmt.Sprintf("        QString toolSourceGUI = QStringLiteral(\"%s\");\n", cppStringLiteral(cfg.SourceGUI)))
 
-		cpp.WriteString("        if (checkAdvancedToolEligibility(toolSourceScript, toolPkgUUID, toolPkgVersion)) {\n")
+		if cfg.UseMainSource {
+			cpp.WriteString("        if (true) {\n")
+		} else {
+			cpp.WriteString("        if (checkAdvancedToolEligibility(toolSourceScript, toolPkgUUID, toolPkgVersion)) {\n")
+		}
 
 		// 2. Main Tab Container Construction
 		cpp.WriteString("            QWidget *toolTab = new QWidget();\n")
@@ -54,7 +83,7 @@ func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) str
 		cpp.WriteString(fmt.Sprintf("            toolMainLayout_%s->setSpacing(10);\n", toolIdxStr))
 
 		// 3. Source GUI Banner / Button Header (If source_gui is defined)
-		if cfg.SourceGUI != "" {
+		if cfg.SourceGUI != "" && !cfg.UseMainSource {
 			cpp.WriteString("            if (!toolSourceGUI.isEmpty() && QFile::exists(toolSourceGUI)) {\n")
 			cpp.WriteString("                QHBoxLayout *guiHeaderLayout = new QHBoxLayout();\n")
 			cpp.WriteString("                QLabel *guiInfoLabel = new QLabel(\"Source GUI application is available for direct configuration:\");\n")
@@ -101,23 +130,62 @@ func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) str
 
 			cpp.WriteString(fmt.Sprintf("            std::vector<std::tuple<QWidget*, QString, QString>> %s;\n", fieldsArrName))
 
+			hasAdvancedFields := false
+			for _, field := range action.Fields {
+				if field.AdvancedMenu {
+					hasAdvancedFields = true
+					break
+				}
+			}
+			if hasAdvancedFields {
+				cpp.WriteString(fmt.Sprintf(`
+            QPushButton *fieldAdvToggle_%[1]s = new QPushButton("▶ Advanced Settings");
+            fieldAdvToggle_%[1]s->setCheckable(true);
+            fieldAdvToggle_%[1]s->setStyleSheet("QPushButton { text-align: left; background: transparent; border: none; font-weight: bold; color: #10a37f; padding: 4px 0px; } QPushButton:hover, QPushButton:focus { color: #14c79b; }");
+            fieldAdvToggle_%[1]s->setFocusPolicy(Qt::TabFocus);
+
+            QWidget *fieldAdvFrame_%[1]s = new QWidget();
+            QVBoxLayout *fieldAdvLayout_%[1]s = new QVBoxLayout(fieldAdvFrame_%[1]s);
+            fieldAdvLayout_%[1]s->setContentsMargins(10, 0, 0, 0);
+            fieldAdvLayout_%[1]s->setSpacing(10);
+            fieldAdvFrame_%[1]s->setVisible(false);
+
+            connect(fieldAdvToggle_%[1]s, &QPushButton::toggled, [fieldAdvToggle_%[1]s, fieldAdvFrame_%[1]s](bool checked) {
+                fieldAdvFrame_%[1]s->setVisible(checked);
+                fieldAdvToggle_%[1]s->setText(checked ? "▼ Advanced Settings" : "▶ Advanced Settings");
+            });
+`, actIdxStr))
+			}
+
 			// Build Action UI Fields
 			for fIdx, field := range action.Fields {
 				fIdxStr := strconv.Itoa(fIdx)
 				varSuffix := fmt.Sprintf("adv_%s_%s_%s", sanitizedLabel, actIdxStr, fIdxStr)
 				layoutName := fmt.Sprintf("currentLayout_%s", actIdxStr)
+				if field.AdvancedMenu {
+					layoutName = fmt.Sprintf("fieldAdvLayout_%s", actIdxStr)
+				}
 
 				widgetCode := buildWidgetCPP(field, label, actIdxStr, varSuffix, layoutName, fieldsArrName)
 
-				// Force the initial endpoint load to query the advanced tool's script
-				replacement := fmt.Sprintf("fetchJsonEndpoint(endpointArgs, \"%s\")", cppStringLiteral(cfg.SourceScript))
-				widgetCode = strings.ReplaceAll(widgetCode, "fetchJsonEndpoint(endpointArgs)", replacement)
+				if !cfg.UseMainSource {
+					// Force the initial endpoint load to query the advanced tool's script
+					replacement := fmt.Sprintf("fetchJsonEndpoint(endpointArgs, \"%s\")", cppStringLiteral(cfg.SourceScript))
+					widgetCode = strings.ReplaceAll(widgetCode, "fetchJsonEndpoint(endpointArgs)", replacement)
+				}
 
 				cpp.WriteString(widgetCode)
 
 				// Dynamically serialize and inject JSON metadata for runtime refreshes
 				fieldJSONBytes, _ := json.Marshal(field)
 				cpp.WriteString(fmt.Sprintf("            {\n                QJsonDocument fDoc = QJsonDocument::fromJson(QByteArray(\"%s\"));\n                m_fieldMetadata[\"%s::%s\"] = fDoc.object();\n            }\n", cppStringLiteral(string(fieldJSONBytes)), cppStringLiteral(label), cppStringLiteral(field.Name)))
+			}
+
+			if hasAdvancedFields {
+				cpp.WriteString(fmt.Sprintf(`
+            currentLayout_%[1]s->addWidget(fieldAdvToggle_%[1]s);
+            currentLayout_%[1]s->addWidget(fieldAdvFrame_%[1]s);
+`, actIdxStr))
 			}
 
 			cpp.WriteString(fmt.Sprintf("            currentLayout_%s->addStretch();\n", actIdxStr))
@@ -239,7 +307,11 @@ func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) str
 `, actIdxStr, label))
 
 			// Customize Execution Lambda targeting toolSourceScript
-			cpp.WriteString(buildAdvancedExecutionLambda(action, label, actIdxStr, fieldsArrName, cfg.SourceType, cfg.SourceScript))
+			if cfg.UseMainSource {
+				cpp.WriteString(buildExecutionLambda(action, label, actIdxStr, fieldsArrName, cfg.SourceType))
+			} else {
+				cpp.WriteString(buildAdvancedExecutionLambda(action, label, actIdxStr, fieldsArrName, cfg.SourceType, cfg.SourceScript))
+			}
 		}
 
 		cpp.WriteString(fmt.Sprintf("            toolMainLayout_%s->addWidget(actionsTabWidget, 1);\n", toolIdxStr))

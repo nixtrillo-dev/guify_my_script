@@ -165,6 +165,8 @@ type UIAction struct {
 	ExecLabel                 string    `json:"exec_label,omitempty"`
 	ExecInProgressLabel       string    `json:"exec_in_progress_label,omitempty"`
 	StopLabel                 string    `json:"stop_label,omitempty"`
+	AdvancedMenu              bool      `json:"advanced_menu"`
+	AdvancedMenuTabTitle      string    `json:"advanced_menu_tab_title"`
 	RefreshFieldsOnTabOpen    []string  `json:"refresh_fields_on_tab_open,omitempty"`
 	RefreshFieldsOnCompletion []string  `json:"refresh_fields_on_completion,omitempty"`
 	InvokeAsObject            bool      `json:"invoke_as_object,omitempty"`
@@ -260,13 +262,13 @@ type AppConfig struct {
 	SourceScriptAMD64        string      `json:"source_script_amd64,omitempty"`
 	SourceScriptARM64        string      `json:"source_script_arm64,omitempty"`
 	SourceType               string      `json:"source_type"`
-	Startup                 string      `json:"startup"`
-	TrayOnMinimize          bool        `json:"tray_on_minimize"`
-	InstanceMode            string      `json:"instance_mode"`
-	ActionOnStartup         string      `json:"action_on_startup,omitempty"`
-	DefaultTabOnStartup     string      `json:"default_tab_on_startup,omitempty"`
-	CloseAfterStartupAction bool        `json:"close_after_startup_action,omitempty"`
-	Theme                   ThemeConfig `json:"theme"`
+	Startup                  string      `json:"startup"`
+	TrayOnMinimize           bool        `json:"tray_on_minimize"`
+	InstanceMode             string      `json:"instance_mode"`
+	ActionOnStartup          string      `json:"action_on_startup,omitempty"`
+	DefaultTabOnStartup      string      `json:"default_tab_on_startup,omitempty"`
+	CloseAfterStartupAction  bool        `json:"close_after_startup_action,omitempty"`
+	Theme                    ThemeConfig `json:"theme"`
 }
 
 // DeployDependency represents custom package dependencies for various distros.
@@ -281,14 +283,14 @@ type DeployDependency struct {
 
 // DeployConfig holds packaging and deployment metadata.
 type DeployConfig struct {
-	Description   string `json:"description,omitempty"`
-	Version       string `json:"version,omitempty"`
-	ReleaseNumber string `json:"release_number,omitempty"`
-	Summary       string `json:"summary,omitempty"`
-	License       string `json:"license,omitempty"`
-	Maintainer    string `json:"maintainer,omitempty"`
-	SupportEmail  string `json:"support_email,omitempty"`
-	Dependencies   []DeployDependency `json:"dependencies,omitempty"`
+	Description   string             `json:"description,omitempty"`
+	Version       string             `json:"version,omitempty"`
+	ReleaseNumber string             `json:"release_number,omitempty"`
+	Summary       string             `json:"summary,omitempty"`
+	License       string             `json:"license,omitempty"`
+	Maintainer    string             `json:"maintainer,omitempty"`
+	SupportEmail  string             `json:"support_email,omitempty"`
+	Dependencies  []DeployDependency `json:"dependencies,omitempty"`
 }
 
 type RootConfig struct {
@@ -306,6 +308,7 @@ type AdvancedToolConfig struct {
 	SourceScript   string `json:"source_script"`
 	SourceType     string `json:"source_type"`
 	SourceGUI      string `json:"source_gui,omitempty"`
+	UseMainSource  bool   `json:"-"`
 }
 
 // AdvancedToolFile represents the root structure of an advanced tool JSON config.

@@ -17,6 +17,9 @@ func buildQuickLaunchRows(actions []UIAction) string {
 	quickLaunchCount := 0
 
 	for actIdx, action := range actions {
+		if action.AdvancedMenu {
+			continue
+		}
 		if !action.QuickLaunch {
 			continue
 		}
@@ -80,7 +83,14 @@ func buildQuickLaunchRows(actions []UIAction) string {
 func buildActionTabs(actions []UIAction, sourceType string, actionOnStartup string, closeAfterStartup bool, defaultTabOnStartup string) string {
 	var cpp strings.Builder
 
-	for actIdx, action := range actions {
+	visibleActions := make([]UIAction, 0, len(actions))
+	for _, action := range actions {
+		if !action.AdvancedMenu {
+			visibleActions = append(visibleActions, action)
+		}
+	}
+
+	for actIdx, action := range visibleActions {
 		label := action.Label
 		mode := action.GetMode()
 		sanitizedLabel := sanitizeIdentifier(label)
@@ -344,7 +354,7 @@ func buildActionTabs(actions []UIAction, sourceType string, actionOnStartup stri
 	tabRefreshCPP.WriteString("\n    connect(m_tabs, &QTabWidget::currentChanged, this, [this](int index) {\n")
 	tabRefreshCPP.WriteString("        switch(index) {\n")
 
-	for actIdx, action := range actions {
+	for actIdx, action := range visibleActions {
 		if len(action.RefreshFieldsOnTabOpen) > 0 {
 			hasTabRefreshes = true
 			tabRefreshCPP.WriteString(fmt.Sprintf("            case %d:\n", actIdx+1)) // Offset by +1 for Main Menu Tab

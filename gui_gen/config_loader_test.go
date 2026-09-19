@@ -19,9 +19,9 @@ func TestLoadAndPrepareConfig_BashWithArchScripts(t *testing.T) {
 
 	config := RootConfig{
 		Config: AppConfig{
-			Title:             "Test App",
-			UUID:              "com.example.testapp",
-			ScriptAlias:       "test_logic.sh",
+			Title:                    "Test App",
+			UUID:                     "com.example.testapp",
+			ScriptAlias:              "test_logic.sh",
 			SourceScriptLinuxAMD64:   scriptPath,
 			SourceScriptLinuxAArch64: scriptPath,
 			SourceType:               "bash",
@@ -78,9 +78,9 @@ func TestLoadAndPrepareConfig_PythonWithArchScripts(t *testing.T) {
 
 	config := RootConfig{
 		Config: AppConfig{
-			Title:             "Python App",
-			UUID:              "com.example.pyapp",
-			ScriptAlias:       "test_pyscript.py",
+			Title:                    "Python App",
+			UUID:                     "com.example.pyapp",
+			ScriptAlias:              "test_pyscript.py",
 			SourceScriptLinuxAMD64:   scriptPath,
 			SourceScriptLinuxAArch64: scriptPath,
 			SourceType:               "python",
@@ -304,6 +304,53 @@ func TestExecutionMode_ValidationAndEquivalents(t *testing.T) {
 	}
 }
 
+func TestValidateAdvancedMenuConfiguration(t *testing.T) {
+	if err := validateAdvancedActions([]UIAction{{Label: "Advanced", AdvancedMenu: true}}); err == nil {
+		t.Fatal("expected advanced actions to require a tab title")
+	}
+
+	actions := []UIAction{
+		{Label: "First", AdvancedMenu: true, AdvancedMenuTabTitle: "Shared"},
+		{Label: "Second", AdvancedMenu: true, AdvancedMenuTabTitle: "Shared"},
+	}
+	if err := validateAdvancedMenuConfiguration(actions, nil); err != nil {
+		t.Fatalf("actions sharing a tab title should be valid: %v", err)
+	}
+
+	tools := []AdvancedToolFile{{FilePath: "tool.json", Config: AdvancedToolConfig{TabTitle: "Shared"}}}
+	if err := validateAdvancedMenuConfiguration(actions[:1], tools); err == nil {
+		t.Fatal("expected action and advanced tool tab-title collision to fail")
+	}
+}
+
+func TestAdvancedActionsUseAdvancedRenderer(t *testing.T) {
+	actions := []UIAction{
+		{Label: "Main Action", AdvancedMenuTabTitle: "", AdvancedMenu: false},
+		{
+			Label: "Hidden Action", AdvancedMenu: true, AdvancedMenuTabTitle: "Tools",
+			Fields: []UIField{
+				{Name: "Basic", Type: "TXT", DataType: "string", Default: ""},
+				{Name: "Power User", Type: "CK", DataType: "string", Default: "0", AdvancedMenu: true},
+			},
+		},
+	}
+	mainCode := buildActionTabs(actions, "go", "", false, "")
+	if !strings.Contains(mainCode, "Main Action") || strings.Contains(mainCode, "Hidden Action") {
+		t.Fatal("main renderer did not filter advanced actions")
+	}
+	advancedTools := configuredAdvancedTools(actions, "go")
+	if len(advancedTools) != 1 || len(advancedTools[0].Actions) != 1 {
+		t.Fatalf("expected one grouped configured advanced tool, got %#v", advancedTools)
+	}
+	advancedCode := buildAdvancedToolTabs(advancedTools, "")
+	if !strings.Contains(advancedCode, "Hidden Action") || strings.Contains(advancedCode, "checkAdvancedToolEligibility") {
+		t.Fatal("configured advanced action was not rendered as an in-process advanced tab")
+	}
+	if !strings.Contains(advancedCode, "fieldAdvToggle_0_0") || !strings.Contains(advancedCode, "fieldAdvFrame_0_0") || !strings.Contains(advancedCode, "fieldAdvLayout_0_0") {
+		t.Fatal("advanced fields were not placed behind their Advanced Settings toggle")
+	}
+}
+
 func TestExecutionMode_MutualExclusivityFailsEarly(t *testing.T) {
 	// Attempt to define both "mode" and "execution_mode" on the same action
 	jsonStr := `{"label":"Conflict Action","func":"conflict_fn","mode":"g","execution_mode":"GUI"}`
@@ -352,17 +399,18 @@ func TestLoadAndPrepareConfig_RealGuifyMyScriptConfig(t *testing.T) {
 		t.Fatalf("Failed to load real guify_my_script_config.json: %v", err)
 	}
 
-	if len(ctx.root.Actions) != 3 {
-		t.Fatalf("Expected 3 actions, got %d", len(ctx.root.Actions))
+	if len(ctx.root.Actions) != 4 {
+		t.Fatalf("Expected 4 actions, got %d", len(ctx.root.Actions))
 	}
 
 	expectedModes := map[string]struct {
 		shorthand string
 		longhand  string
 	}{
-		"Compile My Script":  {"g", "GUI"},
-		"Guify My Script":    {"g", "GUI"},
-		"Install My Package": {"gc", "GUI_COMMANDLINE"},
+		"Compile My Script":          {"g", "GUI"},
+		"Guify My Script":            {"g", "GUI"},
+		"Install My Package":         {"gc", "GUI_COMMANDLINE"},
+		"Setup Android NDK for Rust": {"gc", "GUI_COMMANDLINE"},
 	}
 
 	for _, action := range ctx.root.Actions {
@@ -483,4 +531,3 @@ func TestUIField_MutualExclusivityFailsEarly(t *testing.T) {
 		t.Errorf("Expected error to contain %q, got %q", expectedSub, configErr.Error())
 	}
 }
-

@@ -377,6 +377,8 @@
             "exec_label": "Execute ${1}",
             "exec_in_progress_label": "Executing ${1}...",
             "stop_label": "Stop",
+            "advanced_menu": false,
+            "advanced_menu_tab_title": "",
             "fields": []
           }
         }
@@ -391,7 +393,21 @@
         "exec_label",
         "exec_in_progress_label",
         "stop_label",
+        "advanced_menu",
+        "advanced_menu_tab_title",
         "fields"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": { "advanced_menu": { "const": true } }
+          },
+          "then": {
+            "properties": {
+              "advanced_menu_tab_title": { "minLength": 1 }
+            }
+          }
+        }
       ],
       "properties": {
         "label": {
@@ -463,6 +479,16 @@
         "stop_label": {
           "type": "string",
           "description": "Text displayed on the stop button for this action. Defaults to 'Stop' if not specified. Only visible for attached execution modes (GUI, GUI_COMMANDLINE, SILENT)."
+        },
+        "advanced_menu": {
+          "type": "boolean",
+          "default": false,
+          "description": "When true, render this action in the Advanced Settings dialog instead of the main window."
+        },
+        "advanced_menu_tab_title": {
+          "type": "string",
+          "default": "",
+          "description": "Advanced Settings tab title for this action. Required and non-empty when advanced_menu is true; may be shared by actions in this config."
         },
         "invoke_as_object": {
           "type": "boolean",

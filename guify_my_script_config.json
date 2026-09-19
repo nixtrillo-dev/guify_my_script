@@ -69,6 +69,8 @@
             "width": 600,
             "exec_in_progress_label": "Compiling My Script...",
             "exec_label": "Compile My Script",
+            "advanced_menu": false,
+            "advanced_menu_tab_title": "",
             "fields": [
                 {
                     "name": "Input Script or Source Directory",
@@ -347,6 +349,8 @@
             "width": 600,
             "exec_in_progress_label": "Guifying My Script...",
             "exec_label": "Guify My Script",
+            "advanced_menu": false,
+            "advanced_menu_tab_title": "",
             "fields": [
                 {
                     "name": "JSON Config Path",
@@ -477,6 +481,8 @@
             "width": 600,
             "exec_in_progress_label": "Installing My Package...",
             "exec_label": "Install My Package",
+            "advanced_menu": false,
+            "advanced_menu_tab_title": "",
             "fields": [
                 {
                     "name": "Pkg Path",
@@ -517,6 +523,66 @@
                         "path_to_enabled": null
                     }
                 },
+                {
+                    "name": "Log Level",
+                    "options": [
+                        [
+                            "5 - TRACE",
+                            "5"
+                        ],
+                        [
+                            "4 - INFO",
+                            "4"
+                        ],
+                        [
+                            "3 - WARNING",
+                            "3"
+                        ],
+                        [
+                            "2 - ERROR",
+                            "2"
+                        ],
+                        [
+                            "1 - FATAL",
+                            "1"
+                        ],
+                        [
+                            "0 - SILENT",
+                            "0"
+                        ]
+                    ],
+                    "refresh_fields_on_change": [],
+                    "field_type": "CB",
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": "4 - INFO",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    }
+                }
+            ]
+        },
+        {
+            "label": "Setup Android NDK for Rust",
+            "func": "setup_android_ndk_for_rust",
+            "execution_mode": "GUI_COMMANDLINE",
+            "advanced_menu": true,
+            "advanced_menu_tab_title": "Install Dependencies",
+            "refresh_fields_on_tab_open": [],
+            "refresh_fields_on_completion": [],
+            "quick_launch": false,
+            "width": 600,
+            "sudo": true,
+            "exec_label": "Execute Action Title",
+            "exec_in_progress_label": "Executing Action Title...",
+            "stop_label": "Stop",
+            "fields": [
                 {
                     "name": "Log Level",
                     "options": [

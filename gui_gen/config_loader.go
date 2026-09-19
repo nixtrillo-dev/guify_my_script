@@ -8,30 +8,30 @@ package gui_gen
 import (
 	"encoding/json"
 	"fmt"
-	"runtime"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 )
 
 // configContext holds the validated configuration and derived paths/states required
 // for scaffolding the UI and building the final application.
 type configContext struct {
-	root              RootConfig
-	advancedTools     []AdvancedToolFile
-	compileMode       string
-	baseDir           string
-	packageName       string
+	root                   RootConfig
+	advancedTools          []AdvancedToolFile
+	compileMode            string
+	baseDir                string
+	packageName            string
 	sourcePathLinuxAMD64   string
 	sourcePathLinuxAArch64 string
 	sourcePathAMD64        string // Deprecated: Kept for backwards compatibility
 	sourcePathARM64        string // Deprecated: Kept for backwards compatibility
 	bundledSourceName      string
-	targetArchs       []string
-	trayMinimizeState string
-	startupTrayState  string
-	iconPath          string
-	iconName          string
+	targetArchs            []string
+	trayMinimizeState      string
+	startupTrayState       string
+	iconPath               string
+	iconName               string
 }
 
 // loadAndPrepareConfig reads the JSON configuration, sanitizes inputs, derives
@@ -80,6 +80,9 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 
 	if len(duplicates) > 0 {
 		return ctx, fmt.Errorf("failed to load configuration: duplicate action labels found: ['%s']. Action labels must be entirely unique across the JSON file", strings.Join(duplicates, "', '"))
+	}
+	if err := validateAdvancedActions(ctx.root.Actions); err != nil {
+		return ctx, err
 	}
 	// -------------------------------------
 
@@ -232,4 +235,43 @@ func loadAdvancedTools(baseDir string) ([]AdvancedToolFile, error) {
 	}
 
 	return tools, nil
+}
+
+func validateAdvancedMenuConfiguration(actions []UIAction, tools []AdvancedToolFile) error {
+	if err := validateAdvancedActions(actions); err != nil {
+		return err
+	}
+	toolTitles := make(map[string]string)
+	for _, tool := range tools {
+		title := strings.TrimSpace(tool.Config.TabTitle)
+		if title == "" {
+			return fmt.Errorf("advanced tool %q has an empty tab_title", tool.FilePath)
+		}
+		key := strings.ToLower(title)
+		if previous, exists := toolTitles[key]; exists {
+			return fmt.Errorf("advanced tab title %q is duplicated by %q and %q", title, previous, tool.FilePath)
+		}
+		toolTitles[key] = tool.FilePath
+	}
+
+	for _, action := range actions {
+		if !action.AdvancedMenu {
+			continue
+		}
+		title := strings.TrimSpace(action.AdvancedMenuTabTitle)
+		key := strings.ToLower(title)
+		if toolPath, exists := toolTitles[key]; exists {
+			return fmt.Errorf("action %q advanced_menu_tab_title %q conflicts with advanced tool %q", action.Label, title, toolPath)
+		}
+	}
+	return nil
+}
+
+func validateAdvancedActions(actions []UIAction) error {
+	for _, action := range actions {
+		if action.AdvancedMenu && strings.TrimSpace(action.AdvancedMenuTabTitle) == "" {
+			return fmt.Errorf("action %q must define a non-empty advanced_menu_tab_title when advanced_menu is true", action.Label)
+		}
+	}
+	return nil
 }

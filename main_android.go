@@ -12,6 +12,7 @@ import (
 	"guify_my_script/logger"
 	"guify_my_script/package_installer"
 	"guify_my_script/rust_gen"
+	"guify_my_script/setup_utils"
 	"os"
 	"strconv"
 )
@@ -743,6 +744,32 @@ func main() {
 		cli_logLevelStr := os.Args[5]
 
 		err := rust_gen.CompileRust(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "setup_android_ndk_for_rust":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: setup_android_ndk_for_rust requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_logLevel_raw int
+		raw_logLevel := os.Args[2]
+		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
+			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
+			if err_logLevel != nil {
+				fmt.Printf("Error: parameter 'logLevel' must be a valid integer: %v\n", err_logLevel)
+				os.Exit(1)
+			}
+			cli_logLevel_raw = parsed_logLevel
+		}
+		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
+
+		err := setup_utils.SetupAndroidNDKForRust(cli_logLevel)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
