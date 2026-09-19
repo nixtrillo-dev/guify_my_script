@@ -559,7 +559,7 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 				excludeMap[strings.TrimSpace(pkg)] = true
 			}
 		} else {
-			logger.Warn(lvl, "failed to parse excludePackages as CSV: %v", err)
+			logger.Error(lvl, "failed to parse excludePackages as CSV: %v", err)
 		}
 	}
 
@@ -772,7 +772,7 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 		ArchSuffix string
 		CC         string
 	}{
-		{"amd64", "linux_amd64", "gcc"},                   // Standard x86_64 compiler
+		{"amd64", "linux_amd64", "gcc"},                     // Standard x86_64 compiler
 		{"arm64", "linux_aarch64", "aarch64-linux-gnu-gcc"}, // ARM64 cross-compiler
 	}
 

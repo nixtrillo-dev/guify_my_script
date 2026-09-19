@@ -367,7 +367,7 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 				excludeMap[strings.TrimSpace(pkg)] = true
 			}
 		} else {
-			logger.Info(lvl, "Warning: failed to parse excludePackages as CSV: %v", err)
+			logger.Warn(lvl, "Failed to parse excludePackages as CSV: %v", err)
 		}
 	}
 
@@ -726,7 +726,7 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 		if hasBinaryTarget(buildDir) {
 			logger.Error(lvl, "Cargo build did not produce expected binary %s: %e", candidateBin, err)
 		} else {
-			logger.Info(lvl, "  • Skipping executable copy: %s is a library-only crate (no [[bin]] target)", crateName)
+			logger.Warn(lvl, "  • Skipping executable copy: %s is a library-only crate (no [[bin]] target)", crateName)
 		}
 	}
 
@@ -776,7 +776,7 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 		cmdLib.Stderr = &errLib
 
 		if err := cmdLib.Run(); err != nil {
-			logger.Info(lvl, "Note: rustc cdylib compile failed: %s", errLib.String())
+			logger.Error(lvl, "rustc cdylib compile failed: %s", errLib.String())
 		} else {
 			_ = os.Chmod(destLibLinuxAMD64, 0755)
 			logger.Info(lvl, "  • Built Linux AMD64 C++ shared library: %s", destLibLinuxAMD64)
@@ -830,7 +830,7 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 				cmdLibArm.Stdout = os.Stdout
 				cmdLibArm.Stderr = &errLibArm
 				if err := cmdLibArm.Run(); err != nil {
-					logger.Info(lvl, "Note: rustc aarch64 cdylib compile failed: %s", errLibArm.String())
+					logger.Error(lvl, "rustc aarch64 cdylib compile failed: %s", errLibArm.String())
 				} else {
 					_ = os.Chmod(destLibLinuxAArch64, 0755)
 					logger.Info(lvl, "  • Built Linux AArch64 C++ shared library: %s", destLibLinuxAArch64)
@@ -876,13 +876,13 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 					logger.Info(lvl, "  • Built Android AArch64 executable: %s", cliBinAndroidAArch64)
 				}
 			} else {
-				logger.Info(lvl, "Note: cargo android_aarch64 build failed: %s", errAndroid.String())
+				logger.Error(lvl, "cargo android_aarch64 build failed: %s", errAndroid.String())
 			}
 		} else {
-			logger.Info(lvl, "\nNote: Skipping android_aarch64 build for Rust: Android NDK linker (aarch64-linux-android*-clang) not found. Set ANDROID_NDK_HOME, CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER, or install cargo-ndk to compile Android Termux binaries.")
+			logger.Warn(lvl, "\nSkipping android_aarch64 build for Rust: Android NDK linker (aarch64-linux-android*-clang) not found. Set ANDROID_NDK_HOME, CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER, or run 'cargo install cargo-ndk' to compile Android Termux binaries.")
 		}
 	} else {
-		logger.Info(lvl, "\nNote: Skipping android_aarch64 build for Rust: target aarch64-linux-android is not installed. Run 'rustup target add aarch64-linux-android' to enable.")
+		logger.Warn(lvl, "\nSkipping android_aarch64 build for Rust: target aarch64-linux-android is not installed. Run 'rustup target add aarch64-linux-android' to enable.")
 	}
 
 	logger.Info(lvl, "Successfully compiled Rust deliverables in %s.", buildDir)
