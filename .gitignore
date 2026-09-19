@@ -5,6 +5,8 @@ guify_my_script_config_copy.json
 dist
 /*amd64*
 /*arm64*
+/*linux_amd64*
+/*linux_aarch64*
 endpoint_utils/.directory
 internal_utils/.directory
 logger/.directory

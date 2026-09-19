@@ -69,18 +69,18 @@ func DoWork(name string) {}
 	}
 
 	expectedBase, _ := filepath.Abs("my_binary")
-	expectedAMD64 := expectedBase + "_amd64"
-	expectedARM64 := expectedBase + "_arm64"
+	expectedLinuxAMD64 := expectedBase + "_linux_amd64"
+	expectedLinuxAArch64 := expectedBase + "_linux_aarch64"
 	expectedAlias := "my_binary"
 
 	if root.Config.ScriptAlias != expectedAlias {
 		t.Errorf("Expected script_alias to be %q, got %q", expectedAlias, root.Config.ScriptAlias)
 	}
-	if root.Config.SourceScriptAMD64 != expectedAMD64 {
-		t.Errorf("Expected source_script_amd64 to be %q, got %q", expectedAMD64, root.Config.SourceScriptAMD64)
+	if root.Config.SourceScriptLinuxAMD64 != expectedLinuxAMD64 {
+		t.Errorf("Expected source_script_linux_amd64 to be %q, got %q", expectedLinuxAMD64, root.Config.SourceScriptLinuxAMD64)
 	}
-	if root.Config.SourceScriptARM64 != expectedARM64 {
-		t.Errorf("Expected source_script_arm64 to be %q, got %q", expectedARM64, root.Config.SourceScriptARM64)
+	if root.Config.SourceScriptLinuxAArch64 != expectedLinuxAArch64 {
+		t.Errorf("Expected source_script_linux_aarch64 to be %q, got %q", expectedLinuxAArch64, root.Config.SourceScriptLinuxAArch64)
 	}
 	if root.Config.SourceType != "go" {
 		t.Errorf("Expected source_type to be 'go', got %q", root.Config.SourceType)
@@ -130,11 +130,11 @@ function my_action() {
 	if root.Config.ScriptAlias != expectedAlias {
 		t.Errorf("Expected script_alias to be %q, got %q", expectedAlias, root.Config.ScriptAlias)
 	}
-	if root.Config.SourceScriptAMD64 != expectedPath {
-		t.Errorf("Expected source_script_amd64 for bash to match full script path (%q), got %q", expectedPath, root.Config.SourceScriptAMD64)
+	if root.Config.SourceScriptLinuxAMD64 != expectedPath {
+		t.Errorf("Expected source_script_linux_amd64 for bash to match full script path (%q), got %q", expectedPath, root.Config.SourceScriptLinuxAMD64)
 	}
-	if root.Config.SourceScriptARM64 != expectedPath {
-		t.Errorf("Expected source_script_arm64 for bash to match full script path (%q), got %q", expectedPath, root.Config.SourceScriptARM64)
+	if root.Config.SourceScriptLinuxAArch64 != expectedPath {
+		t.Errorf("Expected source_script_linux_aarch64 for bash to match full script path (%q), got %q", expectedPath, root.Config.SourceScriptLinuxAArch64)
 	}
 	if root.Config.SourceType != "bash" {
 		t.Errorf("Expected source_type to be 'bash', got %q", root.Config.SourceType)
@@ -184,11 +184,11 @@ def greet_user(name: str, message: str) -> None:
 	if root.Config.ScriptAlias != expectedAlias {
 		t.Errorf("Expected script_alias to be %q, got %q", expectedAlias, root.Config.ScriptAlias)
 	}
-	if root.Config.SourceScriptAMD64 != expectedPath {
-		t.Errorf("Expected source_script_amd64 for python to match full script path (%q), got %q", expectedPath, root.Config.SourceScriptAMD64)
+	if root.Config.SourceScriptLinuxAMD64 != expectedPath {
+		t.Errorf("Expected source_script_linux_amd64 for python to match full script path (%q), got %q", expectedPath, root.Config.SourceScriptLinuxAMD64)
 	}
-	if root.Config.SourceScriptARM64 != expectedPath {
-		t.Errorf("Expected source_script_arm64 for python to match full script path (%q), got %q", expectedPath, root.Config.SourceScriptARM64)
+	if root.Config.SourceScriptLinuxAArch64 != expectedPath {
+		t.Errorf("Expected source_script_linux_aarch64 for python to match full script path (%q), got %q", expectedPath, root.Config.SourceScriptLinuxAArch64)
 	}
 	if root.Config.SourceType != "python" {
 		t.Errorf("Expected source_type to be 'python', got %q", root.Config.SourceType)
@@ -493,18 +493,18 @@ pub fn print_sum(a: i32, b: i32) {}
 	}
 
 	expectedBase, _ := filepath.Abs("my_rust_binary")
-	expectedAMD64 := expectedBase + "_amd64"
-	expectedARM64 := expectedBase + "_arm64"
+	expectedLinuxAMD64 := expectedBase + "_linux_amd64"
+	expectedLinuxAArch64 := expectedBase + "_linux_aarch64"
 	expectedAlias := "my_rust_binary"
 
 	if root.Config.ScriptAlias != expectedAlias {
 		t.Errorf("Expected script_alias to be %q, got %q", expectedAlias, root.Config.ScriptAlias)
 	}
-	if root.Config.SourceScriptAMD64 != expectedAMD64 {
-		t.Errorf("Expected source_script_amd64 to be %q, got %q", expectedAMD64, root.Config.SourceScriptAMD64)
+	if root.Config.SourceScriptLinuxAMD64 != expectedLinuxAMD64 {
+		t.Errorf("Expected source_script_linux_amd64 to be %q, got %q", expectedLinuxAMD64, root.Config.SourceScriptLinuxAMD64)
 	}
-	if root.Config.SourceScriptARM64 != expectedARM64 {
-		t.Errorf("Expected source_script_arm64 to be %q, got %q", expectedARM64, root.Config.SourceScriptARM64)
+	if root.Config.SourceScriptLinuxAArch64 != expectedLinuxAArch64 {
+		t.Errorf("Expected source_script_linux_aarch64 to be %q, got %q", expectedLinuxAArch64, root.Config.SourceScriptLinuxAArch64)
 	}
 	if root.Config.SourceType != "rust" {
 		t.Errorf("Expected source_type to be 'rust', got %q", root.Config.SourceType)
@@ -538,6 +538,33 @@ func TestUIAction_UnmarshalJSON_ExecutionModeAndLegacyMode(t *testing.T) {
 	}
 	if act2.ExecutionMode != "g" {
 		t.Errorf("Expected ExecutionMode fallback to be 'g', got %q", act2.ExecutionMode)
+	}
+}
+
+func TestUIConfig_UnmarshalJSON_LegacySourceScriptFields(t *testing.T) {
+	legacyJSON := `{
+		"title": "Legacy App",
+		"icon": "icon.png",
+		"uuid": "com.test.legacy",
+		"script_alias": "legacy_bin",
+		"source_script_amd64": "/path/to/legacy_amd64",
+		"source_script_arm64": "/path/to/legacy_arm64",
+		"source_type": "go",
+		"startup": "tray",
+		"tray_on_minimize": true,
+		"instance_mode": "replace"
+	}`
+
+	var cfg UIConfig
+	if err := json.Unmarshal([]byte(legacyJSON), &cfg); err != nil {
+		t.Fatalf("Failed unmarshaling legacy UIConfig: %v", err)
+	}
+
+	if cfg.SourceScriptLinuxAMD64 != "/path/to/legacy_amd64" {
+		t.Errorf("Expected SourceScriptLinuxAMD64 to be populated from legacy field, got %q", cfg.SourceScriptLinuxAMD64)
+	}
+	if cfg.SourceScriptLinuxAArch64 != "/path/to/legacy_arm64" {
+		t.Errorf("Expected SourceScriptLinuxAArch64 to be populated from legacy field, got %q", cfg.SourceScriptLinuxAArch64)
 	}
 }
 

@@ -251,13 +251,15 @@ type ThemeConfig struct {
 }
 
 type AppConfig struct {
-	Title                   string      `json:"title"`
-	Icon                    string      `json:"icon"`
-	UUID                    string      `json:"uuid"`
-	ScriptAlias             string      `json:"script_alias"`
-	SourceScriptAMD64       string      `json:"source_script_amd64,omitempty"`
-	SourceScriptARM64       string      `json:"source_script_arm64,omitempty"`
-	SourceType              string      `json:"source_type"`
+	Title                    string      `json:"title"`
+	Icon                     string      `json:"icon"`
+	UUID                     string      `json:"uuid"`
+	ScriptAlias              string      `json:"script_alias"`
+	SourceScriptLinuxAMD64   string      `json:"source_script_linux_amd64,omitempty"`
+	SourceScriptLinuxAArch64 string      `json:"source_script_linux_aarch64,omitempty"`
+	SourceScriptAMD64        string      `json:"source_script_amd64,omitempty"`
+	SourceScriptARM64        string      `json:"source_script_arm64,omitempty"`
+	SourceType               string      `json:"source_type"`
 	Startup                 string      `json:"startup"`
 	TrayOnMinimize          bool        `json:"tray_on_minimize"`
 	InstanceMode            string      `json:"instance_mode"`

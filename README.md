@@ -126,12 +126,12 @@ The action contains these parameters:
 - Target Builds
   - A list of package targets to build for. (Currently supports Linux ARCH / DEBIAN / FEDORA package managers)
   - Supported examples:
-    - .pkg.tar.zst_amd64
-    - .deb_amd64
-    - .rpm_amd64
-    - .pkg.tar.zst_arm64
-    - .deb_arm64
-    - .rpm_arm64
+    - .pkg.tar.zst_linux_amd64
+    - .deb_linux_amd64
+    - .rpm_linux_amd64
+    - .pkg.tar.zst_linux_aarch64
+    - .deb_linux_aarch64
+    - .rpm_linux_aarch64
 
 ### Result
 

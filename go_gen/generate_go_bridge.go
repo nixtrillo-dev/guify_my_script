@@ -650,18 +650,19 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 	// Define our target architectures and their corresponding C cross-compilers
 	// Assuming Linux targets (GOOS=linux). Adjust if targeting macOS/Windows.
 	targets := []struct {
-		GOARCH string
-		CC     string
+		GOARCH     string
+		ArchSuffix string
+		CC         string
 	}{
-		{"amd64", "gcc"},                   // Standard x86_64 compiler
-		{"arm64", "aarch64-linux-gnu-gcc"}, // ARM64 cross-compiler
+		{"amd64", "linux_amd64", "gcc"},                   // Standard x86_64 compiler
+		{"arm64", "linux_aarch64", "aarch64-linux-gnu-gcc"}, // ARM64 cross-compiler
 	}
 
 	for _, target := range targets {
-		logger.Info(lvl, "Building for architecture: %s...", target.GOARCH)
+		logger.Info(lvl, "Building for architecture: %s...", target.ArchSuffix)
 
-		cliBinName := fmt.Sprintf("%s_%s", binaryName, target.GOARCH)
-		libBinName := fmt.Sprintf("%s_%s.so", binaryName, target.GOARCH)
+		cliBinName := fmt.Sprintf("%s_%s", binaryName, target.ArchSuffix)
+		libBinName := fmt.Sprintf("%s_%s.so", binaryName, target.ArchSuffix)
 
 		// 1. Build the Standalone Shell Executable
 		cmdCLI := exec.Command("go", "build", "-o", cliBinName, ".")
@@ -678,7 +679,7 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 		cmdCLI.Stderr = &errCLI
 
 		if err := cmdCLI.Run(); err != nil {
-			return fmt.Errorf("CLI binary build failure for %s:\n%s\ninternal error: %w", target.GOARCH, errCLI.String(), err)
+			return fmt.Errorf("CLI binary build failure for %s:\n%s\ninternal error: %w", target.ArchSuffix, errCLI.String(), err)
 		}
 		_ = os.Chmod(cliBinName, 0755) // cliBinName is absolute (resolved above)
 
@@ -697,7 +698,7 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 		cmdLib.Stderr = &errLib
 
 		if err := cmdLib.Run(); err != nil {
-			return fmt.Errorf("C++ shared library build failure for %s:\n%s\ninternal error: %w", target.GOARCH, errLib.String(), err)
+			return fmt.Errorf("C++ shared library build failure for %s:\n%s\ninternal error: %w", target.ArchSuffix, errLib.String(), err)
 		}
 
 		logger.Info(lvl, "  • Built: %s", cliBinName)

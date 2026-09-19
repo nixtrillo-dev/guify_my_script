@@ -39,10 +39,12 @@ type BuildContext struct {
 	TargetArchs       []string
 	BaseDir           string
 	PackageName       string
-	BundledSourceName string
-	SourcePathAMD64   string
-	SourcePathARM64   string
-	FinalSourceCode   string
+	BundledSourceName      string
+	SourcePathLinuxAMD64   string
+	SourcePathLinuxAArch64 string
+	SourcePathAMD64        string // Deprecated: Kept for backwards compatibility
+	SourcePathARM64        string // Deprecated: Kept for backwards compatibility
+	FinalSourceCode        string
 	DefaultsJSON      []byte
 	RootConfig        RootConfig
 	IconName          string
@@ -127,11 +129,11 @@ func runBuildLoop(ctx BuildContext) error {
 				if err == nil || err.Error() == "EOF" {
 					for _, b := range builds {
 						cleanBuild := strings.TrimSpace(b)
-						if cleanBuild == ".pkg.tar.zst_"+targetArch {
+						if isBuildMatch(cleanBuild, ".pkg.tar.zst", targetArch) {
 							_ = os.RemoveAll(filepath.Join(archStageDir, "arch"))
-						} else if cleanBuild == ".deb_"+targetArch {
+						} else if isBuildMatch(cleanBuild, ".deb", targetArch) {
 							_ = os.RemoveAll(filepath.Join(archStageDir, "debian"))
-						} else if cleanBuild == ".rpm_"+targetArch {
+						} else if isBuildMatch(cleanBuild, ".rpm", targetArch) {
 							_ = os.RemoveAll(filepath.Join(archStageDir, "fedora"))
 						}
 					}
@@ -155,7 +157,7 @@ func runBuildLoop(ctx BuildContext) error {
 		// --- CONTAINER SETUP & COMPILATION ---
 		var builderTag, dockerfile, compilerBin, pkgConfigEnv string
 
-		if targetArch == "arm64" {
+		if targetArch == "linux_aarch64" || targetArch == "arm64" || targetArch == "aarch64" {
 			builderTag = "qt6-arm64-builder"
 			dockerfile = arm64Dockerfile
 			compilerBin = "aarch64-linux-gnu-g++"
@@ -204,10 +206,10 @@ func runBuildLoop(ctx BuildContext) error {
 		if ctx.CompileMode == "production" {
 			// --- PRODUCTION ASSET BUNDLING ---
 			actualSourcePath := ""
-			if targetArch == "amd64" {
-				actualSourcePath = ctx.SourcePathAMD64
-			} else if targetArch == "arm64" {
-				actualSourcePath = ctx.SourcePathARM64
+			if targetArch == "linux_amd64" || targetArch == "amd64" {
+				actualSourcePath = ctx.SourcePathLinuxAMD64
+			} else if targetArch == "linux_aarch64" || targetArch == "arm64" || targetArch == "aarch64" {
+				actualSourcePath = ctx.SourcePathLinuxAArch64
 			}
 
 			if actualSourcePath == "" {

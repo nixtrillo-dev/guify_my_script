@@ -108,25 +108,52 @@ func (a *UIAction) UnmarshalJSON(data []byte) error {
 
 // UIConfig sets up high-fidelity platform layout values
 type UIConfig struct {
-	Title                   string  `json:"title"`
-	Icon                    string  `json:"icon"`
-	UUID                    string  `json:"uuid"`
-	ScriptAlias             string  `json:"script_alias"`
-	SourceScriptAMD64       string  `json:"source_script_amd64"`
-	SourceScriptARM64       string  `json:"source_script_arm64"`
-	SourceType              string  `json:"source_type"`
-	Startup                 string  `json:"startup"`
-	TrayOnMinimize          bool    `json:"tray_on_minimize"`
-	InstanceMode            string  `json:"instance_mode"`
-	ActionOnStartup         *string `json:"action_on_startup"`
-	DefaultTabOnStartup     *string `json:"default_tab_on_startup"`
-	CloseAfterStartupAction bool    `json:"close_after_startup_action"`
-	Sudo                    bool    `json:"sudo"`
-	Theme                   struct {
+	Title                    string  `json:"title"`
+	Icon                     string  `json:"icon"`
+	UUID                     string  `json:"uuid"`
+	ScriptAlias              string  `json:"script_alias"`
+	SourceScriptLinuxAMD64   string  `json:"source_script_linux_amd64"`
+	SourceScriptLinuxAArch64 string  `json:"source_script_linux_aarch64"`
+	SourceScriptAMD64        string  `json:"source_script_amd64,omitempty"`
+	SourceScriptARM64        string  `json:"source_script_arm64,omitempty"`
+	SourceType               string  `json:"source_type"`
+	Startup                  string  `json:"startup"`
+	TrayOnMinimize           bool    `json:"tray_on_minimize"`
+	InstanceMode             string  `json:"instance_mode"`
+	ActionOnStartup          *string `json:"action_on_startup"`
+	DefaultTabOnStartup      *string `json:"default_tab_on_startup"`
+	CloseAfterStartupAction  bool    `json:"close_after_startup_action"`
+	Sudo                     bool    `json:"sudo"`
+	Theme                    struct {
 		Color  string `json:"color"`
 		Width  int    `json:"width"`
 		Height int    `json:"height"`
 	} `json:"theme"`
+}
+
+func (u *UIConfig) UnmarshalJSON(data []byte) error {
+	type Alias UIConfig
+	aux := &struct {
+		*Alias
+	}{
+		Alias: (*Alias)(u),
+	}
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+	if u.SourceScriptLinuxAMD64 == "" && u.SourceScriptAMD64 != "" {
+		u.SourceScriptLinuxAMD64 = u.SourceScriptAMD64
+	}
+	if u.SourceScriptLinuxAArch64 == "" && u.SourceScriptARM64 != "" {
+		u.SourceScriptLinuxAArch64 = u.SourceScriptARM64
+	}
+	if u.SourceScriptAMD64 == "" && u.SourceScriptLinuxAMD64 != "" {
+		u.SourceScriptAMD64 = u.SourceScriptLinuxAMD64
+	}
+	if u.SourceScriptARM64 == "" && u.SourceScriptLinuxAArch64 != "" {
+		u.SourceScriptARM64 = u.SourceScriptLinuxAArch64
+	}
+	return nil
 }
 
 // MainMenuConfig defines the generated application's landing tab and optional
@@ -239,8 +266,8 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	var targetName string
 	var sourceScript string
 	var scriptAlias string
-	var sourceScriptAMD64 string
-	var sourceScriptARM64 string
+	var sourceScriptLinuxAMD64 string
+	var sourceScriptLinuxAArch64 string
 	if strings.TrimSpace(binaryName) != "" {
 		absBinary, _ := filepath.Abs(binaryName)
 		targetName = filepath.Base(absBinary)
@@ -262,8 +289,8 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		}
 		sourceScriptBase := strings.TrimSuffix(sourceScript, inputExt)
 		scriptAlias = filepath.Base(sourceScriptBase)
-		sourceScriptAMD64 = sourceScriptBase + "_amd64"
-		sourceScriptARM64 = sourceScriptBase + "_arm64"
+		sourceScriptLinuxAMD64 = sourceScriptBase + "_linux_amd64"
+		sourceScriptLinuxAArch64 = sourceScriptBase + "_linux_aarch64"
 	} else if ext == ".rs" {
 		actions, err = parseRustFile(absInput)
 		if err != nil {
@@ -272,8 +299,8 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		sourceType = "rust"
 		sourceScriptBase := strings.TrimSuffix(sourceScript, inputExt)
 		scriptAlias = filepath.Base(sourceScriptBase)
-		sourceScriptAMD64 = sourceScriptBase + "_amd64"
-		sourceScriptARM64 = sourceScriptBase + "_arm64"
+		sourceScriptLinuxAMD64 = sourceScriptBase + "_linux_amd64"
+		sourceScriptLinuxAArch64 = sourceScriptBase + "_linux_aarch64"
 	} else if ext == ".py" {
 		actions, err = parsePythonFile(absInput)
 		if err != nil {
@@ -283,8 +310,8 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		// Python modules are source files, even when binaryName customises the
 		// generated application's name.
 		scriptAlias = filepath.Base(absInput)
-		sourceScriptAMD64 = absInput
-		sourceScriptARM64 = absInput
+		sourceScriptLinuxAMD64 = absInput
+		sourceScriptLinuxAArch64 = absInput
 	} else if ext == ".js" || ext == ".mjs" {
 		actions, err = parseJavaScriptFile(absInput)
 		if err != nil {
@@ -292,8 +319,8 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		}
 		sourceType = "javascript"
 		scriptAlias = filepath.Base(absInput)
-		sourceScriptAMD64 = absInput
-		sourceScriptARM64 = absInput
+		sourceScriptLinuxAMD64 = absInput
+		sourceScriptLinuxAArch64 = absInput
 	} else if ext == ".psm1" {
 		actions, err = parsePowerShellFile(absInput)
 		if err != nil {
@@ -301,8 +328,8 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		}
 		sourceType = "powershell"
 		scriptAlias = filepath.Base(absInput)
-		sourceScriptAMD64 = absInput
-		sourceScriptARM64 = absInput
+		sourceScriptLinuxAMD64 = absInput
+		sourceScriptLinuxAArch64 = absInput
 	} else {
 		actions, err = parseBashFile(absInput)
 		if err != nil {
@@ -310,8 +337,8 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		}
 		sourceType = "bash"
 		scriptAlias = filepath.Base(sourceScript)
-		sourceScriptAMD64 = sourceScript
-		sourceScriptARM64 = sourceScript
+		sourceScriptLinuxAMD64 = sourceScript
+		sourceScriptLinuxAArch64 = sourceScript
 	}
 
 	guiConfig := RootGUIConfig{}
@@ -324,8 +351,8 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	guiConfig.Config.Icon = "/usr/share/icons/hicolor/256x256/apps/com.nixtrillo.guifymyscript.png"
 	guiConfig.Config.UUID = fmt.Sprintf("com.%s.%s", os.Getenv("USER"), toUuidCase(targetName))
 	guiConfig.Config.ScriptAlias = scriptAlias
-	guiConfig.Config.SourceScriptAMD64 = sourceScriptAMD64
-	guiConfig.Config.SourceScriptARM64 = sourceScriptARM64
+	guiConfig.Config.SourceScriptLinuxAMD64 = sourceScriptLinuxAMD64
+	guiConfig.Config.SourceScriptLinuxAArch64 = sourceScriptLinuxAArch64
 	guiConfig.Config.SourceType = sourceType
 	guiConfig.Config.Startup = "tray"
 	guiConfig.Config.TrayOnMinimize = true

@@ -22,11 +22,11 @@ func TestLoadAndPrepareConfig_BashWithArchScripts(t *testing.T) {
 			Title:             "Test App",
 			UUID:              "com.example.testapp",
 			ScriptAlias:       "test_logic.sh",
-			SourceScriptAMD64: scriptPath,
-			SourceScriptARM64: scriptPath,
-			SourceType:        "bash",
-			Startup:           "tray",
-			TrayOnMinimize:    true,
+			SourceScriptLinuxAMD64:   scriptPath,
+			SourceScriptLinuxAArch64: scriptPath,
+			SourceType:               "bash",
+			Startup:                  "tray",
+			TrayOnMinimize:           true,
 		},
 		Actions: []UIAction{
 			{Label: "Run Action", Func: "run_action", Mode: "g"},
@@ -55,16 +55,16 @@ func TestLoadAndPrepareConfig_BashWithArchScripts(t *testing.T) {
 	hasAMD64 := false
 	hasARM64 := false
 	for _, arch := range ctx.targetArchs {
-		if arch == "amd64" {
+		if arch == "linux_amd64" {
 			hasAMD64 = true
 		}
-		if arch == "arm64" {
+		if arch == "linux_aarch64" {
 			hasARM64 = true
 		}
 	}
 
 	if !hasAMD64 || !hasARM64 {
-		t.Errorf("Expected targetArchs to contain both amd64 and arm64, got %v", ctx.targetArchs)
+		t.Errorf("Expected targetArchs to contain both linux_amd64 and linux_aarch64, got %v", ctx.targetArchs)
 	}
 }
 
@@ -81,11 +81,11 @@ func TestLoadAndPrepareConfig_PythonWithArchScripts(t *testing.T) {
 			Title:             "Python App",
 			UUID:              "com.example.pyapp",
 			ScriptAlias:       "test_pyscript.py",
-			SourceScriptAMD64: scriptPath,
-			SourceScriptARM64: scriptPath,
-			SourceType:        "python",
-			Startup:           "tray",
-			TrayOnMinimize:    true,
+			SourceScriptLinuxAMD64:   scriptPath,
+			SourceScriptLinuxAArch64: scriptPath,
+			SourceType:               "python",
+			Startup:                  "tray",
+			TrayOnMinimize:           true,
 		},
 		Actions: []UIAction{
 			{
@@ -121,37 +121,37 @@ func TestLoadAndPrepareConfig_PythonWithArchScripts(t *testing.T) {
 	hasAMD64 := false
 	hasARM64 := false
 	for _, arch := range ctx.targetArchs {
-		if arch == "amd64" {
+		if arch == "linux_amd64" {
 			hasAMD64 = true
 		}
-		if arch == "arm64" {
+		if arch == "linux_aarch64" {
 			hasARM64 = true
 		}
 	}
 
 	if !hasAMD64 || !hasARM64 {
-		t.Errorf("Expected targetArchs to contain both amd64 and arm64, got %v", ctx.targetArchs)
+		t.Errorf("Expected targetArchs to contain both linux_amd64 and linux_aarch64, got %v", ctx.targetArchs)
 	}
 }
 
 func TestLoadAndPrepareConfig_GoWithArchScripts(t *testing.T) {
 	tempDir := t.TempDir()
 
-	binAMD64 := filepath.Join(tempDir, "my_binary_amd64")
-	binARM64 := filepath.Join(tempDir, "my_binary_arm64")
-	_ = os.WriteFile(binAMD64, []byte("amd64 binary"), 0755)
-	_ = os.WriteFile(binARM64, []byte("arm64 binary"), 0755)
+	binAMD64 := filepath.Join(tempDir, "my_binary_linux_amd64")
+	binARM64 := filepath.Join(tempDir, "my_binary_linux_aarch64")
+	_ = os.WriteFile(binAMD64, []byte("linux_amd64 binary"), 0755)
+	_ = os.WriteFile(binARM64, []byte("linux_aarch64 binary"), 0755)
 
 	config := RootConfig{
 		Config: AppConfig{
-			Title:             "Go App",
-			UUID:              "com.example.goapp",
-			ScriptAlias:       "my_binary",
-			SourceScriptAMD64: binAMD64,
-			SourceScriptARM64: binARM64,
-			SourceType:        "go",
-			Startup:           "tray",
-			TrayOnMinimize:    true,
+			Title:                    "Go App",
+			UUID:                     "com.example.goapp",
+			ScriptAlias:              "my_binary",
+			SourceScriptLinuxAMD64:   binAMD64,
+			SourceScriptLinuxAArch64: binARM64,
+			SourceType:               "go",
+			Startup:                  "tray",
+			TrayOnMinimize:           true,
 		},
 		Actions: []UIAction{
 			{Label: "Go Action", Func: "go_action", Mode: "g"},
@@ -180,16 +180,72 @@ func TestLoadAndPrepareConfig_GoWithArchScripts(t *testing.T) {
 	hasAMD64 := false
 	hasARM64 := false
 	for _, arch := range ctx.targetArchs {
-		if arch == "amd64" {
+		if arch == "linux_amd64" {
 			hasAMD64 = true
 		}
-		if arch == "arm64" {
+		if arch == "linux_aarch64" {
 			hasARM64 = true
 		}
 	}
 
 	if !hasAMD64 || !hasARM64 {
-		t.Errorf("Expected targetArchs to contain both amd64 and arm64, got %v", ctx.targetArchs)
+		t.Errorf("Expected targetArchs to contain both linux_amd64 and linux_aarch64, got %v", ctx.targetArchs)
+	}
+}
+
+func TestLoadAndPrepareConfig_LegacyBackwardsCompatibility(t *testing.T) {
+	tempDir := t.TempDir()
+
+	binLegacyAMD64 := filepath.Join(tempDir, "legacy_binary_amd64")
+	binLegacyARM64 := filepath.Join(tempDir, "legacy_binary_arm64")
+	_ = os.WriteFile(binLegacyAMD64, []byte("legacy amd64 binary"), 0755)
+	_ = os.WriteFile(binLegacyARM64, []byte("legacy arm64 binary"), 0755)
+
+	configJSON := fmt.Sprintf(`{
+		"config": {
+			"title": "Legacy Go App",
+			"uuid": "com.example.legacygoapp",
+			"script_alias": "legacy_binary",
+			"source_script_amd64": %q,
+			"source_script_arm64": %q,
+			"source_type": "go",
+			"startup": "tray",
+			"tray_on_minimize": true
+		},
+		"actions": [
+			{"label": "Action", "func": "act", "execution_mode": "GUI"}
+		]
+	}`, binLegacyAMD64, binLegacyARM64)
+
+	configPath := filepath.Join(tempDir, "config.json")
+	if err := os.WriteFile(configPath, []byte(configJSON), 0644); err != nil {
+		t.Fatalf("Failed writing config: %v", err)
+	}
+
+	ctx, err := loadAndPrepareConfig(configPath, "production")
+	if err != nil {
+		t.Fatalf("loadAndPrepareConfig failed: %v", err)
+	}
+
+	if ctx.sourcePathLinuxAMD64 != binLegacyAMD64 {
+		t.Errorf("Expected sourcePathLinuxAMD64 to be %q, got %q", binLegacyAMD64, ctx.sourcePathLinuxAMD64)
+	}
+	if ctx.sourcePathLinuxAArch64 != binLegacyARM64 {
+		t.Errorf("Expected sourcePathLinuxAArch64 to be %q, got %q", binLegacyARM64, ctx.sourcePathLinuxAArch64)
+	}
+
+	hasAMD64 := false
+	hasARM64 := false
+	for _, arch := range ctx.targetArchs {
+		if arch == "linux_amd64" {
+			hasAMD64 = true
+		}
+		if arch == "linux_aarch64" {
+			hasARM64 = true
+		}
+	}
+	if !hasAMD64 || !hasARM64 {
+		t.Errorf("Expected targetArchs to contain both linux_amd64 and linux_aarch64 from legacy paths, got %v", ctx.targetArchs)
 	}
 }
 

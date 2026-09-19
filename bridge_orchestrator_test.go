@@ -48,14 +48,14 @@ func TestCompileScriptWithGuiConfig_RustProject(t *testing.T) {
 	}
 
 	// 3. Verify compiled binaries exist in projectDir
-	binAMD64 := filepath.Join(absProjectDir, "core_utils_amd64")
-	if _, err := os.Stat(binAMD64); os.IsNotExist(err) {
-		t.Fatalf("Expected compiled binary %s to exist", binAMD64)
+	binLinuxAMD64 := filepath.Join(absProjectDir, "core_utils_linux_amd64")
+	if _, err := os.Stat(binLinuxAMD64); os.IsNotExist(err) {
+		t.Fatalf("Expected compiled binary %s to exist", binLinuxAMD64)
 	}
 
-	libAMD64 := filepath.Join(absProjectDir, "core_utils_amd64.so")
-	if _, err := os.Stat(libAMD64); os.IsNotExist(err) {
-		t.Fatalf("Expected compiled shared library %s to exist", libAMD64)
+	libLinuxAMD64 := filepath.Join(absProjectDir, "core_utils_linux_amd64.so")
+	if _, err := os.Stat(libLinuxAMD64); os.IsNotExist(err) {
+		t.Fatalf("Expected compiled shared library %s to exist", libLinuxAMD64)
 	}
 }
 

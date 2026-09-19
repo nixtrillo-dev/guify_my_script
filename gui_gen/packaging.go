@@ -37,7 +37,7 @@ func writeProductionPackageFiles(stageDir, packageName, title, iconName string, 
 	archLinuxArch := "x86_64"
 	rpmArch := "x86_64"
 
-	if targetArch == "arm64" {
+	if targetArch == "linux_aarch64" || targetArch == "arm64" || targetArch == "aarch64" {
 		debArch = "arm64"
 		archLinuxArch = "aarch64"
 		rpmArch = "aarch64"
@@ -385,11 +385,11 @@ func executePackageBuilds(stageDir, targetArch, targetBuilds string, logLevel lo
 			}
 
 			// Map specific requested file extensions to their respective directories
-			if cleanBuild == ".pkg.tar.zst_"+targetArch {
+			if isBuildMatch(cleanBuild, ".pkg.tar.zst", targetArch) {
 				allowedPMs["arch"] = true
-			} else if cleanBuild == ".deb_"+targetArch {
+			} else if isBuildMatch(cleanBuild, ".deb", targetArch) {
 				allowedPMs["debian"] = true
-			} else if cleanBuild == ".rpm_"+targetArch {
+			} else if isBuildMatch(cleanBuild, ".rpm", targetArch) {
 				allowedPMs["fedora"] = true
 			}
 		}
@@ -422,4 +422,19 @@ func executePackageBuilds(stageDir, targetArch, targetBuilds string, logLevel lo
 		}
 	}
 	return nil
+}
+
+// isBuildMatch checks if a requested target build string matches an extension and target architecture,
+// supporting both modern linux_amd64 / linux_aarch64 naming and legacy amd64 / arm64 naming.
+func isBuildMatch(cleanBuild, ext, targetArch string) bool {
+	if cleanBuild == ext+"_"+targetArch {
+		return true
+	}
+	if (targetArch == "linux_amd64" || targetArch == "amd64") && (cleanBuild == ext+"_linux_amd64" || cleanBuild == ext+"_amd64") {
+		return true
+	}
+	if (targetArch == "linux_aarch64" || targetArch == "arm64" || targetArch == "aarch64") && (cleanBuild == ext+"_linux_aarch64" || cleanBuild == ext+"_arm64") {
+		return true
+	}
+	return false
 }

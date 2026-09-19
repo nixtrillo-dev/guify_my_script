@@ -99,12 +99,19 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 
 		// Define the exhaustive list of valid target builds based on supported PMs and Architectures
 		validBuilds := map[string]bool{
-			".pkg.tar.zst_amd64": true,
-			".pkg.tar.zst_arm64": true,
-			".deb_amd64":         true,
-			".deb_arm64":         true,
-			".rpm_amd64":         true,
-			".rpm_arm64":         true,
+			".pkg.tar.zst_linux_amd64":   true,
+			".pkg.tar.zst_linux_aarch64": true,
+			".deb_linux_amd64":           true,
+			".deb_linux_aarch64":         true,
+			".rpm_linux_amd64":           true,
+			".rpm_linux_aarch64":         true,
+			// Backwards compatibility aliases
+			".pkg.tar.zst_amd64":         true,
+			".pkg.tar.zst_arm64":         true,
+			".deb_amd64":                 true,
+			".deb_arm64":                 true,
+			".rpm_amd64":                 true,
+			".rpm_arm64":                 true,
 		}
 
 		for _, b := range builds {
@@ -116,7 +123,7 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 
 			// Halt immediately if an unmapped target is requested
 			if !validBuilds[cleanBuild] {
-				return fmt.Errorf("invalid target build specified: '%s'. Allowed values are an empty string (compile all), or comma-separated combinations like '.deb_amd64', '.pkg.tar.zst_arm64', etc", cleanBuild)
+				return fmt.Errorf("invalid target build specified: '%s'. Allowed values are an empty string (compile all), or comma-separated combinations like '.deb_linux_amd64', '.pkg.tar.zst_linux_aarch64', etc", cleanBuild)
 			}
 		}
 	}
@@ -135,10 +142,10 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 
 	sourceScriptPath := ""
 	if ctx.compileMode == "debug" {
-		if runtime.GOARCH == "arm64" && ctx.sourcePathARM64 != "" {
-			sourceScriptPath = ctx.sourcePathARM64
-		} else if ctx.sourcePathAMD64 != "" {
-			sourceScriptPath = ctx.sourcePathAMD64
+		if (runtime.GOARCH == "arm64" || runtime.GOARCH == "aarch64") && ctx.sourcePathLinuxAArch64 != "" {
+			sourceScriptPath = ctx.sourcePathLinuxAArch64
+		} else if ctx.sourcePathLinuxAMD64 != "" {
+			sourceScriptPath = ctx.sourcePathLinuxAMD64
 		}
 	}
 	sourceScriptExpr := fmt.Sprintf("QStringLiteral(\"%s\")", cppStringLiteral(sourceScriptPath))
@@ -290,21 +297,23 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 
 	// Pass control to the execution engine
 	buildCtx := BuildContext{
-		CompileMode:       ctx.compileMode,
-		TargetArchs:       ctx.targetArchs,
-		BaseDir:           ctx.baseDir,
-		PackageName:       ctx.packageName,
-		BundledSourceName: ctx.bundledSourceName,
-		SourcePathAMD64:   ctx.sourcePathAMD64,
-		SourcePathARM64:   ctx.sourcePathARM64,
-		FinalSourceCode:   finalSource,
-		DefaultsJSON:      defaultsJSONBytes,
-		RootConfig:        ctx.root,
-		IconName:          ctx.iconName,
-		IconPath:          ctx.iconPath,
-		LogLevel:          logLevel,
-		ClearCache:        clearCache,
-		TargetBuilds:      targetBuilds,
+		CompileMode:            ctx.compileMode,
+		TargetArchs:            ctx.targetArchs,
+		BaseDir:                ctx.baseDir,
+		PackageName:            ctx.packageName,
+		BundledSourceName:      ctx.bundledSourceName,
+		SourcePathLinuxAMD64:   ctx.sourcePathLinuxAMD64,
+		SourcePathLinuxAArch64: ctx.sourcePathLinuxAArch64,
+		SourcePathAMD64:        ctx.sourcePathAMD64,
+		SourcePathARM64:        ctx.sourcePathARM64,
+		FinalSourceCode:        finalSource,
+		DefaultsJSON:           defaultsJSONBytes,
+		RootConfig:             ctx.root,
+		IconName:               ctx.iconName,
+		IconPath:               ctx.iconPath,
+		LogLevel:               logLevel,
+		ClearCache:             clearCache,
+		TargetBuilds:           targetBuilds,
 	}
 
 	return runBuildLoop(buildCtx)

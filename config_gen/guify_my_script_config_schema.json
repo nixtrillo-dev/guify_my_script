@@ -13,8 +13,8 @@
           "icon": "/usr/share/icons/hicolor/256x256/apps/com.nixtrillo.guifymyscript.png",
           "uuid": "com.$USER.${2:uuid}",
           "script_alias": "${3:script_name}",
-          "source_script_amd64": "${4:/path/to/script_amd64}",
-          "source_script_arm64": "${5:/path/to/script_arm64}",
+          "source_script_linux_amd64": "${4:/path/to/script_linux_amd64}",
+          "source_script_linux_aarch64": "${5:/path/to/script_linux_aarch64}",
           "source_type": "${6|go,bash,python,javascript,powershell,rust|}",
           "startup": "tray",
           "tray_on_minimize": true,
@@ -91,8 +91,8 @@
             "icon": "/home/$USER/Pictures/Icons/gms/com.nixtrillo.gms.png",
             "uuid": "com.$USER.${2:uuid}",
             "script_alias": "${3:script_name}",
-            "source_script_amd64": "${4:/path/to/script_amd64}",
-            "source_script_arm64": "${5:/path/to/script_arm64}",
+            "source_script_linux_amd64": "${4:/path/to/script_linux_amd64}",
+            "source_script_linux_aarch64": "${5:/path/to/script_linux_aarch64}",
             "source_type": "${6|go,bash,python,javascript,powershell,rust|}",
             "startup": "tray",
             "tray_on_minimize": true,
@@ -114,8 +114,6 @@
         "icon",
         "uuid",
         "script_alias",
-        "source_script_amd64",
-        "source_script_arm64",
         "source_type",
         "startup",
         "tray_on_minimize",
@@ -123,6 +121,20 @@
         "close_after_startup_action",
         "sudo",
         "theme"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "source_script_linux_amd64",
+            "source_script_linux_aarch64"
+          ]
+        },
+        {
+          "required": [
+            "source_script_amd64",
+            "source_script_arm64"
+          ]
+        }
       ],
       "properties": {
         "title": {
@@ -141,13 +153,21 @@
           "type": "string",
           "description": "Internal name for the bundled source script. Used as the filename when bundling the script in production mode."
         },
+        "source_script_linux_amd64": {
+          "type": "string",
+          "description": "Path to the source script for Linux AMD64/x86_64 architecture. Used in debug mode and bundled in production builds for linux_amd64."
+        },
+        "source_script_linux_aarch64": {
+          "type": "string",
+          "description": "Path to the source script for Linux ARM64/aarch64 architecture. Used in debug mode and bundled in production builds for linux_aarch64."
+        },
         "source_script_amd64": {
           "type": "string",
-          "description": "Path to the source script for AMD64/x86_64 architecture. Used in debug mode and bundled in production builds for amd64."
+          "description": "Deprecated: Path to the source script for AMD64/x86_64 architecture. Retained for backwards compatibility; use source_script_linux_amd64 instead."
         },
         "source_script_arm64": {
           "type": "string",
-          "description": "Path to the source script for ARM64/aarch64 architecture. Used in debug mode and bundled in production builds for arm64."
+          "description": "Deprecated: Path to the source script for ARM64/aarch64 architecture. Retained for backwards compatibility; use source_script_linux_aarch64 instead."
         },
         "source_type": {
           "type": "string",

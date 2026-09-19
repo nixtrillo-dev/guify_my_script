@@ -5,9 +5,17 @@ ARCH=$(uname -m)
 
 # Assign the correct executable name
 if [ "$ARCH" = "x86_64" ] || [ "$ARCH" = "amd64" ]; then
-    EXEC="./guify_my_script_amd64"
+    if [ -x "./guify_my_script_linux_amd64" ]; then
+        EXEC="./guify_my_script_linux_amd64"
+    else
+        EXEC="./guify_my_script_amd64"
+    fi
 elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then
-    EXEC="./guify_my_script_arm64"
+    if [ -x "./guify_my_script_linux_aarch64" ]; then
+        EXEC="./guify_my_script_linux_aarch64"
+    else
+        EXEC="./guify_my_script_arm64"
+    fi
 else
     echo "Error: Unsupported architecture ($ARCH)."
     exit 1

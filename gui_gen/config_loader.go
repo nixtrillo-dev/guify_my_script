@@ -22,9 +22,11 @@ type configContext struct {
 	compileMode       string
 	baseDir           string
 	packageName       string
-	sourcePathAMD64   string
-	sourcePathARM64   string
-	bundledSourceName string
+	sourcePathLinuxAMD64   string
+	sourcePathLinuxAArch64 string
+	sourcePathAMD64        string // Deprecated: Kept for backwards compatibility
+	sourcePathARM64        string // Deprecated: Kept for backwards compatibility
+	bundledSourceName      string
 	targetArchs       []string
 	trayMinimizeState string
 	startupTrayState  string
@@ -99,15 +101,39 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 	}
 	ctx.packageName = sanitizePackageName(uuid)
 
-	ctx.sourcePathAMD64 = ctx.root.Config.SourceScriptAMD64
-	if ctx.sourcePathAMD64 != "" && !filepath.IsAbs(ctx.sourcePathAMD64) {
-		ctx.sourcePathAMD64 = filepath.Join(ctx.baseDir, ctx.sourcePathAMD64)
+	ctx.sourcePathLinuxAMD64 = ctx.root.Config.SourceScriptLinuxAMD64
+	if ctx.sourcePathLinuxAMD64 == "" {
+		ctx.sourcePathLinuxAMD64 = ctx.root.Config.SourceScriptAMD64
 	}
+	if ctx.sourcePathLinuxAMD64 != "" && !filepath.IsAbs(ctx.sourcePathLinuxAMD64) {
+		ctx.sourcePathLinuxAMD64 = filepath.Join(ctx.baseDir, ctx.sourcePathLinuxAMD64)
+	}
+	if ctx.sourcePathLinuxAMD64 != "" {
+		if _, err := os.Stat(ctx.sourcePathLinuxAMD64); err != nil {
+			legacyAMD64 := strings.Replace(ctx.sourcePathLinuxAMD64, "_linux_amd64", "_amd64", 1)
+			if _, errLegacy := os.Stat(legacyAMD64); errLegacy == nil {
+				ctx.sourcePathLinuxAMD64 = legacyAMD64
+			}
+		}
+	}
+	ctx.sourcePathAMD64 = ctx.sourcePathLinuxAMD64
 
-	ctx.sourcePathARM64 = ctx.root.Config.SourceScriptARM64
-	if ctx.sourcePathARM64 != "" && !filepath.IsAbs(ctx.sourcePathARM64) {
-		ctx.sourcePathARM64 = filepath.Join(ctx.baseDir, ctx.sourcePathARM64)
+	ctx.sourcePathLinuxAArch64 = ctx.root.Config.SourceScriptLinuxAArch64
+	if ctx.sourcePathLinuxAArch64 == "" {
+		ctx.sourcePathLinuxAArch64 = ctx.root.Config.SourceScriptARM64
 	}
+	if ctx.sourcePathLinuxAArch64 != "" && !filepath.IsAbs(ctx.sourcePathLinuxAArch64) {
+		ctx.sourcePathLinuxAArch64 = filepath.Join(ctx.baseDir, ctx.sourcePathLinuxAArch64)
+	}
+	if ctx.sourcePathLinuxAArch64 != "" {
+		if _, err := os.Stat(ctx.sourcePathLinuxAArch64); err != nil {
+			legacyARM64 := strings.Replace(ctx.sourcePathLinuxAArch64, "_linux_aarch64", "_arm64", 1)
+			if _, errLegacy := os.Stat(legacyARM64); errLegacy == nil {
+				ctx.sourcePathLinuxAArch64 = legacyARM64
+			}
+		}
+	}
+	ctx.sourcePathARM64 = ctx.sourcePathLinuxAArch64
 
 	// Handle icon configuration
 	// iconName is the theme-able icon name (e.g., package name or a system icon name)
@@ -131,10 +157,10 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 
 	ctx.bundledSourceName = strings.TrimSpace(ctx.root.Config.ScriptAlias)
 	if ctx.bundledSourceName == "." || ctx.bundledSourceName == string(filepath.Separator) || ctx.bundledSourceName == "" {
-		if ctx.sourcePathAMD64 != "" {
-			ctx.bundledSourceName = filepath.Base(ctx.sourcePathAMD64)
-		} else if ctx.sourcePathARM64 != "" {
-			ctx.bundledSourceName = filepath.Base(ctx.sourcePathARM64)
+		if ctx.sourcePathLinuxAMD64 != "" {
+			ctx.bundledSourceName = filepath.Base(ctx.sourcePathLinuxAMD64)
+		} else if ctx.sourcePathLinuxAArch64 != "" {
+			ctx.bundledSourceName = filepath.Base(ctx.sourcePathLinuxAArch64)
 		} else {
 			ctx.bundledSourceName = "script_alias"
 		}
@@ -145,24 +171,24 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 
 	// --- AUTO-DETECT ARCHITECTURES ---
 	if ctx.compileMode == "production" {
-		// Detect AMD64
-		if ctx.sourcePathAMD64 != "" {
-			if _, err := os.Stat(ctx.sourcePathAMD64); err == nil {
-				ctx.targetArchs = append(ctx.targetArchs, "amd64")
+		// Detect Linux AMD64
+		if ctx.sourcePathLinuxAMD64 != "" {
+			if _, err := os.Stat(ctx.sourcePathLinuxAMD64); err == nil {
+				ctx.targetArchs = append(ctx.targetArchs, "linux_amd64")
 			}
 		}
 
-		// Detect ARM64
-		if ctx.sourcePathARM64 != "" {
-			if _, err := os.Stat(ctx.sourcePathARM64); err == nil {
-				ctx.targetArchs = append(ctx.targetArchs, "arm64")
+		// Detect Linux AArch64
+		if ctx.sourcePathLinuxAArch64 != "" {
+			if _, err := os.Stat(ctx.sourcePathLinuxAArch64); err == nil {
+				ctx.targetArchs = append(ctx.targetArchs, "linux_aarch64")
 			}
 		}
 	}
 
 	// Fallback if no specific suffixes are found, or if running in debug mode
 	if len(ctx.targetArchs) == 0 {
-		ctx.targetArchs = []string{"amd64"}
+		ctx.targetArchs = []string{"linux_amd64"}
 	}
 
 	return ctx, nil

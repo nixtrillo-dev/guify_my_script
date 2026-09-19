@@ -700,25 +700,25 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 	}
 
 	logger.Info(lvl, "Cargo build completed successfully.\n")
-	logger.Info(lvl, "Building for architecture: amd64...")
+	logger.Info(lvl, "Building for architecture: linux_amd64...")
 
 	// Locate release executable.
 	targetReleaseDir := filepath.Join(buildDir, "target", "release")
 	candidateBin := filepath.Join(targetReleaseDir, crateName)
 
-	cliBinNameAMD64 := fmt.Sprintf("%s_amd64", binaryName)
+	cliBinNameLinuxAMD64 := fmt.Sprintf("%s_linux_amd64", binaryName)
 	cliBinNameDefault := binaryName
 
 	// binaryName is always absolute here (resolved above).
-	destAMD64 := cliBinNameAMD64
+	destLinuxAMD64 := cliBinNameLinuxAMD64
 	destDefault := cliBinNameDefault
 
 	if _, err := os.Stat(candidateBin); err == nil {
-		if err := copyExecutable(candidateBin, destAMD64); err != nil {
-			return fmt.Errorf("failed copying amd64 binary: %w", err)
+		if err := copyExecutable(candidateBin, destLinuxAMD64); err != nil {
+			return fmt.Errorf("failed copying linux_amd64 binary: %w", err)
 		}
 		_ = copyExecutable(candidateBin, destDefault)
-		logger.Info(lvl, "  • Built AMD64 executable: %s", destAMD64)
+		logger.Info(lvl, "  • Built Linux AMD64 executable: %s", destLinuxAMD64)
 	} else {
 		// No executable was produced — this is expected for library-only crates
 		// (lib.rs with no [[bin]] section).  Only log if a binary target was actually
@@ -732,22 +732,22 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 
 	// Step 2: Build C++ shared library (.so)
 	// binaryName is absolute; append the suffix directly.
-	libBinNameAMD64 := fmt.Sprintf("%s_amd64.so", binaryName)
-	destLibAMD64 := libBinNameAMD64
+	libBinNameLinuxAMD64 := fmt.Sprintf("%s_linux_amd64.so", binaryName)
+	destLibLinuxAMD64 := libBinNameLinuxAMD64
 
 	// Check if cargo already built a cdylib in target/release/
 	builtCdylib := filepath.Join(targetReleaseDir, fmt.Sprintf("lib%s.so", crateName))
 	if _, err := os.Stat(builtCdylib); err == nil {
-		if err := copyExecutable(builtCdylib, destLibAMD64); err != nil {
+		if err := copyExecutable(builtCdylib, destLibLinuxAMD64); err != nil {
 			return fmt.Errorf("failed copying shared library: %w", err)
 		}
-		logger.Info(lvl, "  • Built AMD64 C++ shared library: %s", destLibAMD64)
+		logger.Info(lvl, "  • Built Linux AMD64 C++ shared library: %s", destLibLinuxAMD64)
 	} else if absBridge != "" {
 		// Compile absBridge with rustc as cdylib.
 		depsDir := filepath.Join(targetReleaseDir, "deps")
 
 		var rustcArgs []string
-		rustcArgs = append(rustcArgs, "--edition", "2021", "--crate-type", "cdylib", absBridge, "-o", destLibAMD64)
+		rustcArgs = append(rustcArgs, "--edition", "2021", "--crate-type", "cdylib", absBridge, "-o", destLibLinuxAMD64)
 
 		for _, cDir := range allLibCrateDirs {
 			cName := getCrateName(cDir)
@@ -778,38 +778,38 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 		if err := cmdLib.Run(); err != nil {
 			logger.Info(lvl, "Note: rustc cdylib compile failed: %s", errLib.String())
 		} else {
-			_ = os.Chmod(destLibAMD64, 0755)
-			logger.Info(lvl, "  • Built AMD64 C++ shared library: %s", destLibAMD64)
+			_ = os.Chmod(destLibLinuxAMD64, 0755)
+			logger.Info(lvl, "  • Built Linux AMD64 C++ shared library: %s", destLibLinuxAMD64)
 		}
 	}
 
 	// Optional: Attempt ARM64 build if toolchain is installed
 	cmdCheckTarget := exec.Command("rustup", "target", "list")
 	if out, err := cmdCheckTarget.Output(); err == nil && strings.Contains(string(out), "aarch64-unknown-linux-gnu (installed)") {
-		logger.Info(lvl, "\nBuilding for architecture: arm64...")
+		logger.Info(lvl, "\nBuilding for architecture: linux_aarch64...")
 		cmdArm := exec.Command("cargo", "build", "--release", "--target", "aarch64-unknown-linux-gnu")
 		cmdArm.Dir = buildDir
 		cmdArm.Env = append(os.Environ(), "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc")
 		if err := cmdArm.Run(); err == nil {
 			armReleaseDir := filepath.Join(buildDir, "target", "aarch64-unknown-linux-gnu", "release")
 
-			// ARM64 executable
+			// AArch64 executable
 			armCandidate := filepath.Join(armReleaseDir, crateName)
-			cliBinARM64 := fmt.Sprintf("%s_arm64", binaryName)
-			_ = copyExecutable(armCandidate, cliBinARM64)
-			logger.Info(lvl, "  • Built ARM64 executable: %s", cliBinARM64)
+			cliBinLinuxAArch64 := fmt.Sprintf("%s_linux_aarch64", binaryName)
+			_ = copyExecutable(armCandidate, cliBinLinuxAArch64)
+			logger.Info(lvl, "  • Built Linux AArch64 executable: %s", cliBinLinuxAArch64)
 
-			// ARM64 .so — same glob-based rlib lookup as AMD64
+			// AArch64 .so — same glob-based rlib lookup as AMD64
 			if absBridge != "" {
 				armDepsDir := filepath.Join(armReleaseDir, "deps")
-				destLibARM64 := fmt.Sprintf("%s_arm64.so", binaryName)
+				destLibLinuxAArch64 := fmt.Sprintf("%s_linux_aarch64.so", binaryName)
 				var rustcArgsArm []string
 				rustcArgsArm = append(rustcArgsArm,
 					"--edition", "2021",
 					"--crate-type", "cdylib",
 					"--target", "aarch64-unknown-linux-gnu",
 					"-C", "linker=aarch64-linux-gnu-gcc",
-					absBridge, "-o", destLibARM64,
+					absBridge, "-o", destLibLinuxAArch64,
 				)
 
 				for _, cDir := range allLibCrateDirs {
@@ -830,10 +830,10 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 				cmdLibArm.Stdout = os.Stdout
 				cmdLibArm.Stderr = &errLibArm
 				if err := cmdLibArm.Run(); err != nil {
-					logger.Info(lvl, "Note: rustc arm64 cdylib compile failed: %s", errLibArm.String())
+					logger.Info(lvl, "Note: rustc aarch64 cdylib compile failed: %s", errLibArm.String())
 				} else {
-					_ = os.Chmod(destLibARM64, 0755)
-					logger.Info(lvl, "  • Built ARM64 C++ shared library: %s", destLibARM64)
+					_ = os.Chmod(destLibLinuxAArch64, 0755)
+					logger.Info(lvl, "  • Built Linux AArch64 C++ shared library: %s", destLibLinuxAArch64)
 				}
 			}
 		}
