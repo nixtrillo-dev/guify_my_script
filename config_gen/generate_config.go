@@ -251,6 +251,9 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	if !overwrite {
 		if _, err := os.Stat(outputPath); err == nil {
 			logger.Warn(lvl, "Safety abort: target file '%s' already exists. Skipping JSON generation.\n", outputPath)
+			if err := copySchemaToOutputDir(outputPath); err != nil {
+				return fmt.Errorf("failed to copy schema to output directory: %w", err)
+			}
 			if autoOpen {
 				openFileInEditor(outputPath, lvl)
 			} else {
@@ -474,7 +477,7 @@ func parseGoFile(path string) ([]UIAction, error) {
 			Sudo:                      false,
 			ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(bashName)),
 			ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(bashName)),
-			StopLabel:                 "Stop",
+			StopLabel:                 "Abort",
 			AdvancedMenu:              false,
 			AdvancedMenuTabTitle:      "",
 			Fields:                    fields,
@@ -519,7 +522,7 @@ func parseBashFile(path string) ([]UIAction, error) {
 				Sudo:                      false,
 				ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(name)),
 				ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(name)),
-				StopLabel:                 "Stop",
+				StopLabel:                 "Abort",
 				AdvancedMenu:              false,
 				AdvancedMenuTabTitle:      "",
 				Fields:                    fields,
@@ -698,7 +701,7 @@ func parsePythonFile(path string) ([]UIAction, error) {
 			Sudo:                      false,
 			ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(name)),
 			ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(name)),
-			StopLabel:                 "Stop",
+			StopLabel:                 "Abort",
 			AdvancedMenu:              false,
 			AdvancedMenuTabTitle:      "",
 			Fields:                    fields,

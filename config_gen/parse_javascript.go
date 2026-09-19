@@ -61,10 +61,10 @@ func parseJavaScriptFile(path string) ([]UIAction, error) {
 			QuickLaunch:               false,
 			Width:                     600,
 			Sudo:                      false,
-			InvokeAsObject:           invokeAsObject,
+			InvokeAsObject:            invokeAsObject,
 			ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(name)),
 			ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(name)),
-			StopLabel:                 "Stop",
+			StopLabel:                 "Abort",
 			Fields:                    fields,
 		})
 	}

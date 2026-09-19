@@ -59,7 +59,7 @@ func parseRustFile(path string) ([]UIAction, error) {
 				Sudo:                      false,
 				ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(bashName)),
 				ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(bashName)),
-				StopLabel:                 "Stop",
+				StopLabel:                 "Abort",
 				Fields:                    fields,
 			})
 		}
@@ -113,7 +113,7 @@ func parseRustFile(path string) ([]UIAction, error) {
 			Sudo:                      false,
 			ExecLabel:                 fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(bashName)),
 			ExecInProgressLabel:       fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(bashName)),
-			StopLabel:                 "Stop",
+			StopLabel:                 "Abort",
 			Fields:                    fields,
 		})
 	}

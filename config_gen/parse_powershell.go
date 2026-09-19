@@ -50,7 +50,7 @@ func parsePowerShellFile(path string) ([]UIAction, error) {
 			QuickLaunch: false, Width: 600, Sudo: false,
 			ExecLabel:           fmt.Sprintf("Execute %s", internal_utils.ToTitleCase(name)),
 			ExecInProgressLabel: fmt.Sprintf("Executing %s...", internal_utils.ToTitleCase(name)),
-			StopLabel:           "Stop", Fields: fields,
+			StopLabel:           "Abort", Fields: fields,
 		})
 	}
 	return actions, nil

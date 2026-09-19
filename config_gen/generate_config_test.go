@@ -96,6 +96,39 @@ func DoWork(name string) {}
 	}
 }
 
+func TestGenerateGUIConfig_ExistingOutputRefreshesSchema(t *testing.T) {
+	tempDir := t.TempDir()
+	goFile := filepath.Join(tempDir, "sample.go")
+	if err := os.WriteFile(goFile, []byte("package main\n\nfunc DoWork() {}\n"), 0644); err != nil {
+		t.Fatalf("Failed creating dummy go file: %v", err)
+	}
+
+	outputJSON := filepath.Join(tempDir, "config.json")
+	if err := os.WriteFile(outputJSON, []byte("existing config"), 0644); err != nil {
+		t.Fatalf("Failed creating existing config: %v", err)
+	}
+	schemaPath := filepath.Join(tempDir, "guify_my_script_config_schema.json")
+	if err := os.WriteFile(schemaPath, []byte("stale schema"), 0644); err != nil {
+		t.Fatalf("Failed creating stale schema: %v", err)
+	}
+
+	if err := GenerateGUIConfig(goFile, outputJSON, "", false, "DEBUG", false); err != nil {
+		t.Fatalf("GenerateGUIConfig failed: %v", err)
+	}
+
+	actualSchema, err := os.ReadFile(schemaPath)
+	if err != nil {
+		t.Fatalf("Failed reading refreshed schema: %v", err)
+	}
+	expectedSchema, err := schemaFile.ReadFile("guify_my_script_config_schema.json")
+	if err != nil {
+		t.Fatalf("Failed reading embedded schema: %v", err)
+	}
+	if string(actualSchema) != string(expectedSchema) {
+		t.Error("Existing output should still refresh the schema copy")
+	}
+}
+
 func TestGenerateGUIConfig_BashSource(t *testing.T) {
 	tempDir := t.TempDir()
 	shFile := filepath.Join(tempDir, "script.sh")
@@ -567,4 +600,3 @@ func TestUIConfig_UnmarshalJSON_LegacySourceScriptFields(t *testing.T) {
 		t.Errorf("Expected SourceScriptLinuxAArch64 to be populated from legacy field, got %q", cfg.SourceScriptLinuxAArch64)
 	}
 }
-

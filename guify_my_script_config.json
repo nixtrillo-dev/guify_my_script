@@ -579,9 +579,9 @@
             "quick_launch": false,
             "width": 600,
             "sudo": true,
-            "exec_label": "Execute Action Title",
-            "exec_in_progress_label": "Executing Action Title...",
-            "stop_label": "Stop",
+            "exec_label": "Setup Android NDK",
+            "exec_in_progress_label": "Setting up Android NDK...",
+            "stop_label": "Abort",
             "fields": [
                 {
                     "name": "Log Level",
