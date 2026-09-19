@@ -12,6 +12,9 @@ func TestCompileScriptWithGuiConfig_RustProject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to resolve absolute path: %v", err)
 	}
+	if _, err := os.Stat(absProjectDir); os.IsNotExist(err) {
+		t.Skip("skipping test: examples/rust_test_script does not exist")
+	}
 
 	tempDir := t.TempDir()
 	outputJSON := filepath.Join(tempDir, "core_utils_config.json")
@@ -64,6 +67,9 @@ func TestCompileScriptWithGuiConfig_RustProjectAutoDetect(t *testing.T) {
 	absParentDir, err := filepath.Abs(parentDir)
 	if err != nil {
 		t.Fatalf("Failed to resolve absolute path: %v", err)
+	}
+	if _, err := os.Stat(absParentDir); os.IsNotExist(err) {
+		t.Skip("skipping test: examples/rust_test_script does not exist")
 	}
 
 	tempDir := t.TempDir()

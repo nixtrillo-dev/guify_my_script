@@ -839,8 +839,133 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 		}
 	}
 
+	// Step 3: Attempt Android AArch64 (Termux) build
+	cmdCheckAndroidTarget := exec.Command("rustup", "target", "list")
+	androidTargetInstalled := false
+	if out, err := cmdCheckAndroidTarget.Output(); err == nil && strings.Contains(string(out), "aarch64-linux-android (installed)") {
+		androidTargetInstalled = true
+	}
+
+	if androidTargetInstalled {
+		linker := findAndroidAArch64Linker()
+		hasCargoNdk := false
+		if _, err := exec.LookPath("cargo-ndk"); err == nil {
+			hasCargoNdk = true
+		}
+
+		if linker != "" || hasCargoNdk {
+			logger.Info(lvl, "\nBuilding for architecture: android_aarch64...")
+			var cmdAndroid *exec.Cmd
+			if hasCargoNdk && linker == "" {
+				cmdAndroid = exec.Command("cargo", "ndk", "-t", "aarch64-linux-android", "build", "--release")
+			} else {
+				cmdAndroid = exec.Command("cargo", "build", "--release", "--target", "aarch64-linux-android")
+				cmdAndroid.Env = append(os.Environ(), "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="+linker)
+			}
+			cmdAndroid.Dir = buildDir
+			var errAndroid strings.Builder
+			cmdAndroid.Stdout = os.Stdout
+			cmdAndroid.Stderr = &errAndroid
+
+			if err := cmdAndroid.Run(); err == nil {
+				androidReleaseDir := filepath.Join(buildDir, "target", "aarch64-linux-android", "release")
+				androidCandidate := filepath.Join(androidReleaseDir, crateName)
+				cliBinAndroidAArch64 := fmt.Sprintf("%s_android_aarch64", binaryName)
+				if err := copyExecutable(androidCandidate, cliBinAndroidAArch64); err == nil {
+					_ = os.Chmod(cliBinAndroidAArch64, 0755)
+					logger.Info(lvl, "  • Built Android AArch64 executable: %s", cliBinAndroidAArch64)
+				}
+			} else {
+				logger.Info(lvl, "Note: cargo android_aarch64 build failed: %s", errAndroid.String())
+			}
+		} else {
+			logger.Info(lvl, "\nNote: Skipping android_aarch64 build for Rust: Android NDK linker (aarch64-linux-android*-clang) not found. Set ANDROID_NDK_HOME, CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER, or install cargo-ndk to compile Android Termux binaries.")
+		}
+	} else {
+		logger.Info(lvl, "\nNote: Skipping android_aarch64 build for Rust: target aarch64-linux-android is not installed. Run 'rustup target add aarch64-linux-android' to enable.")
+	}
+
 	logger.Info(lvl, "Successfully compiled Rust deliverables in %s.", buildDir)
 	return nil
+}
+
+// findAndroidAArch64Linker attempts to locate a suitable linker for aarch64-linux-android.
+// It checks environment variables, PATH, and standard Android NDK installations.
+func findAndroidAArch64Linker() string {
+	// 1. Check explicit environment override
+	if envLinker := os.Getenv("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER"); envLinker != "" {
+		if _, err := exec.LookPath(envLinker); err == nil {
+			return envLinker
+		}
+		if _, err := os.Stat(envLinker); err == nil {
+			return envLinker
+		}
+	}
+
+	// 2. Check PATH for aarch64-linux-android*-clang binaries
+	if p, err := exec.LookPath("aarch64-linux-android-clang"); err == nil {
+		return p
+	}
+
+	pathEnv := os.Getenv("PATH")
+	for _, dir := range filepath.SplitList(pathEnv) {
+		matches, err := filepath.Glob(filepath.Join(dir, "aarch64-linux-android*-clang"))
+		if err == nil && len(matches) > 0 {
+			sort.Sort(sort.Reverse(sort.StringSlice(matches)))
+			for _, m := range matches {
+				if !strings.HasSuffix(m, "++") {
+					return m
+				}
+			}
+		}
+	}
+
+	// 3. Check NDK environment variables and standard locations
+	var candidateNdkDirs []string
+	if ndk := os.Getenv("ANDROID_NDK_HOME"); ndk != "" {
+		candidateNdkDirs = append(candidateNdkDirs, ndk)
+	}
+	if ndk := os.Getenv("ANDROID_NDK_ROOT"); ndk != "" {
+		candidateNdkDirs = append(candidateNdkDirs, ndk)
+	}
+	if ndk := os.Getenv("NDK_HOME"); ndk != "" {
+		candidateNdkDirs = append(candidateNdkDirs, ndk)
+	}
+	if sdk := os.Getenv("ANDROID_HOME"); sdk != "" {
+		ndkGlob := filepath.Join(sdk, "ndk", "*")
+		if matches, err := filepath.Glob(ndkGlob); err == nil {
+			candidateNdkDirs = append(candidateNdkDirs, matches...)
+		}
+		candidateNdkDirs = append(candidateNdkDirs, filepath.Join(sdk, "ndk-bundle"))
+	}
+
+	homeDir, _ := os.UserHomeDir()
+	if homeDir != "" {
+		candidateNdkDirs = append(candidateNdkDirs,
+			filepath.Join(homeDir, "Android", "Sdk", "ndk-bundle"),
+		)
+		if matches, err := filepath.Glob(filepath.Join(homeDir, "Android", "Sdk", "ndk", "*")); err == nil {
+			candidateNdkDirs = append(candidateNdkDirs, matches...)
+		}
+	}
+	candidateNdkDirs = append(candidateNdkDirs,
+		"/opt/android-ndk",
+		"/usr/lib/android-ndk",
+	)
+
+	for _, ndkDir := range candidateNdkDirs {
+		llvmBinGlob := filepath.Join(ndkDir, "toolchains", "llvm", "prebuilt", "*", "bin", "aarch64-linux-android*-clang")
+		if matches, err := filepath.Glob(llvmBinGlob); err == nil && len(matches) > 0 {
+			sort.Sort(sort.Reverse(sort.StringSlice(matches)))
+			for _, m := range matches {
+				if !strings.HasSuffix(m, "++") {
+					return m
+				}
+			}
+		}
+	}
+
+	return ""
 }
 
 // autoGenMarker is the substring used in all auto-generated files to identify them

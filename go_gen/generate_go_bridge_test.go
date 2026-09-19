@@ -249,3 +249,80 @@ func TestGenerateBridge_GofmtCanonical(t *testing.T) {
 		t.Error("Generated bridge contains double blank lines")
 	}
 }
+
+func TestGenerateBridge_GeneratesAndroidCompanion(t *testing.T) {
+	tempDir := writeGoBridgeFixture(t)
+
+	targetDir, absBridge, err := GenerateBridge(tempDir, "", "", "DEBUG", false)
+	if err != nil {
+		t.Fatalf("GenerateBridge failed: %v", err)
+	}
+
+	// Verify main bridge has //go:build !android
+	mainContent, err := os.ReadFile(absBridge)
+	if err != nil {
+		t.Fatalf("read main bridge failed: %v", err)
+	}
+	if !strings.Contains(string(mainContent), "//go:build !android") {
+		t.Errorf("Expected main bridge to have //go:build !android tag")
+	}
+	if !strings.Contains(string(mainContent), `import "C"`) {
+		t.Errorf("Expected main bridge to have import \"C\"")
+	}
+
+	// Verify companion android bridge exists
+	androidBridge := strings.TrimSuffix(absBridge, ".go") + "_android.go"
+	androidContent, err := os.ReadFile(androidBridge)
+	if err != nil {
+		t.Fatalf("read android companion bridge failed: %v", err)
+	}
+	if !strings.Contains(string(androidContent), "//go:build android") {
+		t.Errorf("Expected android bridge to have //go:build android tag")
+	}
+	if strings.Contains(string(androidContent), `import "C"`) {
+		t.Errorf("Android companion bridge must not have import \"C\"")
+	}
+	if !strings.Contains(string(androidContent), "func main()") {
+		t.Errorf("Android companion bridge must have func main()")
+	}
+
+	_ = targetDir
+}
+
+func TestCompileLocal_BuildsAndroidAArch64(t *testing.T) {
+	tempDir := t.TempDir()
+	mainGo := filepath.Join(tempDir, "script.go")
+	src := `package main
+
+import "fmt"
+
+func EchoMsg(msg string) {
+	fmt.Println(msg)
+}
+`
+	if err := os.WriteFile(mainGo, []byte(src), 0644); err != nil {
+		t.Fatalf("failed writing script.go: %v", err)
+	}
+
+	targetDir, absBridge, err := GenerateBridge(tempDir, "", "", "DEBUG", false)
+	if err != nil {
+		t.Fatalf("GenerateBridge failed: %v", err)
+	}
+
+	binaryBase := filepath.Join(tempDir, "myscript")
+	err = CompileLocal(targetDir, absBridge, binaryBase, "DEBUG")
+	if err != nil {
+		t.Fatalf("CompileLocal failed: %v", err)
+	}
+
+	// Verify the android_aarch64 executable was compiled
+	androidBin := binaryBase + "_android_aarch64"
+	fi, err := os.Stat(androidBin)
+	if err != nil {
+		t.Fatalf("Expected android_aarch64 binary to exist at %s: %v", androidBin, err)
+	}
+	if fi.Mode()&0111 == 0 {
+		t.Errorf("Expected %s to have executable permissions, mode is %v", androidBin, fi.Mode())
+	}
+}
+

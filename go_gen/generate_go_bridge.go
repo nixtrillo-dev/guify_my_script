@@ -42,7 +42,9 @@ type TemplateWrapper struct {
 }
 
 // Complete cross-boundary interop boilerplate definitions
-const bridgeTemplate = `package main
+const bridgeTemplate = `//go:build !android
+
+package main
 
 import "C"
 import (
@@ -77,6 +79,104 @@ func Go{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}} {{
 	return 1
 }
 {{end}}
+
+// =====================================================================
+// AUTOMATICALLY GENERATED BASH CLI ROUTER
+// =====================================================================
+func main() {
+	if len(os.Args) < 2 {
+		fmt.Println("Error: Missing command function name")
+		os.Exit(1)
+	}
+
+	switch os.Args[1] {
+	{{range .Functions}}    case "{{.BashName}}":
+		{{if .Args}}if len(os.Args) < {{add (len .Args) 2}} {
+			fmt.Println("Error: {{.BashName}} requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+		{{range $idx, $arg := .Args}}
+		{{if eq $arg.Type "string"}}
+		cli_{{$arg.Name}} := os.Args[{{add $idx 2}}]
+		{{else if eq $arg.Type "bool"}}
+		cli_{{$arg.Name}}, err_{{$arg.Name}} := strconv.ParseBool(os.Args[{{add $idx 2}}])
+		if err_{{$arg.Name}} != nil {
+			if os.Args[{{add $idx 2}}] == "1" {
+				cli_{{$arg.Name}} = true
+			} else if os.Args[{{add $idx 2}}] == "0" {
+				cli_{{$arg.Name}} = false
+			} else {
+				fmt.Printf("Error: parameter '{{$arg.Name}}' must be a valid boolean evaluation: %v\n", err_{{$arg.Name}})
+				os.Exit(1)
+			}
+		}
+		{{else if eq $arg.Type "*bool"}}
+		var cli_{{$arg.Name}} *bool
+		raw_{{$arg.Name}} := os.Args[{{add $idx 2}}]
+		if raw_{{$arg.Name}} != "" && raw_{{$arg.Name}} != "nil" && raw_{{$arg.Name}} != "null" {
+			parsed_{{$arg.Name}}, err_{{$arg.Name}} := strconv.ParseBool(raw_{{$arg.Name}})
+			if err_{{$arg.Name}} != nil {
+				if raw_{{$arg.Name}} == "1" {
+					parsed_{{$arg.Name}} = true
+				} else if raw_{{$arg.Name}} == "0" {
+					parsed_{{$arg.Name}} = false
+				} else {
+					fmt.Printf("Error: parameter '{{$arg.Name}}' must be a valid boolean or nil: %v\n", err_{{$arg.Name}})
+					os.Exit(1)
+				}
+			}
+			cli_{{$arg.Name}} = &parsed_{{$arg.Name}}
+		}
+		{{else if eq $arg.Type "int"}}
+		var cli_{{$arg.Name}}_raw int
+		raw_{{$arg.Name}} := os.Args[{{add $idx 2}}]
+		if raw_{{$arg.Name}} != "" && raw_{{$arg.Name}} != "null" && raw_{{$arg.Name}} != "nil" {
+			parsed_{{$arg.Name}}, err_{{$arg.Name}} := strconv.Atoi(raw_{{$arg.Name}})
+			if err_{{$arg.Name}} != nil {
+				fmt.Printf("Error: parameter '{{$arg.Name}}' must be a valid integer: %v\n", err_{{$arg.Name}})
+				os.Exit(1)
+			}
+			cli_{{$arg.Name}}_raw = parsed_{{$arg.Name}}
+		}
+		{{if $arg.CastType}}cli_{{$arg.Name}} := {{$arg.CastType}}(cli_{{$arg.Name}}_raw)
+		{{else}}cli_{{$arg.Name}} := cli_{{$arg.Name}}_raw{{end}}
+		{{end}}{{end}}
+		{{if .HasErrorReturn}}
+		{{if eq .ReturnCount 1}}err := {{else if eq .ReturnCount 2}}_, err := {{else if eq .ReturnCount 3}}_, _, err := {{else if eq .ReturnCount 4}}_, _, _, err := {{end}}{{if eq .PackageName "main"}}{{.GoName}}{{else}}{{.PackageName}}.{{.GoName}}{{end}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}cli_{{$arg.Name}}{{end}})
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		{{else}}
+		{{if eq .PackageName "main"}}{{.GoName}}{{else}}{{.PackageName}}.{{.GoName}}{{end}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}cli_{{$arg.Name}}{{end}})
+		{{end}}
+		{{else}}
+		{{if .HasErrorReturn}}
+		{{if eq .ReturnCount 1}}err := {{else if eq .ReturnCount 2}}_, err := {{else if eq .ReturnCount 3}}_, _, err := {{else if eq .ReturnCount 4}}_, _, _, err := {{end}}{{if eq .PackageName "main"}}{{.GoName}}{{else}}{{.PackageName}}.{{.GoName}}{{end}}()
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+		{{else}}
+		{{if eq .PackageName "main"}}{{.GoName}}{{else}}{{.PackageName}}.{{.GoName}}{{end}}()
+		{{end}}
+		{{end}}
+	{{end}}    default:
+		fmt.Printf("Error: Unknown function command '%s'\n", os.Args[1])
+		os.Exit(1)
+	}
+}
+`
+
+const androidBridgeTemplate = `//go:build android
+
+package main
+
+import (
+{{range .Imports}}	"{{.}}"
+{{end}})
 
 // =====================================================================
 // AUTOMATICALLY GENERATED BASH CLI ROUTER
@@ -512,6 +612,8 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 		return "", "", fmt.Errorf("output bridge file %q must be located inside the target project directory %q", absOutput, targetDir)
 	}
 
+	absOutputAndroid := strings.TrimSuffix(absOutput, ".go") + "_android.go"
+
 	var targetFiles []string
 	if fi.IsDir() {
 		err = filepath.WalkDir(absInput, func(path string, d os.DirEntry, err error) error {
@@ -522,7 +624,7 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 			if err != nil {
 				return err
 			}
-			if !d.IsDir() && filepath.Ext(absPath) == ".go" && absPath != absOutput {
+			if !d.IsDir() && filepath.Ext(absPath) == ".go" && absPath != absOutput && absPath != absOutputAndroid {
 				targetFiles = append(targetFiles, absPath)
 				logger.Info(lvl, "  • Found: %s", absPath)
 			}
@@ -593,6 +695,22 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 	}
 
 	logger.Info(lvl, "  • Successfully generated bridge file %s\n", absOutput)
+
+	// Also generate Android companion bridge file without CGO exports
+	tmplAndroid, err := template.New("android_bridge").Funcs(funcMap).Parse(androidBridgeTemplate)
+	if err == nil {
+		var renderedAndroid bytes.Buffer
+		if err := tmplAndroid.Execute(&renderedAndroid, wrapperData); err == nil {
+			contentAndroid := renderedAndroid.Bytes()
+			if formatted, fmtErr := format.Source(contentAndroid); fmtErr == nil {
+				contentAndroid = formatted
+			}
+			if err := os.WriteFile(absOutputAndroid, contentAndroid, 0644); err == nil {
+				logger.Info(lvl, "  • Successfully generated Android companion bridge file %s\n", absOutputAndroid)
+			}
+		}
+	}
+
 	return targetDir, absOutput, nil
 }
 
@@ -705,6 +823,59 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 		logger.Info(lvl, "  • Built: %s", libBinName)
 		logger.Info(lvl, "")
 	}
+
+	// 3. Build for Android Termux: android_aarch64 (CLI executable only)
+	logger.Info(lvl, "Building for architecture: android_aarch64...")
+	cliBinAndroid := fmt.Sprintf("%s_android_aarch64", binaryName)
+
+	// Ensure an Android-compatible bridge exists in targetDir if absBridge contains CGO
+	if absBridge != "" {
+		androidBridgeFile := strings.TrimSuffix(absBridge, ".go") + "_android.go"
+		if _, err := os.Stat(androidBridgeFile); os.IsNotExist(err) {
+			if bridgeBytes, readErr := os.ReadFile(absBridge); readErr == nil && bytes.Contains(bridgeBytes, []byte(`import "C"`)) {
+				contentStr := string(bridgeBytes)
+				cliMarker := "// AUTOMATICALLY GENERATED BASH CLI ROUTER"
+				if idx := strings.Index(contentStr, cliMarker); idx != -1 {
+					var importsBlock string
+					if impStart := strings.Index(contentStr, "import ("); impStart != -1 {
+						if impEnd := strings.Index(contentStr[impStart:], ")"); impEnd != -1 {
+							importsBlock = contentStr[impStart : impStart+impEnd+1]
+						}
+					}
+					var androidSrc bytes.Buffer
+					androidSrc.WriteString("//go:build android\n\npackage main\n\n")
+					if importsBlock != "" {
+						androidSrc.WriteString(importsBlock)
+						androidSrc.WriteString("\n\n")
+					}
+					androidSrc.WriteString(contentStr[idx:])
+					if formattedAndroid, fmtErr := format.Source(androidSrc.Bytes()); fmtErr == nil {
+						_ = os.WriteFile(androidBridgeFile, formattedAndroid, 0644)
+					}
+				}
+			}
+		}
+	}
+
+	cmdAndroid := exec.Command("go", "build", "-o", cliBinAndroid, ".")
+	cmdAndroid.Dir = targetDir
+	cmdAndroid.Env = append(os.Environ(),
+		"CGO_ENABLED=0",
+		"GOARCH=arm64",
+		"GOOS=android",
+	)
+
+	var errAndroid strings.Builder
+	cmdAndroid.Stdout = os.Stdout
+	cmdAndroid.Stderr = &errAndroid
+
+	if err := cmdAndroid.Run(); err != nil {
+		return fmt.Errorf("CLI binary build failure for android_aarch64:\n%s\ninternal error: %w", errAndroid.String(), err)
+	}
+	_ = os.Chmod(cliBinAndroid, 0755)
+
+	logger.Info(lvl, "  • Built: %s", cliBinAndroid)
+	logger.Info(lvl, "")
 
 	logger.Info(lvl, "Successfully compiled unified pipeline deliverables in %s.", targetDir)
 	return nil

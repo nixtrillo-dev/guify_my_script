@@ -22,6 +22,9 @@ func TestParseRustFunctions_ExampleFile(t *testing.T) {
 	examplePath := "../examples/rust_test_script/core_utils/src/lib.rs"
 	content, err := os.ReadFile(examplePath)
 	if err != nil {
+		if os.IsNotExist(err) {
+			t.Skip("skipping test: examples/rust_test_script/core_utils/src/lib.rs not found")
+		}
 		t.Fatalf("Failed reading example lib.rs: %v", err)
 	}
 
@@ -248,3 +251,106 @@ func TestDiscoverLibCrates_AutoScaffolding(t *testing.T) {
 		t.Errorf("shouldRegenerateFile returned false for Cargo.toml with auto-gen marker")
 	}
 }
+
+func TestFindAndroidAArch64Linker_EnvOverride(t *testing.T) {
+	tempDir := t.TempDir()
+	fakeLinker := filepath.Join(tempDir, "my-custom-clang")
+	if err := os.WriteFile(fakeLinker, []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatalf("failed writing fake linker: %v", err)
+	}
+
+	orig := os.Getenv("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER")
+	defer func() {
+		if orig != "" {
+			_ = os.Setenv("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER", orig)
+		} else {
+			_ = os.Unsetenv("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER")
+		}
+	}()
+
+	_ = os.Setenv("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER", fakeLinker)
+	found := findAndroidAArch64Linker()
+	if found != fakeLinker {
+		t.Errorf("Expected linker %s, got %s", fakeLinker, found)
+	}
+}
+
+func TestFindAndroidAArch64Linker_NDKDiscovery(t *testing.T) {
+	tempDir := t.TempDir()
+	binDir := filepath.Join(tempDir, "toolchains", "llvm", "prebuilt", "linux-x86_64", "bin")
+	if err := os.MkdirAll(binDir, 0755); err != nil {
+		t.Fatalf("failed creating mock NDK dir: %v", err)
+	}
+
+	mockClang := filepath.Join(binDir, "aarch64-linux-android31-clang")
+	if err := os.WriteFile(mockClang, []byte("#!/bin/sh\n"), 0755); err != nil {
+		t.Fatalf("failed writing mock clang: %v", err)
+	}
+
+	origOverride := os.Getenv("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER")
+	origNdk := os.Getenv("ANDROID_NDK_HOME")
+	defer func() {
+		if origOverride != "" {
+			_ = os.Setenv("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER", origOverride)
+		} else {
+			_ = os.Unsetenv("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER")
+		}
+		if origNdk != "" {
+			_ = os.Setenv("ANDROID_NDK_HOME", origNdk)
+		} else {
+			_ = os.Unsetenv("ANDROID_NDK_HOME")
+		}
+	}()
+
+	_ = os.Unsetenv("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER")
+	_ = os.Setenv("ANDROID_NDK_HOME", tempDir)
+
+	found := findAndroidAArch64Linker()
+	if found != mockClang {
+		t.Errorf("Expected discovered linker to be %s, got %s", mockClang, found)
+	}
+}
+
+func TestCompileRust_AndroidTargetHandling(t *testing.T) {
+	tempDir := t.TempDir()
+	srcDir := filepath.Join(tempDir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatalf("mkdir failed: %v", err)
+	}
+
+	cargoToml := `[package]
+name = "android_rust_test"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "android_rust_test"
+path = "src/main.rs"
+`
+	if err := os.WriteFile(filepath.Join(tempDir, "Cargo.toml"), []byte(cargoToml), 0644); err != nil {
+		t.Fatalf("write Cargo.toml failed: %v", err)
+	}
+
+	mainRs := `fn main() {
+    println!("hello from rust");
+}
+`
+	bridgePath := filepath.Join(srcDir, "main.rs")
+	if err := os.WriteFile(bridgePath, []byte(mainRs), 0644); err != nil {
+		t.Fatalf("write main.rs failed: %v", err)
+	}
+
+	binaryBase := filepath.Join(tempDir, "my_rust_bin")
+	err := CompileRust(tempDir, bridgePath, binaryBase, "DEBUG")
+	if err != nil {
+		t.Fatalf("CompileRust failed: %v", err)
+	}
+
+	// AMD64 executable should always be built on this host
+	amd64Bin := binaryBase + "_linux_amd64"
+	if _, err := os.Stat(amd64Bin); err != nil {
+		t.Errorf("Expected linux_amd64 binary at %s: %v", amd64Bin, err)
+	}
+}
+
+

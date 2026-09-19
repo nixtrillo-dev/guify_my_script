@@ -7,6 +7,7 @@ dist
 /*arm64*
 /*linux_amd64*
 /*linux_aarch64*
+/*android_aarch64*
 endpoint_utils/.directory
 internal_utils/.directory
 logger/.directory
