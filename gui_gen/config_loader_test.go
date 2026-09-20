@@ -399,8 +399,8 @@ func TestLoadAndPrepareConfig_RealGuifyMyScriptConfig(t *testing.T) {
 		t.Fatalf("Failed to load real guify_my_script_config.json: %v", err)
 	}
 
-	if len(ctx.root.Actions) != 4 {
-		t.Fatalf("Expected 4 actions, got %d", len(ctx.root.Actions))
+	if len(ctx.root.Actions) != 7 {
+		t.Fatalf("Expected 7 actions, got %d", len(ctx.root.Actions))
 	}
 
 	expectedModes := map[string]struct {
@@ -411,6 +411,9 @@ func TestLoadAndPrepareConfig_RealGuifyMyScriptConfig(t *testing.T) {
 		"Guify My Script":            {"g", "GUI"},
 		"Install My Package":         {"gc", "GUI_COMMANDLINE"},
 		"Setup Android NDK for Rust": {"gc", "GUI_COMMANDLINE"},
+		"Setup Go Dependencies":      {"gc", "GUI_COMMANDLINE"},
+		"Setup Rust Dependencies":    {"gc", "GUI_COMMANDLINE"},
+		"Setup AArch64 Dependencies": {"gc", "GUI_COMMANDLINE"},
 	}
 
 	for _, action := range ctx.root.Actions {

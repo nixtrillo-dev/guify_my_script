@@ -775,6 +775,84 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "setup_go_dependencies":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: setup_go_dependencies requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_logLevel_raw int
+		raw_logLevel := os.Args[2]
+		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
+			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
+			if err_logLevel != nil {
+				fmt.Printf("Error: parameter 'logLevel' must be a valid integer: %v\n", err_logLevel)
+				os.Exit(1)
+			}
+			cli_logLevel_raw = parsed_logLevel
+		}
+		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
+
+		err := setup_utils.SetupGoDependencies(cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "setup_rust_dependencies":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: setup_rust_dependencies requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_logLevel_raw int
+		raw_logLevel := os.Args[2]
+		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
+			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
+			if err_logLevel != nil {
+				fmt.Printf("Error: parameter 'logLevel' must be a valid integer: %v\n", err_logLevel)
+				os.Exit(1)
+			}
+			cli_logLevel_raw = parsed_logLevel
+		}
+		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
+
+		err := setup_utils.SetupRustDependencies(cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "setup_aarch64_dependencies":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: setup_aarch64_dependencies requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_logLevel_raw int
+		raw_logLevel := os.Args[2]
+		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
+			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
+			if err_logLevel != nil {
+				fmt.Printf("Error: parameter 'logLevel' must be a valid integer: %v\n", err_logLevel)
+				os.Exit(1)
+			}
+			cli_logLevel_raw = parsed_logLevel
+		}
+		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
+
+		err := setup_utils.SetupAarch64Dependencies(cli_logLevel)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+
 	default:
 		fmt.Printf("Error: Unknown function command '%s'\n", os.Args[1])
 		os.Exit(1)

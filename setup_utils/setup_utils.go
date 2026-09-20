@@ -69,6 +69,33 @@ func SetupAndroidNDKForRust(logLevel logger.LogLevel) error {
 	return nil
 }
 
+// SetupGoDependencies installs the Go compiler for source compilation.
+func SetupGoDependencies(logLevel logger.LogLevel) error {
+	return installDevelopmentDependencies(logLevel, "Go", map[string][]string{
+		"apt-get": {"golang-go"},
+		"dnf":     {"golang"},
+		"pacman":  {"go"},
+	})
+}
+
+// SetupRustDependencies installs Rust and Cargo for source compilation.
+func SetupRustDependencies(logLevel logger.LogLevel) error {
+	return installDevelopmentDependencies(logLevel, "Rust", map[string][]string{
+		"apt-get": {"rustc", "cargo"},
+		"dnf":     {"rust", "cargo"},
+		"pacman":  {"rust"},
+	})
+}
+
+// SetupAarch64Dependencies installs tools needed to build AArch64 packages.
+func SetupAarch64Dependencies(logLevel logger.LogLevel) error {
+	return installDevelopmentDependencies(logLevel, "AArch64", map[string][]string{
+		"apt-get": {"gcc-aarch64-linux-gnu", "build-essential", "podman"},
+		"dnf":     {"gcc-aarch64-linux-gnu", "gcc", "make", "podman"},
+		"pacman":  {"aarch64-linux-gnu-gcc", "base-devel", "podman"},
+	})
+}
+
 func installMissingDependencies(logLevel logger.LogLevel) error {
 	missing := make([]string, 0, 2)
 	for _, command := range []string{"java", "unzip"} {
@@ -80,26 +107,39 @@ func installMissingDependencies(logLevel logger.LogLevel) error {
 		return nil
 	}
 
+	return installPackages(logLevel, "Android SDK", map[string][]string{
+		"apt-get": {"default-jdk", "unzip"},
+		"dnf":     {"java-latest-openjdk", "unzip"},
+		"pacman":  {"jre-openjdk", "unzip"},
+	})
+}
+
+func installDevelopmentDependencies(logLevel logger.LogLevel, name string, packagesByManager map[string][]string) error {
+	return installPackages(logLevel, name, packagesByManager)
+}
+
+func installPackages(logLevel logger.LogLevel, name string, packagesByManager map[string][]string) error {
 	manager, err := detectPackageManager()
 	if err != nil {
 		return err
 	}
-	logger.Info(logLevel, "Installing missing dependencies with %s: %s", manager, strings.Join(missing, ", "))
-	args := []string{}
-	switch manager {
-	case "apt-get":
-		args = append(args, "install", "-y", "default-jdk", "unzip")
-	case "dnf":
-		args = append(args, "install", "-y", "java-latest-openjdk", "unzip")
-	case "pacman":
-		args = append(args, "-S", "--noconfirm", "jre-openjdk", "unzip")
-	default:
-		return fmt.Errorf("unsupported package manager %q; install Java and unzip manually", manager)
+	packages, ok := packagesByManager[manager]
+	if !ok {
+		return fmt.Errorf("unsupported package manager %q; install %s dependencies manually", manager, name)
 	}
+	logger.Info(logLevel, "Installing %s dependencies with %s: %s", name, manager, strings.Join(packages, ", "))
+	var args []string
+	switch manager {
+	case "apt-get", "dnf":
+		args = append(args, "install", "-y")
+	case "pacman":
+		args = append(args, "-S", "--noconfirm")
+	}
+	args = append(args, packages...)
 	command := exec.Command(manager, args...)
 	command.Stdout, command.Stderr = os.Stdout, os.Stderr
 	if err := command.Run(); err != nil {
-		return fmt.Errorf("install dependencies with %s: %w", manager, err)
+		return fmt.Errorf("install %s dependencies with %s: %w", name, manager, err)
 	}
 	return nil
 }

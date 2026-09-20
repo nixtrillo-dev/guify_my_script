@@ -25,23 +25,20 @@
         "dependencies": [
             {
                 "apt": [
-                    "golang-go",
-                    "gcc-aarch64-linux-gnu",
                     "build-essential",
-                    "podman"
+                    "podman",
+                    "pkexec"
                 ],
                 "dnf": [
-                    "golang",
-                    "gcc-aarch64-linux-gnu",
                     "gcc",
                     "make",
-                    "podman"
+                    "podman",
+                    "polkit-pkexec"
                 ],
                 "pacman": [
-                    "go",
-                    "aarch64-linux-gnu-gcc",
                     "base-devel",
-                    "podman"
+                    "podman",
+                    "polkit"
                 ]
             }
         ],
@@ -59,6 +56,90 @@
         "welcome_heading_label": null
     },
     "actions": [
+        {
+            "label": "Setup Go Dependencies",
+            "func": "setup_go_dependencies",
+            "execution_mode": "GUI_COMMANDLINE",
+            "advanced_menu": true,
+            "advanced_menu_tab_title": "Install Dependencies",
+            "refresh_fields_on_tab_open": [],
+            "refresh_fields_on_completion": [],
+            "quick_launch": false,
+            "width": 600,
+            "sudo": true,
+            "exec_label": "Setup Go",
+            "exec_in_progress_label": "Setting up Go...",
+            "stop_label": "Abort",
+            "fields": [
+                {
+                    "name": "Log Level",
+                    "options": [["5 - TRACE", "5"], ["4 - INFO", "4"], ["3 - WARNING", "3"], ["2 - ERROR", "2"], ["1 - FATAL", "1"], ["0 - SILENT", "0"]],
+                    "refresh_fields_on_change": [],
+                    "field_type": "CB",
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": "4 - INFO",
+                    "enabled": true,
+                    "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
+                }
+            ]
+        },
+        {
+            "label": "Setup Rust Dependencies",
+            "func": "setup_rust_dependencies",
+            "execution_mode": "GUI_COMMANDLINE",
+            "advanced_menu": true,
+            "advanced_menu_tab_title": "Install Dependencies",
+            "refresh_fields_on_tab_open": [],
+            "refresh_fields_on_completion": [],
+            "quick_launch": false,
+            "width": 600,
+            "sudo": true,
+            "exec_label": "Setup Rust",
+            "exec_in_progress_label": "Setting up Rust...",
+            "stop_label": "Abort",
+            "fields": [
+                {
+                    "name": "Log Level",
+                    "options": [["5 - TRACE", "5"], ["4 - INFO", "4"], ["3 - WARNING", "3"], ["2 - ERROR", "2"], ["1 - FATAL", "1"], ["0 - SILENT", "0"]],
+                    "refresh_fields_on_change": [],
+                    "field_type": "CB",
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": "4 - INFO",
+                    "enabled": true,
+                    "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
+                }
+            ]
+        },
+        {
+            "label": "Setup AArch64 Dependencies",
+            "func": "setup_aarch64_dependencies",
+            "execution_mode": "GUI_COMMANDLINE",
+            "advanced_menu": true,
+            "advanced_menu_tab_title": "Install Dependencies",
+            "refresh_fields_on_tab_open": [],
+            "refresh_fields_on_completion": [],
+            "quick_launch": false,
+            "width": 600,
+            "sudo": true,
+            "exec_label": "Setup AArch64",
+            "exec_in_progress_label": "Setting up AArch64...",
+            "stop_label": "Abort",
+            "fields": [
+                {
+                    "name": "Log Level",
+                    "options": [["5 - TRACE", "5"], ["4 - INFO", "4"], ["3 - WARNING", "3"], ["2 - ERROR", "2"], ["1 - FATAL", "1"], ["0 - SILENT", "0"]],
+                    "refresh_fields_on_change": [],
+                    "field_type": "CB",
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": "4 - INFO",
+                    "enabled": true,
+                    "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
+                }
+            ]
+        },
         {
             "func": "compile_script_with_gui_config",
             "label": "Compile My Script",
