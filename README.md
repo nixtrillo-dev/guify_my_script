@@ -1,6 +1,6 @@
 # Guify My Script
 
-Guify My Script is a tool for turning a script or source project into a desktop application shell with a generated GUI. In practice, it is used to:
+Guify My Script is a tool for wrapping a script or source project executable into a desktop application with a generated GUI. In practice, it is used to:
 
 - generate a JSON configuration for a GUI frontend
 - create the C++/Qt GUI code from that config
