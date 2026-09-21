@@ -1,4 +1,8 @@
 int main(int argc, char *argv[]) {
+    // Copyright (c) 2026 Nick Rowley
+    // All rights reserved.
+    // Use of this source code is governed by an MIT-style license that can be
+    // found in the LICENSE file.
     if (argc >= 3 && std::string(argv[1]) == "--trigger") {
         QCoreApplication tmpApp(argc, argv);
         QLocalSocket socket;

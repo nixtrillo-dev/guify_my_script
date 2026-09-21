@@ -1,3 +1,8 @@
+// Copyright (c) 2026 Nick Rowley
+// All rights reserved.
+// Use of this source code is governed by an MIT-style license that can be
+// found in the LICENSE file.
+
 package package_installer
 
 import (
