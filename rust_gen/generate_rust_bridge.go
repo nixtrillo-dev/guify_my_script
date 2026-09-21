@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
 	"text/template"
@@ -700,25 +701,26 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 	}
 
 	logger.Info(lvl, "Cargo build completed successfully.\n")
-	logger.Info(lvl, "Building for architecture: linux_amd64...")
+	nativeSuffix := linuxArchSuffix(runtime.GOARCH)
+	logger.Info(lvl, "Building for architecture: %s...", nativeSuffix)
 
 	// Locate release executable.
 	targetReleaseDir := filepath.Join(buildDir, "target", "release")
 	candidateBin := filepath.Join(targetReleaseDir, crateName)
 
-	cliBinNameLinuxAMD64 := fmt.Sprintf("%s_linux_amd64", binaryName)
+	cliBinNameNative := fmt.Sprintf("%s_%s", binaryName, nativeSuffix)
 	cliBinNameDefault := binaryName
 
 	// binaryName is always absolute here (resolved above).
-	destLinuxAMD64 := cliBinNameLinuxAMD64
+	destNative := cliBinNameNative
 	destDefault := cliBinNameDefault
 
 	if _, err := os.Stat(candidateBin); err == nil {
-		if err := copyExecutable(candidateBin, destLinuxAMD64); err != nil {
-			return fmt.Errorf("failed copying linux_amd64 binary: %w", err)
+		if err := copyExecutable(candidateBin, destNative); err != nil {
+			return fmt.Errorf("failed copying %s binary: %w", nativeSuffix, err)
 		}
 		_ = copyExecutable(candidateBin, destDefault)
-		logger.Info(lvl, "  • Built Linux AMD64 executable: %s", destLinuxAMD64)
+		logger.Info(lvl, "  • Built %s executable: %s", nativeSuffix, destNative)
 	} else {
 		// No executable was produced — this is expected for library-only crates
 		// (lib.rs with no [[bin]] section).  Only log if a binary target was actually
@@ -732,22 +734,22 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 
 	// Step 2: Build C++ shared library (.so)
 	// binaryName is absolute; append the suffix directly.
-	libBinNameLinuxAMD64 := fmt.Sprintf("%s_linux_amd64.so", binaryName)
-	destLibLinuxAMD64 := libBinNameLinuxAMD64
+	libBinNameNative := fmt.Sprintf("%s_%s.so", binaryName, nativeSuffix)
+	destLibNative := libBinNameNative
 
 	// Check if cargo already built a cdylib in target/release/
 	builtCdylib := filepath.Join(targetReleaseDir, fmt.Sprintf("lib%s.so", crateName))
 	if _, err := os.Stat(builtCdylib); err == nil {
-		if err := copyExecutable(builtCdylib, destLibLinuxAMD64); err != nil {
+		if err := copyExecutable(builtCdylib, destLibNative); err != nil {
 			return fmt.Errorf("failed copying shared library: %w", err)
 		}
-		logger.Info(lvl, "  • Built Linux AMD64 C++ shared library: %s", destLibLinuxAMD64)
+		logger.Info(lvl, "  • Built %s C++ shared library: %s", nativeSuffix, destLibNative)
 	} else if absBridge != "" {
 		// Compile absBridge with rustc as cdylib.
 		depsDir := filepath.Join(targetReleaseDir, "deps")
 
 		var rustcArgs []string
-		rustcArgs = append(rustcArgs, "--edition", "2021", "--crate-type", "cdylib", absBridge, "-o", destLibLinuxAMD64)
+		rustcArgs = append(rustcArgs, "--edition", "2021", "--crate-type", "cdylib", absBridge, "-o", destLibNative)
 
 		for _, cDir := range allLibCrateDirs {
 			cName := getCrateName(cDir)
@@ -778,38 +780,45 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 		if err := cmdLib.Run(); err != nil {
 			logger.Error(lvl, "rustc cdylib compile failed: %s", errLib.String())
 		} else {
-			_ = os.Chmod(destLibLinuxAMD64, 0755)
-			logger.Info(lvl, "  • Built Linux AMD64 C++ shared library: %s", destLibLinuxAMD64)
+			_ = os.Chmod(destLibNative, 0755)
+			logger.Info(lvl, "  • Built %s C++ shared library: %s", nativeSuffix, destLibNative)
 		}
 	}
 
-	// Optional: Attempt ARM64 build if toolchain is installed
+	// Build the other Linux architecture when its Rust target is installed.
+	crossArch := "amd64"
+	if runtime.GOARCH == "amd64" {
+		crossArch = "arm64"
+	}
+	crossSuffix := linuxArchSuffix(crossArch)
+	crossTarget := linuxRustTarget(crossArch)
+	crossLinker := linuxCrossLinker(crossArch)
 	cmdCheckTarget := exec.Command("rustup", "target", "list")
-	if out, err := cmdCheckTarget.Output(); err == nil && strings.Contains(string(out), "aarch64-unknown-linux-gnu (installed)") {
-		logger.Info(lvl, "\nBuilding for architecture: linux_aarch64...")
-		cmdArm := exec.Command("cargo", "build", "--release", "--target", "aarch64-unknown-linux-gnu")
-		cmdArm.Dir = buildDir
-		cmdArm.Env = append(os.Environ(), "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc")
-		if err := cmdArm.Run(); err == nil {
-			armReleaseDir := filepath.Join(buildDir, "target", "aarch64-unknown-linux-gnu", "release")
+	if out, err := cmdCheckTarget.Output(); err == nil && strings.Contains(string(out), crossTarget+" (installed)") {
+		logger.Info(lvl, "\nBuilding for architecture: %s...", crossSuffix)
+		cmdCross := exec.Command("cargo", "build", "--release", "--target", crossTarget)
+		cmdCross.Dir = buildDir
+		cmdCross.Env = append(os.Environ(), "CARGO_TARGET_"+strings.ToUpper(strings.ReplaceAll(crossTarget, "-", "_"))+"_LINKER="+crossLinker)
+		if err := cmdCross.Run(); err == nil {
+			crossReleaseDir := filepath.Join(buildDir, "target", crossTarget, "release")
 
-			// AArch64 executable
-			armCandidate := filepath.Join(armReleaseDir, crateName)
-			cliBinLinuxAArch64 := fmt.Sprintf("%s_linux_aarch64", binaryName)
-			_ = copyExecutable(armCandidate, cliBinLinuxAArch64)
-			logger.Info(lvl, "  • Built Linux AArch64 executable: %s", cliBinLinuxAArch64)
+			crossCandidate := filepath.Join(crossReleaseDir, crateName)
+			cliBinLinuxCross := fmt.Sprintf("%s_%s", binaryName, crossSuffix)
+			if err := copyExecutable(crossCandidate, cliBinLinuxCross); err == nil {
+				logger.Info(lvl, "  • Built %s executable: %s", crossSuffix, cliBinLinuxCross)
+			}
 
-			// AArch64 .so — same glob-based rlib lookup as AMD64
+			// Cross-architecture .so using dependencies produced for that target.
 			if absBridge != "" {
-				armDepsDir := filepath.Join(armReleaseDir, "deps")
-				destLibLinuxAArch64 := fmt.Sprintf("%s_linux_aarch64.so", binaryName)
-				var rustcArgsArm []string
-				rustcArgsArm = append(rustcArgsArm,
+				crossDepsDir := filepath.Join(crossReleaseDir, "deps")
+				destLibLinuxCross := fmt.Sprintf("%s_%s.so", binaryName, crossSuffix)
+				var rustcArgsCross []string
+				rustcArgsCross = append(rustcArgsCross,
 					"--edition", "2021",
 					"--crate-type", "cdylib",
-					"--target", "aarch64-unknown-linux-gnu",
-					"-C", "linker=aarch64-linux-gnu-gcc",
-					absBridge, "-o", destLibLinuxAArch64,
+					"--target", crossTarget,
+					"-C", "linker="+crossLinker,
+					absBridge, "-o", destLibLinuxCross,
 				)
 
 				for _, cDir := range allLibCrateDirs {
@@ -818,22 +827,23 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 						cName = filepath.Base(cDir)
 					}
 					cNameSafe := strings.ReplaceAll(cName, "-", "_")
-					armRlibPath := findRlibInDir(armDepsDir, cNameSafe)
-					if armRlibPath != "" {
-						rustcArgsArm = append(rustcArgsArm, "-L", armDepsDir, "--extern", fmt.Sprintf("%s=%s", cName, armRlibPath))
+					crossRlibPath := findRlibInDir(crossDepsDir, cNameSafe)
+					if crossRlibPath != "" {
+						rustcArgsCross = append(rustcArgsCross, "-L", crossDepsDir, "--extern", fmt.Sprintf("%s=%s", cName, crossRlibPath))
 					}
 				}
 
-				cmdLibArm := exec.Command("rustc", rustcArgsArm...)
-				cmdLibArm.Dir = buildDir
-				var errLibArm strings.Builder
-				cmdLibArm.Stdout = os.Stdout
-				cmdLibArm.Stderr = &errLibArm
-				if err := cmdLibArm.Run(); err != nil {
-					logger.Error(lvl, "rustc aarch64 cdylib compile failed: %s", errLibArm.String())
+				cmdLibCross := exec.Command("rustc", rustcArgsCross...)
+				cmdLibCross.Dir = buildDir
+				cmdLibCross.Env = append(os.Environ(), "CARGO_TARGET_"+strings.ToUpper(strings.ReplaceAll(crossTarget, "-", "_"))+"_LINKER="+crossLinker)
+				var errLibCross strings.Builder
+				cmdLibCross.Stdout = os.Stdout
+				cmdLibCross.Stderr = &errLibCross
+				if err := cmdLibCross.Run(); err != nil {
+					logger.Error(lvl, "rustc %s cdylib compile failed: %s", crossSuffix, errLibCross.String())
 				} else {
-					_ = os.Chmod(destLibLinuxAArch64, 0755)
-					logger.Info(lvl, "  • Built Linux AArch64 C++ shared library: %s", destLibLinuxAArch64)
+					_ = os.Chmod(destLibLinuxCross, 0755)
+					logger.Info(lvl, "  • Built %s C++ shared library: %s", crossSuffix, destLibLinuxCross)
 				}
 			}
 		}
@@ -1763,6 +1773,27 @@ func copyExecutable(src, dst string) error {
 		return err
 	}
 	return os.Chmod(dst, 0755)
+}
+
+func linuxArchSuffix(goarch string) string {
+	if goarch == "arm64" || goarch == "aarch64" {
+		return "linux_aarch64"
+	}
+	return "linux_amd64"
+}
+
+func linuxRustTarget(goarch string) string {
+	if goarch == "arm64" || goarch == "aarch64" {
+		return "aarch64-unknown-linux-gnu"
+	}
+	return "x86_64-unknown-linux-gnu"
+}
+
+func linuxCrossLinker(goarch string) string {
+	if goarch == "arm64" || goarch == "aarch64" {
+		return "aarch64-linux-gnu-gcc"
+	}
+	return "x86_64-linux-gnu-gcc"
 }
 
 // toPascalCase converts snake_case or camelCase to PascalCase

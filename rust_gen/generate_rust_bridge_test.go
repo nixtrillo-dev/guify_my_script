@@ -3,6 +3,7 @@ package rust_gen
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"text/template"
@@ -346,11 +347,8 @@ path = "src/main.rs"
 		t.Fatalf("CompileRust failed: %v", err)
 	}
 
-	// AMD64 executable should always be built on this host
-	amd64Bin := binaryBase + "_linux_amd64"
-	if _, err := os.Stat(amd64Bin); err != nil {
-		t.Errorf("Expected linux_amd64 binary at %s: %v", amd64Bin, err)
+	expectedBin := binaryBase + "_" + linuxArchSuffix(runtime.GOARCH)
+	if _, err := os.Stat(expectedBin); err != nil {
+		t.Errorf("Expected native binary at %s: %v", expectedBin, err)
 	}
 }
-
-

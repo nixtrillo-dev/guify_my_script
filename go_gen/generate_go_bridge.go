@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"text/template"
@@ -774,6 +775,14 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 	}{
 		{"amd64", "linux_amd64", "gcc"},                     // Standard x86_64 compiler
 		{"arm64", "linux_aarch64", "aarch64-linux-gnu-gcc"}, // ARM64 cross-compiler
+	}
+	hostArch := runtime.GOARCH
+	if hostArch == "arm64" {
+		targets[0].CC = "x86_64-linux-gnu-gcc"
+		targets[1].CC = "gcc"
+	} else {
+		targets[0].CC = "gcc"
+		targets[1].CC = "aarch64-linux-gnu-gcc"
 	}
 
 	for _, target := range targets {
