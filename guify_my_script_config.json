@@ -113,8 +113,8 @@
             ]
         },
         {
-            "label": "Setup AArch64 Dependencies",
-            "func": "setup_aarch64_dependencies",
+            "label": "Setup Cross-Compile Dependencies",
+            "func": "setup_cross_compile_dependencies",
             "execution_mode": "GUI_COMMANDLINE",
             "advanced_menu": true,
             "advanced_menu_tab_title": "Install Dependencies",

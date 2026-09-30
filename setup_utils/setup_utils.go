@@ -34,6 +34,11 @@ func SetupAndroidNDKForRust(logLevel logger.LogLevel) error {
 	if runtime.GOOS != "linux" {
 		return fmt.Errorf("Android NDK setup is only supported on Linux")
 	}
+	// Google's Linux Android command-line tools and NDK host toolchain are
+	// distributed for x86_64. Fail before downloading incompatible binaries.
+	if runtime.GOARCH != "amd64" {
+		return fmt.Errorf("Android NDK setup is currently supported only on Linux amd64; Google does not provide Linux %s host tools", runtime.GOARCH)
+	}
 
 	logger.Info(logLevel, "Checking dependencies for Android SDK and NDK setup...")
 	if err := installMissingDependencies(logLevel); err != nil {
@@ -92,13 +97,27 @@ func SetupRustDependencies(logLevel logger.LogLevel) error {
 	})
 }
 
-// SetupAarch64Dependencies installs tools needed to build AArch64 packages.
-func SetupAarch64Dependencies(logLevel logger.LogLevel) error {
-	return installDevelopmentDependencies(logLevel, "AArch64", map[string][]string{
-		"apt-get": {"gcc-aarch64-linux-gnu", "build-essential", "podman"},
-		"dnf":     {"gcc-aarch64-linux-gnu", "gcc", "make", "podman"},
-		"pacman":  {"aarch64-linux-gnu-gcc", "base-devel", "podman"},
-	})
+// SetupCrossCompileDependencies installs tools needed to cross-compile for
+// the other common Linux architecture.
+func SetupCrossCompileDependencies(logLevel logger.LogLevel) error {
+	var packagesByManager map[string][]string
+	switch runtime.GOARCH {
+	case "amd64":
+		packagesByManager = map[string][]string{
+			"apt-get": {"gcc-aarch64-linux-gnu", "build-essential", "podman"},
+			"dnf":     {"gcc-aarch64-linux-gnu", "gcc", "make", "podman"},
+			"pacman":  {"aarch64-linux-gnu-gcc", "base-devel", "podman"},
+		}
+	case "arm64":
+		packagesByManager = map[string][]string{
+			"apt-get": {"gcc-x86-64-linux-gnu", "build-essential", "podman"},
+			"dnf":     {"gcc-x86_64-linux-gnu", "gcc", "make", "podman"},
+			"pacman":  {"x86_64-linux-gnu-gcc", "base-devel", "podman"},
+		}
+	default:
+		return fmt.Errorf("cross-compilation dependencies are unsupported on %s; supported host architectures are amd64 and arm64", runtime.GOARCH)
+	}
+	return installDevelopmentDependencies(logLevel, "cross-compilation", packagesByManager)
 }
 
 func installMissingDependencies(logLevel logger.LogLevel) error {

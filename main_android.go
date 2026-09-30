@@ -827,9 +827,9 @@ func main() {
 			os.Exit(1)
 		}
 
-	case "setup_aarch64_dependencies":
+	case "setup_cross_compile_dependencies":
 		if len(os.Args) < 3 {
-			fmt.Println("Error: setup_aarch64_dependencies requires parameters")
+			fmt.Println("Error: setup_cross_compile_dependencies requires parameters")
 			os.Exit(1)
 		}
 
@@ -847,7 +847,7 @@ func main() {
 		}
 		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
 
-		err := setup_utils.SetupAarch64Dependencies(cli_logLevel)
+		err := setup_utils.SetupCrossCompileDependencies(cli_logLevel)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
