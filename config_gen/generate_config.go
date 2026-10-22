@@ -455,20 +455,28 @@ func parseGoFile(path string) ([]UIAction, error) {
 			bashName = strings.TrimPrefix(bashName, "go_")
 		}
 
-		var paramNames []string
+		type goParam struct {
+			name     string
+			variadic bool
+		}
+		var params []goParam
 		if fn.Type.Params != nil {
 			for _, fieldList := range fn.Type.Params.List {
-				for _, name := range fieldList.Names {
-					paramNames = append(paramNames, name.Name)
+				_, variadic := fieldList.Type.(*ast.Ellipsis)
+				for i, name := range fieldList.Names {
+					// In declarations like (first, rest ...string), only the final
+					// name receives the variadic values.
+					params = append(params, goParam{name: name.Name, variadic: variadic && i == len(fieldList.Names)-1})
 				}
 			}
 		}
 
 		fields := []UIField{}
-		total := len(paramNames)
-
-		for i := 0; i < total; i++ {
-			label := internal_utils.ToTitleCase(paramNames[i])
+		for i, param := range params {
+			label := internal_utils.ToTitleCase(param.name)
+			if param.variadic {
+				label += " (one value)"
+			}
 			fields = append(fields, createField(label, i))
 		}
 		actions = append(actions, UIAction{

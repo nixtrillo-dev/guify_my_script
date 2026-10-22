@@ -42,7 +42,6 @@ func writeProductionPackageFiles(stageDir, packageName, title, iconName string, 
 		archLinuxArch = "aarch64"
 		rpmArch = "aarch64"
 	}
-
 	// --- DEFAULTS & FALLBACKS ---
 	version := deploy.Version
 	if version == "" {
@@ -185,20 +184,31 @@ echo "Building Arch package using container..."
 ENGINE="docker"
 if ! command -v docker >/dev/null 2>&1; then ENGINE="podman"; fi
 
+ARCH_IMAGE="archlinux:base-devel"
+case "$(uname -m)" in
+  aarch64|arm64) ARCH_IMAGE="menci/archlinuxarm:base-devel" ;;
+esac
+
 # Persist both the downloaded packages AND the repository metadata databases
 $ENGINE run --rm \
   -v "$(pwd)/..:/workspace" \
   -v arch_pacman_cache:/var/cache/pacman/pkg \
   -v arch_pacman_db:/var/lib/pacman/sync \
   -w /workspace/arch \
-  archlinux:base-devel \
+  "$ARCH_IMAGE" \
   bash -c 'set -e && \
            ORIG_UID=$(stat -c "%u" /workspace/arch) && \
            ORIG_GID=$(stat -c "%g" /workspace/arch) && \
+           if ! grep -Eq "^[[:space:]]*DisableSandbox([[:space:]]|$)" /etc/pacman.conf; then \
+             sed -i "/^\\[options\\]/a DisableSandbox" /etc/pacman.conf; \
+           fi && \
            pacman -Sy --noconfirm && \
            pacman -S --needed --noconfirm git && \
            useradd -mG wheel builduser && \
            echo "%wheel ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
+           cp /etc/makepkg.conf /tmp/makepkg.conf && \
+           sed -i "s/^CARCH=.*/CARCH=__PACKAGE_ARCH__/" /tmp/makepkg.conf && \
+           chown builduser:builduser /tmp/makepkg.conf && \
            official_deps=() && \
            aur_deps=() && \
            while IFS= read -r pkg; do \
@@ -221,7 +231,7 @@ $ENGINE run --rm \
              su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm --needed"; \
              su - builduser -c "xargs yay -S --needed --noconfirm < /workspace/arch/dependencies.arch.aur.txt"; \
            fi && \
-           su - builduser -c "cd /workspace/arch && makepkg -cfsA --noconfirm" && \
+           su - builduser -c "cd /workspace/arch && makepkg --config /tmp/makepkg.conf -cfsA --noconfirm" && \
            chown -R $ORIG_UID:$ORIG_GID /workspace/arch'
 
 echo "Done! Package is in $(pwd)"
@@ -327,8 +337,16 @@ Building Packages:
   Arch:   cd arch && ./build.sh
 
 Local run:
-  payload/run-local.sh
+  ./run-local.sh
 `, packageName),
+	}
+
+	for path, content := range files {
+		if filepath.Base(filepath.Dir(path)) == "arch" && filepath.Base(path) == "build.sh" {
+			// Select a native package-building image and set makepkg's package
+			// architecture to the payload target, independently of the host CPU.
+			files[path] = strings.ReplaceAll(content, "__PACKAGE_ARCH__", archLinuxArch)
+		}
 	}
 
 	for path, content := range files {

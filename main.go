@@ -420,6 +420,90 @@ func GoParseLogLevel(level *C.char) C.int {
 	return 1
 }
 
+//export GoDebug
+func GoDebug(lvl C.int, format *C.char, args *C.char) C.int {
+
+	go_lvl := logger.LogLevel(int(lvl))
+
+	go_format := C.GoString(format)
+
+	go_args := C.GoString(args)
+
+	logger.Debug(go_lvl, go_format, go_args)
+
+	return 1
+}
+
+//export GoInfo
+func GoInfo(lvl C.int, format *C.char, args *C.char) C.int {
+
+	go_lvl := logger.LogLevel(int(lvl))
+
+	go_format := C.GoString(format)
+
+	go_args := C.GoString(args)
+
+	logger.Info(go_lvl, go_format, go_args)
+
+	return 1
+}
+
+//export GoData
+func GoData(lvl C.int, format *C.char, args *C.char) C.int {
+
+	go_lvl := logger.LogLevel(int(lvl))
+
+	go_format := C.GoString(format)
+
+	go_args := C.GoString(args)
+
+	logger.Data(go_lvl, go_format, go_args)
+
+	return 1
+}
+
+//export GoWarn
+func GoWarn(lvl C.int, format *C.char, args *C.char) C.int {
+
+	go_lvl := logger.LogLevel(int(lvl))
+
+	go_format := C.GoString(format)
+
+	go_args := C.GoString(args)
+
+	logger.Warn(go_lvl, go_format, go_args)
+
+	return 1
+}
+
+//export GoError
+func GoError(lvl C.int, format *C.char, args *C.char) C.int {
+
+	go_lvl := logger.LogLevel(int(lvl))
+
+	go_format := C.GoString(format)
+
+	go_args := C.GoString(args)
+
+	logger.Error(go_lvl, go_format, go_args)
+
+	return 1
+}
+
+//export GoFatal
+func GoFatal(lvl C.int, format *C.char, args *C.char) C.int {
+
+	go_lvl := logger.LogLevel(int(lvl))
+
+	go_format := C.GoString(format)
+
+	go_args := C.GoString(args)
+
+	logger.Fatal(go_lvl, go_format, go_args)
+
+	return 1
+}
+
 //export GoInstallLocalPackage
 func GoInstallLocalPackage(pkgPath *C.char, updateFirst C.int, logLevel C.int) C.int {
 
@@ -513,11 +597,13 @@ func GoSetupAndroidNDKForRust(logLevel C.int) C.int {
 }
 
 //export GoSetupGoDependencies
-func GoSetupGoDependencies(logLevel C.int) C.int {
+func GoSetupGoDependencies(logLevel C.int, crossCompile C.int) C.int {
 
 	go_logLevel := logger.LogLevel(int(logLevel))
 
-	err := setup_utils.SetupGoDependencies(go_logLevel)
+	go_crossCompile := crossCompile == 1
+
+	err := setup_utils.SetupGoDependencies(go_logLevel, go_crossCompile)
 	if err != nil {
 		fmt.Printf("Pipeline Error in SetupGoDependencies: %v\n", err)
 		return 0
@@ -527,11 +613,13 @@ func GoSetupGoDependencies(logLevel C.int) C.int {
 }
 
 //export GoSetupRustDependencies
-func GoSetupRustDependencies(logLevel C.int) C.int {
+func GoSetupRustDependencies(logLevel C.int, crossCompile C.int) C.int {
 
 	go_logLevel := logger.LogLevel(int(logLevel))
 
-	err := setup_utils.SetupRustDependencies(go_logLevel)
+	go_crossCompile := crossCompile == 1
+
+	err := setup_utils.SetupRustDependencies(go_logLevel, go_crossCompile)
 	if err != nil {
 		fmt.Printf("Pipeline Error in SetupRustDependencies: %v\n", err)
 		return 0
@@ -1160,6 +1248,162 @@ func main() {
 
 		logger.ParseLogLevel(cli_level)
 
+	case "debug":
+		if len(os.Args) < 5 {
+			fmt.Println("Error: debug requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_lvl_raw int
+		raw_lvl := os.Args[2]
+		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
+			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
+			if err_lvl != nil {
+				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+				os.Exit(1)
+			}
+			cli_lvl_raw = parsed_lvl
+		}
+		cli_lvl := logger.LogLevel(cli_lvl_raw)
+
+		cli_format := os.Args[3]
+
+		cli_args := os.Args[4]
+
+		logger.Debug(cli_lvl, cli_format, cli_args)
+
+	case "info":
+		if len(os.Args) < 5 {
+			fmt.Println("Error: info requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_lvl_raw int
+		raw_lvl := os.Args[2]
+		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
+			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
+			if err_lvl != nil {
+				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+				os.Exit(1)
+			}
+			cli_lvl_raw = parsed_lvl
+		}
+		cli_lvl := logger.LogLevel(cli_lvl_raw)
+
+		cli_format := os.Args[3]
+
+		cli_args := os.Args[4]
+
+		logger.Info(cli_lvl, cli_format, cli_args)
+
+	case "data":
+		if len(os.Args) < 5 {
+			fmt.Println("Error: data requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_lvl_raw int
+		raw_lvl := os.Args[2]
+		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
+			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
+			if err_lvl != nil {
+				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+				os.Exit(1)
+			}
+			cli_lvl_raw = parsed_lvl
+		}
+		cli_lvl := logger.LogLevel(cli_lvl_raw)
+
+		cli_format := os.Args[3]
+
+		cli_args := os.Args[4]
+
+		logger.Data(cli_lvl, cli_format, cli_args)
+
+	case "warn":
+		if len(os.Args) < 5 {
+			fmt.Println("Error: warn requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_lvl_raw int
+		raw_lvl := os.Args[2]
+		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
+			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
+			if err_lvl != nil {
+				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+				os.Exit(1)
+			}
+			cli_lvl_raw = parsed_lvl
+		}
+		cli_lvl := logger.LogLevel(cli_lvl_raw)
+
+		cli_format := os.Args[3]
+
+		cli_args := os.Args[4]
+
+		logger.Warn(cli_lvl, cli_format, cli_args)
+
+	case "error":
+		if len(os.Args) < 5 {
+			fmt.Println("Error: error requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_lvl_raw int
+		raw_lvl := os.Args[2]
+		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
+			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
+			if err_lvl != nil {
+				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+				os.Exit(1)
+			}
+			cli_lvl_raw = parsed_lvl
+		}
+		cli_lvl := logger.LogLevel(cli_lvl_raw)
+
+		cli_format := os.Args[3]
+
+		cli_args := os.Args[4]
+
+		logger.Error(cli_lvl, cli_format, cli_args)
+
+	case "fatal":
+		if len(os.Args) < 5 {
+			fmt.Println("Error: fatal requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_lvl_raw int
+		raw_lvl := os.Args[2]
+		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
+			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
+			if err_lvl != nil {
+				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+				os.Exit(1)
+			}
+			cli_lvl_raw = parsed_lvl
+		}
+		cli_lvl := logger.LogLevel(cli_lvl_raw)
+
+		cli_format := os.Args[3]
+
+		cli_args := os.Args[4]
+
+		logger.Fatal(cli_lvl, cli_format, cli_args)
+
 	case "install_local_package":
 		if len(os.Args) < 5 {
 			fmt.Println("Error: install_local_package requires parameters")
@@ -1313,7 +1557,7 @@ func main() {
 		}
 
 	case "setup_go_dependencies":
-		if len(os.Args) < 3 {
+		if len(os.Args) < 4 {
 			fmt.Println("Error: setup_go_dependencies requires parameters")
 			os.Exit(1)
 		}
@@ -1332,14 +1576,26 @@ func main() {
 		}
 		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
 
-		err := setup_utils.SetupGoDependencies(cli_logLevel)
+		cli_crossCompile, err_crossCompile := strconv.ParseBool(os.Args[3])
+		if err_crossCompile != nil {
+			if os.Args[3] == "1" {
+				cli_crossCompile = true
+			} else if os.Args[3] == "0" {
+				cli_crossCompile = false
+			} else {
+				fmt.Printf("Error: parameter 'crossCompile' must be a valid boolean evaluation: %v\n", err_crossCompile)
+				os.Exit(1)
+			}
+		}
+
+		err := setup_utils.SetupGoDependencies(cli_logLevel, cli_crossCompile)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
 		}
 
 	case "setup_rust_dependencies":
-		if len(os.Args) < 3 {
+		if len(os.Args) < 4 {
 			fmt.Println("Error: setup_rust_dependencies requires parameters")
 			os.Exit(1)
 		}
@@ -1358,7 +1614,19 @@ func main() {
 		}
 		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
 
-		err := setup_utils.SetupRustDependencies(cli_logLevel)
+		cli_crossCompile, err_crossCompile := strconv.ParseBool(os.Args[3])
+		if err_crossCompile != nil {
+			if os.Args[3] == "1" {
+				cli_crossCompile = true
+			} else if os.Args[3] == "0" {
+				cli_crossCompile = false
+			} else {
+				fmt.Printf("Error: parameter 'crossCompile' must be a valid boolean evaluation: %v\n", err_crossCompile)
+				os.Exit(1)
+			}
+		}
+
+		err := setup_utils.SetupRustDependencies(cli_logLevel, cli_crossCompile)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)

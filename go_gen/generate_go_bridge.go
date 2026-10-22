@@ -437,9 +437,18 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 
 			if fn.Type.Params != nil {
 				for _, field := range fn.Type.Params.List {
+					// A variadic parameter appears as ast.Ellipsis in the AST. Treat its
+					// element type like a normal parameter and expose one value to the
+					// generated wrapper; calling f(value) is valid for f(args ...T).
+					paramType := field.Type
+					variadic := false
+					if ellipsis, ok := paramType.(*ast.Ellipsis); ok {
+						variadic = true
+						paramType = ellipsis.Elt
+					}
 
 					// Detect if the parameter is a function type
-					if _, isFunc := field.Type.(*ast.FuncType); isFunc {
+					if _, isFunc := paramType.(*ast.FuncType); isFunc {
 						hasFuncParam = true
 					}
 
@@ -447,8 +456,12 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 					castType := ""
 
 					// Parse base identifiers (int, string, bool)
-					if ident, ok := field.Type.(*ast.Ident); ok {
-						if compositeTypes[ident.Name] {
+					if ident, ok := paramType.(*ast.Ident); ok {
+						if variadic && ident.Name == "any" {
+							// A UI value cannot represent arbitrary Go values. Expose one
+							// string value instead; it is assignable to ...any as one element.
+							typeStr = "string"
+						} else if compositeTypes[ident.Name] {
 							hasUnsupportedParam = true
 						} else {
 							switch ident.Name {
@@ -469,7 +482,10 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 							}
 						}
 						// Parse pointer expressions (*bool)
-					} else if starExpr, ok := field.Type.(*ast.StarExpr); ok {
+					} else if _, isEmptyInterface := paramType.(*ast.InterfaceType); variadic && isEmptyInterface {
+						// Support the older equivalent of ...any with the same single-string fallback.
+						typeStr = "string"
+					} else if starExpr, ok := paramType.(*ast.StarExpr); ok {
 						if ident, ok := starExpr.X.(*ast.Ident); ok {
 							if ident.Name == "bool" {
 								typeStr = "*bool"
@@ -481,7 +497,7 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 							hasUnsupportedParam = true
 						}
 						// Parse selector expressions (e.g., logger.LogLevel)
-					} else if selExpr, ok := field.Type.(*ast.SelectorExpr); ok {
+					} else if selExpr, ok := paramType.(*ast.SelectorExpr); ok {
 						if xIdent, ok := selExpr.X.(*ast.Ident); ok {
 							typeStr = "int"
 							castType = fmt.Sprintf("%s.%s", xIdent.Name, selExpr.Sel.Name)

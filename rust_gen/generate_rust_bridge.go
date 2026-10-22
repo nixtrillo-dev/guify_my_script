@@ -13,6 +13,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/user"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -694,7 +695,7 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 	logger.Info(lvl, "Compiling Rust package in %s (binary: %s)...", buildDir, binaryName)
 
 	// Step 1: cargo build --release
-	cmdBuild := exec.Command("cargo", "build", "--release")
+	cmdBuild := rustCommand("cargo", "build", "--release")
 	cmdBuild.Dir = buildDir
 
 	var errBuild strings.Builder
@@ -776,7 +777,7 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 			}
 		}
 
-		cmdLib := exec.Command("rustc", rustcArgs...)
+		cmdLib := rustCommand("rustc", rustcArgs...)
 		cmdLib.Dir = buildDir
 		var errLib strings.Builder
 		cmdLib.Stdout = os.Stdout
@@ -798,12 +799,20 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 	crossSuffix := linuxArchSuffix(crossArch)
 	crossTarget := linuxRustTarget(crossArch)
 	crossLinker := linuxCrossLinker(crossArch)
-	cmdCheckTarget := exec.Command("rustup", "target", "list")
-	if out, err := cmdCheckTarget.Output(); err == nil && strings.Contains(string(out), crossTarget+" (installed)") {
+	cmdCheckTarget := rustCommand("rustup", "target", "list", "--installed")
+	installedTargets, targetCheckErr := cmdCheckTarget.Output()
+	if targetCheckErr != nil {
+		logger.Warn(lvl, "\nSkipping %s Rust build: could not check installed Rust targets (rustup target list --installed failed: %v). Install rustup and run 'rustup target add %s' to enable it.", crossSuffix, targetCheckErr, crossTarget)
+	} else if !strings.Contains(string(installedTargets), crossTarget) {
+		logger.Warn(lvl, "\nSkipping %s Rust build: Rust target %s is not installed. Run 'rustup target add %s' to enable it.", crossSuffix, crossTarget, crossTarget)
+	} else {
 		logger.Info(lvl, "\nBuilding for architecture: %s...", crossSuffix)
-		cmdCross := exec.Command("cargo", "build", "--release", "--target", crossTarget)
+		cmdCross := rustCommand("cargo", "build", "--release", "--target", crossTarget)
 		cmdCross.Dir = buildDir
 		cmdCross.Env = append(os.Environ(), "CARGO_TARGET_"+strings.ToUpper(strings.ReplaceAll(crossTarget, "-", "_"))+"_LINKER="+crossLinker)
+		var errCross strings.Builder
+		cmdCross.Stdout = os.Stdout
+		cmdCross.Stderr = &errCross
 		if err := cmdCross.Run(); err == nil {
 			crossReleaseDir := filepath.Join(buildDir, "target", crossTarget, "release")
 
@@ -838,7 +847,7 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 					}
 				}
 
-				cmdLibCross := exec.Command("rustc", rustcArgsCross...)
+				cmdLibCross := rustCommand("rustc", rustcArgsCross...)
 				cmdLibCross.Dir = buildDir
 				cmdLibCross.Env = append(os.Environ(), "CARGO_TARGET_"+strings.ToUpper(strings.ReplaceAll(crossTarget, "-", "_"))+"_LINKER="+crossLinker)
 				var errLibCross strings.Builder
@@ -851,11 +860,13 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 					logger.Info(lvl, "  • Built %s C++ shared library: %s", crossSuffix, destLibLinuxCross)
 				}
 			}
+		} else {
+			logger.Warn(lvl, "\n%s Rust cross-build failed using linker %s: %s", crossSuffix, crossLinker, errCross.String())
 		}
 	}
 
 	// Step 3: Attempt Android AArch64 (Termux) build
-	cmdCheckAndroidTarget := exec.Command("rustup", "target", "list")
+	cmdCheckAndroidTarget := rustCommand("rustup", "target", "list")
 	androidTargetInstalled := false
 	if out, err := cmdCheckAndroidTarget.Output(); err == nil && strings.Contains(string(out), "aarch64-linux-android (installed)") {
 		androidTargetInstalled = true
@@ -872,9 +883,9 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 			logger.Info(lvl, "\nBuilding for architecture: android_aarch64...")
 			var cmdAndroid *exec.Cmd
 			if hasCargoNdk && linker == "" {
-				cmdAndroid = exec.Command("cargo", "ndk", "-t", "aarch64-linux-android", "build", "--release")
+				cmdAndroid = rustCommand("cargo", "ndk", "-t", "aarch64-linux-android", "build", "--release")
 			} else {
-				cmdAndroid = exec.Command("cargo", "build", "--release", "--target", "aarch64-linux-android")
+				cmdAndroid = rustCommand("cargo", "build", "--release", "--target", "aarch64-linux-android")
 				cmdAndroid.Env = append(os.Environ(), "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="+linker)
 			}
 			cmdAndroid.Dir = buildDir
@@ -1778,6 +1789,41 @@ func copyExecutable(src, dst string) error {
 		return err
 	}
 	return os.Chmod(dst, 0755)
+}
+
+// rustCommand prefers the invoking user's rustup-managed tools when setup was
+// run through sudo, and supplies the matching HOME and PATH to that command.
+func rustCommand(name string, args ...string) *exec.Cmd {
+	home := os.Getenv("HOME")
+	if sudoUser := os.Getenv("SUDO_USER"); sudoUser != "" {
+		if usr, err := user.Lookup(sudoUser); err == nil {
+			home = usr.HomeDir
+		}
+	}
+	cargoBin := filepath.Join(home, ".cargo", "bin")
+	executable := name
+	if candidate := filepath.Join(cargoBin, name); home != "" {
+		if _, err := os.Stat(candidate); err == nil {
+			executable = candidate
+		}
+	}
+	command := exec.Command(executable, args...)
+	if home != "" {
+		command.Env = replaceEnv(os.Environ(), "HOME", home)
+		command.Env = replaceEnv(command.Env, "PATH", cargoBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	}
+	return command
+}
+
+func replaceEnv(env []string, key, value string) []string {
+	prefix := key + "="
+	updated := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		if !strings.HasPrefix(entry, prefix) {
+			updated = append(updated, entry)
+		}
+	}
+	return append(updated, prefix+value)
 }
 
 func linuxArchSuffix(goarch string) string {

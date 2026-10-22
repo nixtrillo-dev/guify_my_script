@@ -81,6 +81,16 @@
                     "default": "4 - INFO",
                     "enabled": true,
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
+                },
+                {
+                    "name": "Install cross-compilation tools and targets?",
+                    "field_type": "CK",
+                    "advanced_menu": false,
+                    "data_type": "bool",
+                    "default": "0",
+                    "enabled": true,
+                    "refresh_fields_on_change": [],
+                    "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 }
             ]
         },
@@ -108,6 +118,16 @@
                     "data_type": "string",
                     "default": "4 - INFO",
                     "enabled": true,
+                    "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
+                },
+                {
+                    "name": "Install cross-compilation tools and targets?",
+                    "field_type": "CK",
+                    "advanced_menu": false,
+                    "data_type": "bool",
+                    "default": "0",
+                    "enabled": true,
+                    "refresh_fields_on_change": [],
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 }
             ]

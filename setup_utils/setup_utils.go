@@ -80,21 +80,33 @@ func SetupAndroidNDKForRust(logLevel logger.LogLevel) error {
 }
 
 // SetupGoDependencies installs the Go compiler for source compilation.
-func SetupGoDependencies(logLevel logger.LogLevel) error {
-	return installDevelopmentDependencies(logLevel, "Go", map[string][]string{
+func SetupGoDependencies(logLevel logger.LogLevel, crossCompile bool) error {
+	if err := installDevelopmentDependencies(logLevel, "Go", map[string][]string{
 		"apt-get": {"golang-go"},
 		"dnf":     {"golang"},
 		"pacman":  {"go"},
-	})
+	}); err != nil {
+		return err
+	}
+	if crossCompile {
+		return SetupCrossCompileDependencies(logLevel)
+	}
+	return nil
 }
 
 // SetupRustDependencies installs Rust and Cargo for source compilation.
-func SetupRustDependencies(logLevel logger.LogLevel) error {
-	return installDevelopmentDependencies(logLevel, "Rust", map[string][]string{
-		"apt-get": {"rustc", "cargo"},
-		"dnf":     {"rust", "cargo"},
-		"pacman":  {"rust"},
-	})
+func SetupRustDependencies(logLevel logger.LogLevel, crossCompile bool) error {
+	installCrossCompile := crossCompile
+	if installCrossCompile {
+		if err := SetupCrossCompileDependencies(logLevel); err != nil {
+			return err
+		}
+	}
+	target := ""
+	if installCrossCompile {
+		target = linuxRustCrossTarget()
+	}
+	return installRustupToolchain(logLevel, target)
 }
 
 // SetupCrossCompileDependencies installs tools needed to cross-compile for
@@ -118,6 +130,117 @@ func SetupCrossCompileDependencies(logLevel logger.LogLevel) error {
 		return fmt.Errorf("cross-compilation dependencies are unsupported on %s; supported host architectures are amd64 and arm64", runtime.GOARCH)
 	}
 	return installDevelopmentDependencies(logLevel, "cross-compilation", packagesByManager)
+}
+
+// linuxRustCrossTarget returns the target opposite the current supported Linux host.
+func linuxRustCrossTarget() string {
+	if runtime.GOARCH == "arm64" {
+		return "x86_64-unknown-linux-gnu"
+	}
+	return "aarch64-unknown-linux-gnu"
+}
+
+// installRustupCrossTarget installs rustup for the invoking user when needed,
+// then adds the standard library for the opposite Linux architecture.
+func installRustupToolchain(logLevel logger.LogLevel, target string) error {
+	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
+		return fmt.Errorf("Rustup setup is supported only on Linux amd64 and arm64")
+	}
+	host := "x86_64-unknown-linux-gnu"
+	if runtime.GOARCH == "arm64" {
+		host = "aarch64-unknown-linux-gnu"
+	}
+	tempFile, err := os.CreateTemp("", "rustup-init-*")
+	if err != nil {
+		return fmt.Errorf("create rustup installer file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	defer os.Remove(tempPath)
+	if err := tempFile.Close(); err != nil {
+		return fmt.Errorf("close rustup installer file: %w", err)
+	}
+	logger.Info(logLevel, "Downloading rustup installer for %s...", runtime.GOARCH)
+	response, err := http.Get("https://static.rust-lang.org/rustup/dist/" + host + "/rustup-init")
+	if err != nil {
+		return fmt.Errorf("download rustup installer: %w", err)
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("download rustup installer: HTTP %s", response.Status)
+	}
+	installer, err := os.OpenFile(tempPath, os.O_WRONLY|os.O_TRUNC, 0o700)
+	if err != nil {
+		return fmt.Errorf("open rustup installer: %w", err)
+	}
+	_, copyErr := io.Copy(installer, response.Body)
+	closeErr := installer.Close()
+	if copyErr != nil {
+		return fmt.Errorf("save rustup installer: %w", copyErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("close rustup installer: %w", closeErr)
+	}
+	if err := os.Chmod(tempPath, 0o755); err != nil {
+		return fmt.Errorf("make rustup installer executable: %w", err)
+	}
+
+	return sudoers.RunAsSudoUser(func() error {
+		usr, err := currentSetupUser()
+		if err != nil {
+			return err
+		}
+		rustup := filepath.Join(usr.HomeDir, ".cargo", "bin", "rustup")
+		if _, err := os.Stat(rustup); err != nil {
+			installerArgs := []string{"-y", "--profile", "minimal", "--default-toolchain", "stable"}
+			if target != "" {
+				installerArgs = append(installerArgs, "--target", target)
+			}
+			command := exec.Command(tempPath, installerArgs...)
+			command.Env = rustupUserEnvironment(usr)
+			command.Stdout, command.Stderr = os.Stdout, os.Stderr
+			if err := command.Run(); err != nil {
+				return fmt.Errorf("install rustup for %s: %w", usr.Username, err)
+			}
+		}
+		toolchainArgs := []string{"toolchain", "install", "stable", "--profile", "minimal"}
+		if target != "" {
+			toolchainArgs = append(toolchainArgs, "--target", target)
+		}
+		command := exec.Command(rustup, toolchainArgs...)
+		command.Env = rustupUserEnvironment(usr)
+		command.Stdout, command.Stderr = os.Stdout, os.Stderr
+		if err := command.Run(); err != nil {
+			return fmt.Errorf("install Rust stable toolchain for %s: %w", usr.Username, err)
+		}
+		command = exec.Command(rustup, "default", "stable")
+		command.Env = rustupUserEnvironment(usr)
+		command.Stdout, command.Stderr = os.Stdout, os.Stderr
+		if err := command.Run(); err != nil {
+			return fmt.Errorf("select Rust stable toolchain for %s: %w", usr.Username, err)
+		}
+		if target != "" {
+			logger.Info(logLevel, "Installed Rust cross-compilation target %s for %s.", target, usr.Username)
+		}
+		return nil
+	})
+}
+
+func rustupUserEnvironment(usr *user.User) []string {
+	path := filepath.Join(usr.HomeDir, ".cargo", "bin") + string(os.PathListSeparator) + os.Getenv("PATH")
+	env := replaceSetupEnv(os.Environ(), "HOME", usr.HomeDir)
+	env = replaceSetupEnv(env, "USER", usr.Username)
+	return replaceSetupEnv(env, "PATH", path)
+}
+
+func replaceSetupEnv(env []string, key, value string) []string {
+	prefix := key + "="
+	updated := make([]string, 0, len(env)+1)
+	for _, entry := range env {
+		if !strings.HasPrefix(entry, prefix) {
+			updated = append(updated, entry)
+		}
+	}
+	return append(updated, prefix+value)
 }
 
 func installMissingDependencies(logLevel logger.LogLevel) error {

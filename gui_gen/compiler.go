@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"guify_my_script/logger"
@@ -23,6 +24,16 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 `
 
+const amd64CrossDockerfile = `FROM debian:bookworm-slim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN dpkg --add-architecture amd64 && \
+    apt-get update && \
+    apt-get install -y crossbuild-essential-amd64 qt6-base-dev:amd64 pkg-config && \
+    rm -rf /var/lib/apt/lists/*
+RUN ln -sf /usr/bin/x86_64-linux-gnu-g++ /usr/bin/g++
+ENV PKG_CONFIG_LIBDIR=/usr/lib/x86_64-linux-gnu/pkgconfig
+`
+
 const arm64Dockerfile = `FROM debian:bookworm-slim
 ENV DEBIAN_FRONTEND=noninteractive
 RUN dpkg --add-architecture arm64 && \
@@ -33,37 +44,44 @@ RUN ln -sf /usr/bin/aarch64-linux-gnu-g++ /usr/bin/g++
 ENV PKG_CONFIG_PATH=/usr/lib/aarch64-linux-gnu/pkgconfig
 `
 
+const arm64NativeDockerfile = `FROM debian:bookworm-slim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y build-essential qt6-base-dev pkg-config && \
+    rm -rf /var/lib/apt/lists/*
+`
+
 // BuildContext bundles all the necessary data required to compile and stage the application.
 type BuildContext struct {
-	CompileMode       string
-	TargetArchs       []string
-	BaseDir           string
-	PackageName       string
+	CompileMode            string
+	TargetArchs            []string
+	BaseDir                string
+	PackageName            string
 	BundledSourceName      string
 	SourcePathLinuxAMD64   string
 	SourcePathLinuxAArch64 string
 	SourcePathAMD64        string // Deprecated: Kept for backwards compatibility
 	SourcePathARM64        string // Deprecated: Kept for backwards compatibility
 	FinalSourceCode        string
-	DefaultsJSON      []byte
-	RootConfig        RootConfig
-	IconName          string
-	IconPath          string
-	LogLevel          logger.LogLevel
-	ClearCache        bool
-	TargetBuilds      string
+	DefaultsJSON           []byte
+	RootConfig             RootConfig
+	IconName               string
+	IconPath               string
+	LogLevel               logger.LogLevel
+	ClearCache             bool
+	TargetBuilds           string
 }
 
 // ensureBuilderImage checks if a container image exists locally. If not, it builds it from the Dockerfile string.
-func ensureBuilderImage(engine, tag, dockerfile string, logLevel logger.LogLevel) error {
-	inspectCmd := exec.Command(engine, "image", "inspect", tag)
-	if err := inspectCmd.Run(); err == nil {
+func ensureBuilderImage(engine, tag, platform, dockerfile string, logLevel logger.LogLevel) error {
+	inspectCmd := exec.Command(engine, "image", "inspect", "--format={{.Os}}/{{.Architecture}}", tag)
+	if output, err := inspectCmd.Output(); err == nil && strings.TrimSpace(string(output)) == platform {
 		return nil
 	}
 
-	logger.Info(logLevel, "Builder image '%s' not found locally. Building container...", tag)
+	logger.Info(logLevel, "Builder image '%s' for %s not found locally. Building container...", tag, platform)
 
-	buildCmd := exec.Command(engine, "build", "-t", tag, "-")
+	buildCmd := exec.Command(engine, "build", "--platform", platform, "-t", tag, "-")
 	buildCmd.Stdin = strings.NewReader(dockerfile)
 	buildCmd.Stdout = os.Stdout
 	buildCmd.Stderr = os.Stderr
@@ -155,22 +173,38 @@ func runBuildLoop(ctx BuildContext) error {
 		}
 
 		// --- CONTAINER SETUP & COMPILATION ---
-		var builderTag, dockerfile, compilerBin, pkgConfigEnv string
+		var builderTag, dockerfile, compilerBin, pkgConfigEnv, platform string
 
 		if targetArch == "linux_aarch64" || targetArch == "arm64" || targetArch == "aarch64" {
 			builderTag = "qt6-arm64-builder"
-			dockerfile = arm64Dockerfile
-			compilerBin = "aarch64-linux-gnu-g++"
-			pkgConfigEnv = "PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig "
+			if runtime.GOARCH == "arm64" {
+				platform = "linux/arm64"
+				dockerfile = arm64NativeDockerfile
+				compilerBin = "g++"
+			} else {
+				platform = "linux/amd64"
+				dockerfile = arm64Dockerfile
+				compilerBin = "aarch64-linux-gnu-g++"
+				pkgConfigEnv = "PKG_CONFIG_LIBDIR=/usr/lib/aarch64-linux-gnu/pkgconfig "
+			}
 		} else {
-			builderTag = "qt6-amd64-builder"
-			dockerfile = amd64Dockerfile
-			compilerBin = "g++"
-			pkgConfigEnv = ""
+			if runtime.GOARCH == "arm64" {
+				builderTag = "qt6-amd64-builder"
+				platform = "linux/arm64"
+				dockerfile = amd64CrossDockerfile
+				compilerBin = "x86_64-linux-gnu-g++"
+				pkgConfigEnv = "PKG_CONFIG_LIBDIR=/usr/lib/x86_64-linux-gnu/pkgconfig "
+			} else {
+				builderTag = "qt6-amd64-builder"
+				platform = "linux/amd64"
+				dockerfile = amd64Dockerfile
+				compilerBin = "g++"
+				pkgConfigEnv = ""
+			}
 		}
 
 		// 1. Ensure the required builder image exists locally
-		if err := ensureBuilderImage(containerEngine, builderTag, dockerfile, ctx.LogLevel); err != nil {
+		if err := ensureBuilderImage(containerEngine, builderTag, platform, dockerfile, ctx.LogLevel); err != nil {
 			return err
 		}
 
@@ -179,19 +213,19 @@ func runBuildLoop(ctx BuildContext) error {
 		relOutputBinary, _ := filepath.Rel(ctx.BaseDir, archOutputBinary)
 
 		// 3. Resolve pkg-config flags inside the container
-		pkgCmdStr := fmt.Sprintf("%s run --rm %s sh -c \"%spkg-config --cflags --libs Qt6Widgets Qt6Network\"",
-			containerEngine, builderTag, pkgConfigEnv)
-		pkgOut, err := exec.Command("sh", "-c", pkgCmdStr).Output()
+		pkgCmdStr := fmt.Sprintf("%s run --rm --platform %s %s sh -c \"%spkg-config --cflags --libs Qt6Widgets Qt6Network\"",
+			containerEngine, platform, builderTag, pkgConfigEnv)
+		pkgOut, err := exec.Command("sh", "-c", pkgCmdStr).CombinedOutput()
 		if err != nil {
-			return fmt.Errorf("failed resolving pkg-config inside %s container: %w", builderTag, err)
+			return fmt.Errorf("failed resolving pkg-config inside %s container: %w: %s", builderTag, err, strings.TrimSpace(string(pkgOut)))
 		}
 		pkgFlags := strings.TrimSpace(string(pkgOut))
 
 		// 4. Compile binary inside the container
 		compileCmdStr := fmt.Sprintf(
-			"%s run --rm -v \"%s:/workspace\" -w /workspace %s sh -c "+
+			"%s run --rm --platform %s -v \"%s:/workspace\" -w /workspace %s sh -c "+
 				"\"%s -O3 -s -std=c++17 -fPIC -flto=auto -fvisibility=hidden -ffunction-sections -fdata-sections '%s' %s -o '%s' -Wl,--gc-sections\"",
-			containerEngine, ctx.BaseDir, builderTag, compilerBin, relCppFile, pkgFlags, relOutputBinary,
+			containerEngine, platform, ctx.BaseDir, builderTag, compilerBin, relCppFile, pkgFlags, relOutputBinary,
 		)
 
 		cmd := exec.Command("sh", "-c", compileCmdStr)
@@ -278,8 +312,8 @@ func runBuildLoop(ctx BuildContext) error {
 				return err
 			}
 
-			localRunner := filepath.Join(archPayloadDir, "run-local.sh")
-			localRunnerContent := fmt.Sprintf("#!/usr/bin/env sh\nDIR=$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)\nexec \"$DIR/opt/%s/%s\" \"$@\"\n", ctx.PackageName, ctx.PackageName)
+			localRunner := filepath.Join(archStageDir, "run-local.sh")
+			localRunnerContent := fmt.Sprintf("#!/usr/bin/env sh\nDIR=$(CDPATH= cd -- \"$(dirname -- \"$0\")\" && pwd)\nexec \"$DIR/payload/opt/%s/%s\" \"$@\"\n", ctx.PackageName, ctx.PackageName)
 			if err := os.WriteFile(localRunner, []byte(localRunnerContent), 0755); err != nil {
 				return err
 			}
