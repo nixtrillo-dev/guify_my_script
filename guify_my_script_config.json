@@ -33,7 +33,7 @@
                     "gcc",
                     "make",
                     "podman",
-                    "polkit-pkexec"
+                    "polkit"
                 ],
                 "pacman": [
                     "base-devel",

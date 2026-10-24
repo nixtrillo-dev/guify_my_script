@@ -83,9 +83,9 @@ func writeProductionPackageFiles(stageDir, packageName, title, iconName string, 
 	maintainerFull := fmt.Sprintf("%s <%s>", maintainerName, maintainerEmail)
 
 	// --- BASE DEPENDENCIES ---
-	depsArchList := []string{"qt6-base", "glibc", "gcc-libs", "hicolor-icon-theme", "noto-fonts"}
-	depsDebianList := []string{"libqt6widgets6", "libqt6network6", "libc6", "libstdc++6", "hicolor-icon-theme", "fonts-noto"}
-	depsFedoraList := []string{"qt6-qtbase-gui", "qt6-qtbase", "hicolor-icon-theme", "google-noto-fonts-all"}
+	depsArchList := []string{"qt6-base", "glibc", "gcc-libs", "hicolor-icon-theme", "noto-fonts", "konsole"}
+	depsDebianList := []string{"libqt6widgets6", "libqt6network6", "libc6", "libstdc++6", "hicolor-icon-theme", "fonts-noto", "konsole"}
+	depsFedoraList := []string{"qt6-qtbase-gui", "qt6-qtbase", "hicolor-icon-theme", "google-noto-fonts-all", "konsole"}
 	if requiresPython {
 		// Python modules are executed by the generated launcher at runtime.
 		depsArchList = append(depsArchList, "python")

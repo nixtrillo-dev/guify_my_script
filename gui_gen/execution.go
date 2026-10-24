@@ -51,9 +51,7 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
         `, actIdxStr, execCapture))
 
 	sudoPrefix := ""
-	if action.Sudo {
-		sudoPrefix = "pkexec "
-	}
+	elevated := fmt.Sprintf("%t", action.Sudo)
 
 	if sourceType == "go" || sourceType == "binary" || sourceType == "rust" {
 		cpp.WriteString(fmt.Sprintf(`
@@ -83,25 +81,14 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
 	} else if sourceType == "powershell" {
 		cpp.WriteString(buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, "SOURCE_SCRIPT", true, action.Fields))
 	} else {
-		if action.Sudo {
-			cpp.WriteString(fmt.Sprintf(`
-        QString shell_cmd;
-        if ("%[1]s" == "g" || "%[1]s" == "s" || "%[1]s" == "d") {
-            shell_cmd = QString("pkexec bash -c 'source \"%%1\"; %[2]s%%2'").arg(SOURCE_SCRIPT, escaped_args);
-        } else {
-            shell_cmd = QString("pkexec bash -c 'source \"%%1\"; %[2]s%%2%%3'").arg(SOURCE_SCRIPT, escaped_args, FALLBACK_CMD);
-        }
-        `, mode, funcName))
-		} else {
-			cpp.WriteString(fmt.Sprintf(`
+		cpp.WriteString(fmt.Sprintf(`
         QString shell_cmd;
         if ("%[1]s" == "g" || "%[1]s" == "s" || "%[1]s" == "d") {
             shell_cmd = QString("source \"%%1\"; %[2]s%%2").arg(SOURCE_SCRIPT, escaped_args);
         } else {
             shell_cmd = QString("source \"%%1\"; %[2]s%%2%%3").arg(SOURCE_SCRIPT, escaped_args, FALLBACK_CMD);
         }
-        `, mode, funcName))
-		}
+		`, mode, funcName))
 	}
 
 	cpp.WriteString(`
@@ -132,32 +119,36 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
 
 		if action.Sudo {
 			cpp.WriteString(fmt.Sprintf(`
-            connect(btnStop, &QPushButton::clicked, proc, [proc]() {
-                if (proc->state() != QProcess::NotRunning) {
-                    QString killCmd = QString("pkexec pkill -9 -f \"%%1.*%[1]s\"").arg(QFileInfo(SOURCE_SCRIPT).fileName());
-                    QProcess::execute("bash", QStringList() << "-c" << killCmd);
-                    proc->kill();
-                }
+            connect(btnStop, &QPushButton::clicked, this, [proc]() {
+                // A terminal launcher may exit after forwarding the request
+                // to an existing GNOME Console instance, while the action is
+                // still running. Stop the command by its script/function
+                // pattern even when that launcher process has already exited.
+                QString killPattern = QString("%%1.*%[1]s").arg(QFileInfo(SOURCE_SCRIPT).fileName());
+                QProcess::execute("pkexec", QStringList() << "pkill" << "-9" << "-f" << killPattern);
+                if (proc->state() != QProcess::NotRunning) proc->kill();
             });
 `, funcName))
 		} else {
-			cpp.WriteString(`
-            connect(btnStop, &QPushButton::clicked, proc, [proc]() {
-                if (proc->state() != QProcess::NotRunning) {
-                    proc->kill();
-                }
+			cpp.WriteString(fmt.Sprintf(`
+            connect(btnStop, &QPushButton::clicked, this, [proc]() {
+                QString killPattern = QString("%%1.*%[1]s").arg(QFileInfo(SOURCE_SCRIPT).fileName());
+                QProcess::execute("pkill", QStringList() << "-9" << "-f" << killPattern);
+                if (proc->state() != QProcess::NotRunning) proc->kill();
             });
-`)
+`, funcName))
 		}
 
-		cpp.WriteString(fmt.Sprintf(`
+		if mode != "gc" {
+			cpp.WriteString(fmt.Sprintf(`
             connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), this, [btnExec, btnStop](int, QProcess::ExitStatus) {
                 btnExec->setEnabled(true);
                 btnExec->setText("%[1]s"); // <-- Revert label to default Execution state
                 btnStop->setEnabled(false);
             });
-        }
 `, cppStringLiteral(execLabel)))
+		}
+		cpp.WriteString("        }\n")
 	}
 
 	if mode == "g" || mode == "gc" {
@@ -167,50 +158,100 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
         logOutputWindow_%[1]s->append("<i>[*] Instantiating execution thread...</i><br>");
 
         if ("%[2]s" == "gc") {
-            QString fifoPath = QString("/tmp/panel_fifo_%%1_%%2").arg(APP_UUID).arg(rand() %% 100000);
-            mkfifo(fifoPath.toUtf8().constData(), 0666);
+            const QString fifoPath = QString("/tmp/panel_fifo_%%1_%%2").arg(APP_UUID).arg(rand() %% 100000);
+            if (mkfifo(fifoPath.toUtf8().constData(), 0666) != 0) {
+                proc->deleteLater();
+                logOutputWindow_%[1]s->append("<font color='#a34747'>Could not create execution output stream.</font>");
+                return;
+            }
+
+            // All supported GUI_COMMANDLINE terminals run this same FIFO
+            // pipeline. The terminal child and QProcess stay alive until the
+            // command exits, while cat streams tee output into the GUI.
+            QString commandForTerminal = shell_cmd;
+            if (%[4]s) {
+                // Keep tee and the FIFO reader in the GUI user's context, as
+                // in the original Konsole path. Only the requested action is
+                // elevated; this avoids root-owned output-stream behavior.
+                commandForTerminal = QString("pkexec bash -c %%1").arg(shellQuote(shell_cmd));
+            }
+            const QString terminalCommand = QString("set -o pipefail; { %%1; } 2>&1 | tee %%2")
+                .arg(commandForTerminal, shellQuote(fifoPath));
+            if (!configureTerminalProcess(proc, terminalCommand, false)) {
+                QFile::remove(fifoPath);
+                proc->deleteLater();
+                logOutputWindow_%[1]s->append("<font color='#a34747'>No supported tracked terminal emulator was found.</font>");
+                return;
+            }
 
             QProcess *pipeReader = new QProcess(this);
             pipeReader->setProgram("cat");
             pipeReader->setArguments(QStringList() << fifoPath);
-
             connect(pipeReader, &QProcess::readyReadStandardOutput, [pipeReader, logOutputWindow_%[1]s]() {
                 QString data = QString::fromUtf8(pipeReader->readAllStandardOutput());
-                QTextCursor cursor = logOutputWindow_%[1]s->textCursor();
-                cursor.movePosition(QTextCursor::End);
-                logOutputWindow_%[1]s->setTextCursor(cursor);
+                QTextCursor outputCursor = logOutputWindow_%[1]s->textCursor();
+                outputCursor.movePosition(QTextCursor::End);
+                logOutputWindow_%[1]s->setTextCursor(outputCursor);
                 logOutputWindow_%[1]s->insertPlainText(stripAnsiEscapeCodes(data));
                 logOutputWindow_%[1]s->ensureCursorVisible();
             });
-
-            proc->setProgram("konsole");
-            proc->setArguments(QStringList() << "-e" << "bash" << "-c" << QString("{ %%1; } 2>&1 | tee %%2").arg(shell_cmd, fifoPath));
-
-            connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), [proc, pipeReader, fifoPath, logOutputWindow_%[1]s, closeOnFinish, this](int exitCode, QProcess::ExitStatus status) {
-                pipeReader->terminate();
-                pipeReader->waitForFinished(500);
+            connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                    [proc, pipeReader, fifoPath, logOutputWindow_%[1]s, btnExec, btnStop,
+                     closeOnFinish, this](int exitCode, QProcess::ExitStatus status) {
+                // Let cat receive EOF from tee and drain its last buffered
+                // output before deleting the FIFO reader.
+                if (!pipeReader->waitForFinished(1000)) {
+                    pipeReader->terminate();
+                    pipeReader->waitForFinished(500);
+                }
+                const QString remainingOutput = QString::fromUtf8(pipeReader->readAllStandardOutput());
+                if (!remainingOutput.isEmpty()) {
+                    QTextCursor outputCursor = logOutputWindow_%[1]s->textCursor();
+                    outputCursor.movePosition(QTextCursor::End);
+                    logOutputWindow_%[1]s->setTextCursor(outputCursor);
+                    logOutputWindow_%[1]s->insertPlainText(stripAnsiEscapeCodes(remainingOutput));
+                    logOutputWindow_%[1]s->ensureCursorVisible();
+                }
                 pipeReader->deleteLater();
-                unlink(fifoPath.toUtf8().constData());
+                QFile::remove(fifoPath);
 
-                QTextCursor cursor = logOutputWindow_%[1]s->textCursor();
-                cursor.movePosition(QTextCursor::End);
-                logOutputWindow_%[1]s->setTextCursor(cursor);
-                logOutputWindow_%[1]s->insertHtml("<br><font color='#10a37f'><b>[✔] Session successfully wrapped up.</b></font>");
+                QTextCursor outputCursor = logOutputWindow_%[1]s->textCursor();
+                outputCursor.movePosition(QTextCursor::End);
+                logOutputWindow_%[1]s->setTextCursor(outputCursor);
+                if (status == QProcess::NormalExit && exitCode == 0) {
+                    logOutputWindow_%[1]s->insertHtml("<br><font color='#10a37f'><b>[✔] Session successfully wrapped up.</b></font>");
+                } else {
+                    logOutputWindow_%[1]s->insertHtml(QString("<br><font color='#a34747'><b>[✖] Command exited with code %%1.</b></font>").arg(exitCode));
+                }
+                if (btnExec) {
+                    btnExec->setEnabled(true);
+                    btnExec->setText("%[6]s");
+                }
+                if (btnStop) btnStop->setEnabled(false);
 %[3]s
                 proc->deleteLater();
                 malloc_trim(0);
-
-                if (closeOnFinish) {
-                    QTimer::singleShot(100, this, &MainWindow::cleanupAndExit);
+                if (closeOnFinish) QTimer::singleShot(100, this, &MainWindow::cleanupAndExit);
+            });
+            connect(proc, &QProcess::errorOccurred, this,
+                    [proc, pipeReader, fifoPath, logOutputWindow_%[1]s, btnExec, btnStop](QProcess::ProcessError error) {
+                if (error != QProcess::FailedToStart) return;
+                pipeReader->kill();
+                pipeReader->deleteLater();
+                QFile::remove(fifoPath);
+                if (btnExec) {
+                    btnExec->setEnabled(true);
+                    btnExec->setText("%[6]s");
                 }
+                if (btnStop) btnStop->setEnabled(false);
+                logOutputWindow_%[1]s->append("<br><font color='#a34747'><b>[✖] Could not start the terminal emulator.</b></font>");
+                proc->deleteLater();
             });
 
             pipeReader->start();
             proc->start();
-
         } else {
-            proc->setProgram("bash");
-            proc->setArguments(QStringList() << "-c" << shell_cmd);
+            configureShellProcess(proc, shell_cmd, %[4]s);
             proc->setProcessChannelMode(QProcess::MergedChannels);
 
             connect(proc, &QProcess::readyReadStandardOutput, [proc, logOutputWindow_%[1]s]() {
@@ -244,11 +285,10 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
 
             proc->start();
         }
-            `, actIdxStr, mode, compStr))
+            `, actIdxStr, mode, compStr, elevated, actIdxStr, cppStringLiteral(execLabel)))
 	} else if mode == "s" {
 		cpp.WriteString(fmt.Sprintf(`
-        proc->setProgram("bash");
-        proc->setArguments(QStringList() << "-c" << shell_cmd);
+        configureShellProcess(proc, shell_cmd, %[2]s);
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), [proc, closeOnFinish, this](int exitCode, QProcess::ExitStatus status) {
             if (status == QProcess::NormalExit && exitCode == 0) {
@@ -263,19 +303,21 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
         });
 
         proc->start();
-            `, compStr))
+            `, compStr, elevated))
 	} else if mode == "d" {
 		cpp.WriteString(fmt.Sprintf(`
-        proc->setProgram("bash");
-        proc->setArguments(QStringList() << "-c" << (shell_cmd + " &"));
+        configureShellProcess(proc, shell_cmd, %[1]s);
         proc->startDetached();
-%[1]s
+%[2]s
         if (closeOnFinish) { QTimer::singleShot(100, this, &MainWindow::cleanupAndExit); }
-            `, compStr))
+            `, elevated, compStr))
 	} else {
 		cpp.WriteString(fmt.Sprintf(`
-        proc->setProgram("konsole");
-        proc->setArguments(QStringList() << "-e" << "bash" << "-c" << shell_cmd);
+        if (!configureTerminalProcess(proc, shell_cmd, %[2]s)) {
+            proc->deleteLater();
+            QMessageBox::warning(this, "Terminal unavailable", "No supported terminal emulator was found.");
+            return;
+        }
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), [proc, closeOnFinish, this](int exitCode, QProcess::ExitStatus status) {
 %[1]s
@@ -286,7 +328,7 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
         });
 
         proc->start();
-            `, compStr))
+            `, compStr, elevated))
 	}
 
 	cpp.WriteString("\n    };\n")

@@ -158,6 +158,53 @@ static QString shellQuote(const QString& str) {
     return "'" + esc + "'";
 }
 
+static void configureShellProcess(QProcess *proc, const QString &command, bool elevated) {
+    if (elevated) {
+        proc->setProgram("pkexec");
+        proc->setArguments(QStringList() << "bash" << "-c" << command);
+    } else {
+        proc->setProgram("bash");
+        proc->setArguments(QStringList() << "-c" << command);
+    }
+}
+
+static bool configureTerminalProcess(QProcess *proc, const QString &command, bool elevated) {
+    QStringList childCommand;
+    if (elevated) {
+        childCommand << "pkexec" << "bash" << "-c" << command;
+    } else {
+        childCommand << "bash" << "-c" << command;
+    }
+
+    // Prefer the terminal whose tracked lifecycle is the established baseline.
+    // GNOME Terminal and xterm also keep their launcher process alive for the
+    // supplied command, allowing QProcess to track completion.
+    const QStringList candidates = {"konsole", "gnome-terminal", "xterm"};
+    for (const QString &candidate : candidates) {
+        const QString executable = QStandardPaths::findExecutable(candidate);
+        if (executable.isEmpty()) continue;
+
+        QStringList terminalArgs;
+        if (candidate == "konsole") {
+            terminalArgs << "--nofork" << "-e";
+            terminalArgs.append(childCommand);
+        } else if (candidate == "gnome-terminal") {
+            terminalArgs << "--wait" << "--";
+            terminalArgs.append(childCommand);
+        } else {
+            // Explicitly disable xterm's hold-open behavior even if enabled
+            // in the user's X resources.
+            terminalArgs << "+hold" << "-e";
+            terminalArgs.append(childCommand);
+        }
+
+        proc->setProgram(executable);
+        proc->setArguments(terminalArgs);
+        return true;
+    }
+    return false;
+}
+
 static QString formatPythonArg(const QString& rawVal, const QString& dataType) {
     QString dt = dataType.toLower().trimmed();
     if (dt == "int" || dt == "integer") {

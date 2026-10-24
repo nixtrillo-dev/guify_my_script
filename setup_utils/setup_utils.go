@@ -71,6 +71,9 @@ func SetupAndroidNDKForRust(logLevel logger.LogLevel) error {
 		logger.Error(logLevel, "Android SDK and NDK setup failed: %v", err)
 		return err
 	}
+	if err := installRustupToolchain(logLevel, "aarch64-linux-android"); err != nil {
+		return fmt.Errorf("install Android Rust target: %w", err)
+	}
 
 	logger.Info(logLevel, "Android SDK and NDK setup completed at %s.", sdkRoot)
 	if reloadCommand != "" {
@@ -96,17 +99,59 @@ func SetupGoDependencies(logLevel logger.LogLevel, crossCompile bool) error {
 
 // SetupRustDependencies installs Rust and Cargo for source compilation.
 func SetupRustDependencies(logLevel logger.LogLevel, crossCompile bool) error {
-	installCrossCompile := crossCompile
-	if installCrossCompile {
-		if err := SetupCrossCompileDependencies(logLevel); err != nil {
-			return err
-		}
-	}
 	target := ""
-	if installCrossCompile {
+	if crossCompile {
 		target = linuxRustCrossTarget()
 	}
-	return installRustupToolchain(logLevel, target)
+	if err := installRustupToolchain(logLevel, target); err != nil {
+		return err
+	}
+	if !crossCompile {
+		return nil
+	}
+	if err := installRustCrossDependencies(logLevel); err != nil {
+		return err
+	}
+	return installCross(logLevel)
+}
+
+// installRustCrossDependencies installs a supported container engine for
+// cross-rs. Target compilers and libc sysroots are provided by its images.
+func installRustCrossDependencies(logLevel logger.LogLevel) error {
+	return installDevelopmentDependencies(logLevel, "Rust cross-compilation", map[string][]string{
+		"apt-get": {"podman"},
+		"dnf":     {"podman"},
+		"pacman":  {"podman"},
+	})
+}
+
+// installCross installs cross for the invoking user, keeping Cargo and Rust
+// tools out of the root user's home when setup is launched with sudo.
+func installCross(logLevel logger.LogLevel) error {
+	return sudoers.RunAsSudoUser(func() error {
+		usr, err := currentSetupUser()
+		if err != nil {
+			return err
+		}
+		cargoBin := filepath.Join(usr.HomeDir, ".cargo", "bin")
+		cross := filepath.Join(cargoBin, "cross")
+		if _, err := os.Stat(cross); err == nil {
+			logger.Info(logLevel, "cross is already installed for %s.", usr.Username)
+			return nil
+		}
+		cargo := filepath.Join(cargoBin, "cargo")
+		if _, err := os.Stat(cargo); err != nil {
+			return fmt.Errorf("Cargo is not installed for %s; install Rust before cross", usr.Username)
+		}
+		logger.Info(logLevel, "Installing cross for %s...", usr.Username)
+		command := exec.Command(cargo, "install", "cross", "--locked")
+		command.Env = rustupUserEnvironment(usr)
+		command.Stdout, command.Stderr = os.Stdout, os.Stderr
+		if err := command.Run(); err != nil {
+			return fmt.Errorf("install cross for %s: %w", usr.Username, err)
+		}
+		return nil
+	})
 }
 
 // SetupCrossCompileDependencies installs tools needed to cross-compile for
@@ -116,15 +161,15 @@ func SetupCrossCompileDependencies(logLevel logger.LogLevel) error {
 	switch runtime.GOARCH {
 	case "amd64":
 		packagesByManager = map[string][]string{
-			"apt-get": {"gcc-aarch64-linux-gnu", "build-essential", "podman"},
-			"dnf":     {"gcc-aarch64-linux-gnu", "gcc", "make", "podman"},
-			"pacman":  {"aarch64-linux-gnu-gcc", "base-devel", "podman"},
+			"apt-get": {"gcc-aarch64-linux-gnu", "libc6-dev-arm64-cross", "build-essential", "podman"},
+			"dnf":     {"gcc-aarch64-linux-gnu", "sysroot-aarch64-glibc", "gcc", "make", "podman"},
+			"pacman":  {"aarch64-linux-gnu-gcc", "aarch64-linux-gnu-glibc", "base-devel", "podman"},
 		}
 	case "arm64":
 		packagesByManager = map[string][]string{
-			"apt-get": {"gcc-x86-64-linux-gnu", "build-essential", "podman"},
-			"dnf":     {"gcc-x86_64-linux-gnu", "gcc", "make", "podman"},
-			"pacman":  {"x86_64-linux-gnu-gcc", "base-devel", "podman"},
+			"apt-get": {"gcc-x86-64-linux-gnu", "libc6-dev-amd64-cross", "build-essential", "podman"},
+			"dnf":     {"gcc-x86_64-linux-gnu", "sysroot-x86_64-glibc", "gcc", "make", "podman"},
+			"pacman":  {"x86_64-linux-gnu-gcc", "x86_64-linux-gnu-glibc", "base-devel", "podman"},
 		}
 	default:
 		return fmt.Errorf("cross-compilation dependencies are unsupported on %s; supported host architectures are amd64 and arm64", runtime.GOARCH)

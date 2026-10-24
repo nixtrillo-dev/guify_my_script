@@ -388,9 +388,7 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
 `, actIdxStr, cppStringLiteral(sourceScript), captureVars))
 
 	sudoPrefix := ""
-	if action.Sudo {
-		sudoPrefix = "pkexec "
-	}
+	elevated := fmt.Sprintf("%t", action.Sudo)
 
 	if sourceType == "go" || sourceType == "binary" || sourceType == "rust" {
 		cpp.WriteString(fmt.Sprintf(`
@@ -420,25 +418,14 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
 	} else if sourceType == "powershell" {
 		cpp.WriteString(buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, "targetScript", false, action.Fields))
 	} else {
-		if action.Sudo {
-			cpp.WriteString(fmt.Sprintf(`
-        QString shell_cmd;
-        if ("%[1]s" == "s" || "%[1]s" == "d") {
-            shell_cmd = QString("pkexec bash -c 'source \"%%1\"; %[2]s%%2'").arg(targetScript, escaped_args);
-        } else {
-            shell_cmd = QString("pkexec bash -c 'source \"%%1\"; %[2]s%%2%%3'").arg(targetScript, escaped_args, FALLBACK_CMD);
-        }
-        `, mode, funcName))
-		} else {
-			cpp.WriteString(fmt.Sprintf(`
+		cpp.WriteString(fmt.Sprintf(`
         QString shell_cmd;
         if ("%[1]s" == "s" || "%[1]s" == "d") {
             shell_cmd = QString("source \"%%1\"; %[2]s%%2").arg(targetScript, escaped_args);
         } else {
             shell_cmd = QString("source \"%%1\"; %[2]s%%2%%3").arg(targetScript, escaped_args, FALLBACK_CMD);
         }
-        `, mode, funcName))
-		}
+		`, mode, funcName))
 	}
 
 	cpp.WriteString(`
@@ -455,8 +442,7 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         execBtn_%[2]s->setText("%[3]s");
         stopBtn_%[2]s->setEnabled(true);
 
-        proc->setProgram("bash");
-        proc->setArguments(QStringList() << "-c" << shell_cmd);
+        configureShellProcess(proc, shell_cmd, %[5]s);
 
         connect(stopBtn_%[2]s, &QPushButton::clicked, proc, [proc]() {
             proc->terminate();
@@ -477,25 +463,23 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         });
 
         proc->start();
-            `, compStr, actIdxStr, cppStringLiteral(inProgressLabel), cppStringLiteral(execLabel)))
+			`, compStr, actIdxStr, cppStringLiteral(inProgressLabel), cppStringLiteral(execLabel), elevated))
 	} else if mode == "d" {
 		// Parity Restored: Detached mode correctly ported
 		cpp.WriteString(fmt.Sprintf(`
-        proc->setProgram("bash");
-        proc->setArguments(QStringList() << "-c" << (shell_cmd + " &"));
+		configureShellProcess(proc, shell_cmd, %[2]s);
         proc->startDetached();
         proc->deleteLater();
-%[1]s
+		%[1]s
         if (closeOnFinish) { QTimer::singleShot(100, this, &MainWindow::cleanupAndExit); }
-            `, compStr))
+			`, compStr, elevated))
 	} else if mode == "g" || mode == "gc" {
 		cpp.WriteString(fmt.Sprintf(`
         execBtn_%[2]s->setEnabled(false);
         execBtn_%[2]s->setText("%[3]s");
         stopBtn_%[2]s->setEnabled(true);
 
-        proc->setProgram("bash");
-        proc->setArguments(QStringList() << "-c" << shell_cmd);
+        configureShellProcess(proc, shell_cmd, %[5]s);
         proc->setProcessChannelMode(QProcess::MergedChannels);
 
         logOutputWindow_%[2]s->clear();
@@ -525,11 +509,14 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         });
 
         proc->start();
-            `, compStr, actIdxStr, cppStringLiteral(inProgressLabel), cppStringLiteral(execLabel)))
+			`, compStr, actIdxStr, cppStringLiteral(inProgressLabel), cppStringLiteral(execLabel), elevated))
 	} else {
 		cpp.WriteString(fmt.Sprintf(`
-        proc->setProgram("konsole");
-        proc->setArguments(QStringList() << "-e" << "bash" << "-c" << shell_cmd);
+        if (!configureTerminalProcess(proc, shell_cmd, %[2]s)) {
+            proc->deleteLater();
+            QMessageBox::warning(this, "Terminal unavailable", "No supported terminal emulator was found.");
+            return;
+        }
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), [proc, closeOnFinish, this](int exitCode, QProcess::ExitStatus status) {
 %[1]s
@@ -540,7 +527,7 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         });
 
         proc->start();
-            `, compStr))
+			`, compStr, elevated))
 	}
 
 	cpp.WriteString("\n    };\n")
