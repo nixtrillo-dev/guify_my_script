@@ -627,8 +627,20 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 }
 
 // CompileRust compiles the runnable Rust binary and C++ shared library for the specified Rust project folder.
-func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) error {
+func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string, targetBuilds ...string) error {
 	lvl := logger.ParseLogLevel(logLevelStr)
+	buildSelection := ""
+	if len(targetBuilds) > 0 {
+		buildSelection = targetBuilds[0]
+	}
+	architectures, err := internal_utils.ParseBuildArchitectures(buildSelection)
+	if err != nil {
+		return err
+	}
+	selected := make(map[string]bool, len(architectures))
+	for _, architecture := range architectures {
+		selected[architecture] = true
+	}
 
 	if targetDir == "" {
 		targetDir = "."
@@ -695,101 +707,106 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 
 	logger.Info(lvl, "Compiling Rust package in %s (binary: %s)...", buildDir, binaryName)
 
-	// Step 1: cargo build --release
-	cmdBuild := rustCommand("cargo", "build", "--release")
-	cmdBuild.Dir = buildDir
-
-	var errBuild strings.Builder
-	cmdBuild.Stdout = os.Stdout
-	cmdBuild.Stderr = &errBuild
-
-	if err := cmdBuild.Run(); err != nil {
-		return fmt.Errorf("cargo build failure:\n%s\ninternal error: %w", errBuild.String(), err)
-	}
-
-	logger.Info(lvl, "Cargo build completed successfully.\n")
+	// Build the host architecture only when it was requested.
 	nativeSuffix := linuxArchSuffix(runtime.GOARCH)
-	logger.Info(lvl, "Building for architecture: %s...", nativeSuffix)
+	if selected[nativeSuffix] {
+		// Step 1: cargo build --release
+		cmdBuild := rustCommand("cargo", "build", "--release")
+		cmdBuild.Dir = buildDir
 
-	// Locate release executable.
-	targetReleaseDir := filepath.Join(buildDir, "target", "release")
-	candidateBin := filepath.Join(targetReleaseDir, crateName)
+		var errBuild strings.Builder
+		cmdBuild.Stdout = os.Stdout
+		cmdBuild.Stderr = &errBuild
 
-	cliBinNameNative := fmt.Sprintf("%s_%s", binaryName, nativeSuffix)
-	cliBinNameDefault := binaryName
-
-	// binaryName is always absolute here (resolved above).
-	destNative := cliBinNameNative
-	destDefault := cliBinNameDefault
-
-	if _, err := os.Stat(candidateBin); err == nil {
-		if err := copyExecutable(candidateBin, destNative); err != nil {
-			return fmt.Errorf("failed copying %s binary: %w", nativeSuffix, err)
+		if err := cmdBuild.Run(); err != nil {
+			return fmt.Errorf("cargo build failure:\n%s\ninternal error: %w", errBuild.String(), err)
 		}
-		_ = copyExecutable(candidateBin, destDefault)
-		logger.Info(lvl, "  • Built %s executable: %s", nativeSuffix, destNative)
-	} else {
-		// No executable was produced — this is expected for library-only crates
-		// (lib.rs with no [[bin]] section).  Only log if a binary target was actually
-		// declared in Cargo.toml so we don't surface noise for pure library builds.
-		if hasBinaryTarget(buildDir) {
-			logger.Error(lvl, "Cargo build did not produce expected binary %s: %e", candidateBin, err)
-		} else {
-			logger.Warn(lvl, "  • Skipping executable copy: %s is a library-only crate (no [[bin]] target)", crateName)
-		}
-	}
 
-	// Step 2: Build C++ shared library (.so)
-	// binaryName is absolute; append the suffix directly.
-	libBinNameNative := fmt.Sprintf("%s_%s.so", binaryName, nativeSuffix)
-	destLibNative := libBinNameNative
+		logger.Info(lvl, "Cargo build completed successfully.\n")
+		logger.Info(lvl, "Building for architecture: %s...", nativeSuffix)
 
-	// Check if cargo already built a cdylib in target/release/
-	builtCdylib := filepath.Join(targetReleaseDir, fmt.Sprintf("lib%s.so", crateName))
-	if _, err := os.Stat(builtCdylib); err == nil {
-		if err := copyExecutable(builtCdylib, destLibNative); err != nil {
-			return fmt.Errorf("failed copying shared library: %w", err)
-		}
-		logger.Info(lvl, "  • Built %s C++ shared library: %s", nativeSuffix, destLibNative)
-	} else if absBridge != "" {
-		// Compile absBridge with rustc as cdylib.
-		depsDir := filepath.Join(targetReleaseDir, "deps")
+		// Locate release executable.
+		targetReleaseDir := filepath.Join(buildDir, "target", "release")
+		candidateBin := filepath.Join(targetReleaseDir, crateName)
 
-		var rustcArgs []string
-		rustcArgs = append(rustcArgs, "--edition", "2021", "--crate-type", "cdylib", absBridge, "-o", destLibNative)
+		cliBinNameNative := fmt.Sprintf("%s_%s", binaryName, nativeSuffix)
+		cliBinNameDefault := binaryName
 
-		for _, cDir := range allLibCrateDirs {
-			cName := getCrateName(cDir)
-			if cName == "" {
-				cName = filepath.Base(cDir)
+		// binaryName is always absolute here (resolved above).
+		destNative := cliBinNameNative
+		destDefault := cliBinNameDefault
+
+		if _, err := os.Stat(candidateBin); err == nil {
+			if err := copyExecutable(candidateBin, destNative); err != nil {
+				return fmt.Errorf("failed copying %s binary: %w", nativeSuffix, err)
 			}
-			cNameSafe := strings.ReplaceAll(cName, "-", "_")
+			_ = copyExecutable(candidateBin, destDefault)
+			logger.Info(lvl, "  • Built %s executable: %s", nativeSuffix, destNative)
+		} else {
+			// No executable was produced — this is expected for library-only crates
+			// (lib.rs with no [[bin]] section).  Only log if a binary target was actually
+			// declared in Cargo.toml so we don't surface noise for pure library builds.
+			if hasBinaryTarget(buildDir) {
+				logger.Error(lvl, "Cargo build did not produce expected binary %s: %e", candidateBin, err)
+			} else {
+				logger.Warn(lvl, "  • Skipping executable copy: %s is a library-only crate (no [[bin]] target)", crateName)
+			}
+		}
 
-			rlibPath := findRlibInDir(depsDir, cNameSafe)
-			if rlibPath == "" {
-				libDepsDir := filepath.Join(cDir, "target", "release", "deps")
-				rlibPath = findRlibInDir(libDepsDir, cNameSafe)
+		// Step 2: Build C++ shared library (.so)
+		// binaryName is absolute; append the suffix directly.
+		libBinNameNative := fmt.Sprintf("%s_%s.so", binaryName, nativeSuffix)
+		destLibNative := libBinNameNative
+
+		// Check if cargo already built a cdylib in target/release/
+		builtCdylib := filepath.Join(targetReleaseDir, fmt.Sprintf("lib%s.so", crateName))
+		if _, err := os.Stat(builtCdylib); err == nil {
+			if err := copyExecutable(builtCdylib, destLibNative); err != nil {
+				return fmt.Errorf("failed copying shared library: %w", err)
+			}
+			logger.Info(lvl, "  • Built %s C++ shared library: %s", nativeSuffix, destLibNative)
+		} else if absBridge != "" {
+			// Compile absBridge with rustc as cdylib.
+			depsDir := filepath.Join(targetReleaseDir, "deps")
+
+			var rustcArgs []string
+			rustcArgs = append(rustcArgs, "--edition", "2021", "--crate-type", "cdylib", absBridge, "-o", destLibNative)
+
+			for _, cDir := range allLibCrateDirs {
+				cName := getCrateName(cDir)
+				if cName == "" {
+					cName = filepath.Base(cDir)
+				}
+				cNameSafe := strings.ReplaceAll(cName, "-", "_")
+
+				rlibPath := findRlibInDir(depsDir, cNameSafe)
+				if rlibPath == "" {
+					libDepsDir := filepath.Join(cDir, "target", "release", "deps")
+					rlibPath = findRlibInDir(libDepsDir, cNameSafe)
+					if rlibPath != "" {
+						rustcArgs = append(rustcArgs, "-L", libDepsDir)
+					}
+				}
 				if rlibPath != "" {
-					rustcArgs = append(rustcArgs, "-L", libDepsDir)
+					rustcArgs = append(rustcArgs, "-L", depsDir, "--extern", fmt.Sprintf("%s=%s", cName, rlibPath))
 				}
 			}
-			if rlibPath != "" {
-				rustcArgs = append(rustcArgs, "-L", depsDir, "--extern", fmt.Sprintf("%s=%s", cName, rlibPath))
+
+			cmdLib := rustCommand("rustc", rustcArgs...)
+			cmdLib.Dir = buildDir
+			var errLib strings.Builder
+			cmdLib.Stdout = os.Stdout
+			cmdLib.Stderr = &errLib
+
+			if err := cmdLib.Run(); err != nil {
+				logger.Error(lvl, "rustc cdylib compile failed: %s", errLib.String())
+			} else {
+				_ = os.Chmod(destLibNative, 0755)
+				logger.Info(lvl, "  • Built %s C++ shared library: %s", nativeSuffix, destLibNative)
 			}
 		}
-
-		cmdLib := rustCommand("rustc", rustcArgs...)
-		cmdLib.Dir = buildDir
-		var errLib strings.Builder
-		cmdLib.Stdout = os.Stdout
-		cmdLib.Stderr = &errLib
-
-		if err := cmdLib.Run(); err != nil {
-			logger.Error(lvl, "rustc cdylib compile failed: %s", errLib.String())
-		} else {
-			_ = os.Chmod(destLibNative, 0755)
-			logger.Info(lvl, "  • Built %s C++ shared library: %s", nativeSuffix, destLibNative)
-		}
+	} else {
+		logger.Info(lvl, "Skipping unrequested architecture: %s", nativeSuffix)
 	}
 
 	// Build the other Linux architecture when its Rust target is installed.
@@ -800,67 +817,79 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string) er
 	crossSuffix := linuxArchSuffix(crossArch)
 	crossTarget := linuxRustTarget(crossArch)
 	crossLinker := linuxCrossLinker(crossArch)
-	cmdCheckTarget := rustCommand("rustup", "target", "list", "--installed")
-	installedTargets, targetCheckErr := cmdCheckTarget.Output()
-	if targetCheckErr != nil {
-		logger.Warn(lvl, "\nSkipping %s Rust build: could not check installed Rust targets (rustup target list --installed failed: %v). Install rustup and run 'rustup target add %s' to enable it.", crossSuffix, targetCheckErr, crossTarget)
-	} else if !strings.Contains(string(installedTargets), crossTarget) {
-		logger.Warn(lvl, "\nSkipping %s Rust build: Rust target %s is not installed. Run 'rustup target add %s' to enable it.", crossSuffix, crossTarget, crossTarget)
-	} else {
-		logger.Info(lvl, "\nBuilding for architecture: %s...", crossSuffix)
-		useCross := rustToolAvailable("cross")
-		var cmdCross *exec.Cmd
-		sysroot := ""
-		if useCross {
-			cmdCross = rustCommand("cross", "build", "--release", "--target", crossTarget)
-			cmdCross.Env = append(cmdCross.Env, "CROSS_CONTAINER_ENGINE=podman")
-			logger.Info(lvl, "Using cross with Podman for the %s build.", crossSuffix)
+	if selected[crossSuffix] {
+		cmdCheckTarget := rustCommand("rustup", "target", "list", "--installed")
+		installedTargets, targetCheckErr := cmdCheckTarget.Output()
+		if targetCheckErr != nil {
+			logger.Warn(lvl, "\nSkipping %s Rust build: could not check installed Rust targets (rustup target list --installed failed: %v). Install rustup and run 'rustup target add %s' to enable it.", crossSuffix, targetCheckErr, crossTarget)
+		} else if !strings.Contains(string(installedTargets), crossTarget) {
+			logger.Warn(lvl, "\nSkipping %s Rust build: Rust target %s is not installed. Run 'rustup target add %s' to enable it.", crossSuffix, crossTarget, crossTarget)
 		} else {
+			logger.Info(lvl, "\nBuilding for architecture: %s...", crossSuffix)
 			cargoArgs := []string{"build", "--release", "--target", crossTarget}
-			sysroot = linuxCrossSysroot(crossLinker)
-			if sysroot != "" {
-				rustflags, _ := json.Marshal([]string{"-C", "link-arg=--sysroot=" + sysroot})
-				cargoArgs = append(cargoArgs, "--config", "target."+crossTarget+".rustflags="+string(rustflags))
-			}
-			cmdCross = rustCommand("cargo", cargoArgs...)
-		}
-		cmdCross.Dir = buildDir
-		cmdCross.Env = append(cmdCross.Env, "CARGO_TARGET_"+strings.ToUpper(strings.ReplaceAll(crossTarget, "-", "_"))+"_LINKER="+crossLinker)
-		var errCross strings.Builder
-		cmdCross.Stdout = os.Stdout
-		cmdCross.Stderr = &errCross
-		if err := cmdCross.Run(); err == nil {
-			crossReleaseDir := filepath.Join(buildDir, "target", crossTarget, "release")
+			cmdCross := rustCommand("cargo", cargoArgs...)
+			cmdCross.Dir = buildDir
+			cmdCross.Env = append(cmdCross.Env, "CARGO_TARGET_"+strings.ToUpper(strings.ReplaceAll(crossTarget, "-", "_"))+"_LINKER="+crossLinker)
+			var errCross strings.Builder
+			cmdCross.Stdout = os.Stdout
+			cmdCross.Stderr = &errCross
+			nativeCrossErr := cmdCross.Run()
+			if nativeCrossErr == nil {
+				crossReleaseDir := filepath.Join(buildDir, "target", crossTarget, "release")
 
-			crossCandidate := filepath.Join(crossReleaseDir, crateName)
-			cliBinLinuxCross := fmt.Sprintf("%s_%s", binaryName, crossSuffix)
-			if err := copyExecutable(crossCandidate, cliBinLinuxCross); err == nil {
-				logger.Info(lvl, "  • Built %s executable: %s", crossSuffix, cliBinLinuxCross)
-			}
+				crossCandidate := filepath.Join(crossReleaseDir, crateName)
+				cliBinLinuxCross := fmt.Sprintf("%s_%s", binaryName, crossSuffix)
+				if err := copyExecutable(crossCandidate, cliBinLinuxCross); err == nil {
+					logger.Info(lvl, "  • Built %s executable: %s", crossSuffix, cliBinLinuxCross)
+				}
 
-			// Cross-architecture .so using dependencies produced for that target.
-			if absBridge != "" {
-				destLibLinuxCross := fmt.Sprintf("%s_%s.so", binaryName, crossSuffix)
-				var errLibCross error
-				if useCross {
-					errLibCross = buildCrossBridgeLibrary(buildDir, absBridge, allLibCrateDirs, crossTarget, destLibLinuxCross)
-				} else {
-					errLibCross = buildRustBridgeLibrary(buildDir, absBridge, allLibCrateDirs, crossTarget, crossLinker, sysroot, destLibLinuxCross)
+				// Cross-architecture .so using dependencies produced for that target.
+				if absBridge != "" {
+					destLibLinuxCross := fmt.Sprintf("%s_%s.so", binaryName, crossSuffix)
+					if errLibCross := buildRustBridgeLibrary(buildDir, absBridge, allLibCrateDirs, crossTarget, crossLinker, destLibLinuxCross); errLibCross != nil {
+						logger.Error(lvl, "%s cdylib compile failed: %v", crossSuffix, errLibCross)
+					} else {
+						logger.Info(lvl, "  • Built %s C++ shared library: %s", crossSuffix, destLibLinuxCross)
+					}
 				}
-				if errLibCross != nil {
-					logger.Error(lvl, "%s cdylib compile failed: %v", crossSuffix, errLibCross)
+			} else {
+				logger.Warn(lvl, "\n%s native Rust cross-build failed using linker %s; retrying in a Debian Bookworm container: %s", crossSuffix, crossLinker, errCross.String())
+				if containerErr := buildRustCrossContainer(buildDir, absBridge, allLibCrateDirs, crossTarget, lvl); containerErr != nil {
+					return fmt.Errorf("%s Rust cross-build failed natively (%v) and in the Debian container (%w)", crossSuffix, nativeCrossErr, containerErr)
+				}
+
+				crossReleaseDir := filepath.Join(buildDir, "target", crossTarget, "release")
+				crossCandidate := filepath.Join(crossReleaseDir, crateName)
+				cliBinLinuxCross := fmt.Sprintf("%s_%s", binaryName, crossSuffix)
+				if err := copyExecutable(crossCandidate, cliBinLinuxCross); err != nil {
+					if hasBinaryTarget(buildDir) {
+						return fmt.Errorf("Debian container built %s but copying the executable failed: %w", crossSuffix, err)
+					}
 				} else {
-					logger.Info(lvl, "  • Built %s C++ shared library: %s", crossSuffix, destLibLinuxCross)
+					logger.Info(lvl, "  • Built %s executable in Debian container: %s", crossSuffix, cliBinLinuxCross)
+				}
+				if absBridge != "" {
+					containerCdylib := filepath.Join(buildDir, "target", crossTarget, "release", "libguify_cross_bridge.so")
+					destLibLinuxCross := fmt.Sprintf("%s_%s.so", binaryName, crossSuffix)
+					if err := copyExecutable(containerCdylib, destLibLinuxCross); err != nil {
+						return fmt.Errorf("Debian container built %s but copying the shared library failed: %w", crossSuffix, err)
+					}
+					logger.Info(lvl, "  • Built %s C++ shared library in Debian container: %s", crossSuffix, destLibLinuxCross)
 				}
 			}
-		} else {
-			logger.Warn(lvl, "\n%s Rust cross-build failed using linker %s: %s", crossSuffix, crossLinker, errCross.String())
 		}
+	} else {
+		logger.Info(lvl, "Skipping unrequested architecture: %s", crossSuffix)
 	}
 
 	// Step 3: Attempt Android AArch64 (Termux) build
-	if runtime.GOARCH == "arm64" {
-		logger.Warn(lvl, "\nSkipping android_aarch64 Rust build: the supported Android NDK toolchain requires an x86_64 Linux host, and cross Android images are not currently reliable on ARM64 hosts.")
+	if !selected["android_aarch64"] {
+		logger.Info(lvl, "Skipping unrequested architecture: android_aarch64")
+	} else if runtime.GOARCH == "arm64" {
+		logger.Info(lvl, "\nBuilding android_aarch64 Rust binary in an ARM64 Debian Bookworm container...")
+		if err := buildAndroidRustContainer(buildDir, crateName, binaryName, lvl); err != nil {
+			return fmt.Errorf("Android Rust build failed in ARM64 Debian container: %w", err)
+		}
 	} else {
 		cmdCheckAndroidTarget := rustCommand("rustup", "target", "list")
 		androidTargetInstalled := false
@@ -1817,25 +1846,66 @@ func rustCommand(name string, args ...string) *exec.Cmd {
 	return command
 }
 
-func rustToolAvailable(name string) bool {
-	command := rustCommand(name)
-	_, err := exec.LookPath(command.Path)
-	return err == nil
-}
+// buildRustCrossContainer retries a failed native Cargo cross-build inside a
+// Debian Bookworm container matching the host CPU. Debian provides the target
+// sysroot, keeping host-distribution paths out of the user's Cargo config.
+func buildRustCrossContainer(projectDir, bridgePath string, crateDirs []string, target string, logLevel logger.LogLevel) error {
+	engine := "docker"
+	if _, err := exec.LookPath(engine); err != nil {
+		if _, err := exec.LookPath("podman"); err != nil {
+			return fmt.Errorf("neither docker nor podman is available")
+		}
+		engine = "podman"
+	}
 
-// buildCrossBridgeLibrary builds the generated FFI bridge as a small, temporary
-// Cargo library package. `cross rustc` is a Cargo subcommand and compiles the
-// manifest's normal target; passing another source file and crate type to it
-// produces duplicate target arguments. A temporary package gives `cross build`
-// an explicit cdylib target without changing the user's Cargo.toml.
-func buildCrossBridgeLibrary(projectDir, bridgePath string, crateDirs []string, target, destination string) error {
-	tempDir, err := os.MkdirTemp("", "guify-cross-bridge-")
+	hostArch := runtime.GOARCH
+	platform := "linux/" + hostArch
+	var dockerfile string
+	switch {
+	case hostArch == "amd64" && strings.HasPrefix(target, "aarch64-"):
+		dockerfile = rustArm64CrossDockerfile
+	case hostArch == "arm64" && strings.HasPrefix(target, "x86_64-"):
+		dockerfile = rustAMD64CrossDockerfile
+	default:
+		return fmt.Errorf("unsupported Rust cross-build host/target combination: %s -> %s", hostArch, target)
+	}
+	// Version the tag so existing images without the host compiler are rebuilt.
+	tag := "guify-rust-bookworm-v2-" + hostArch + "-" + strings.ReplaceAll(target, "-", "_")
+	if err := ensureRustCrossBuilderImage(engine, tag, platform, dockerfile, logLevel); err != nil {
+		return err
+	}
+	pruneRustCrossBuilderImages(engine, tag, logLevel)
+
+	projectDir, err := filepath.Abs(projectDir)
+	if err != nil {
+		return fmt.Errorf("resolve project directory: %w", err)
+	}
+	uid, gid := os.Getuid(), os.Getgid()
+	triple := strings.ToUpper(strings.ReplaceAll(target, "-", "_"))
+	linker := linuxCrossLinker(map[bool]string{true: "arm64", false: "amd64"}[strings.HasPrefix(target, "aarch64-")])
+	baseArgs := []string{"run", "--rm", "--platform", platform, "--user", fmt.Sprintf("%d:%d", uid, gid)}
+	if engine == "podman" {
+		baseArgs = append(baseArgs, "--userns=keep-id")
+	}
+	baseArgs = append(baseArgs, "-v", projectDir+":/workspace:Z", "-w", "/workspace",
+		"-e", "CARGO_HOME=/workspace/target/guify-cargo-home",
+		"-e", "CARGO_TARGET_DIR=/workspace/target",
+		"-e", "CARGO_TARGET_"+triple+"_LINKER="+linker,
+		"-e", "CARGO_TARGET_"+triple+"_RUSTFLAGS=", tag)
+	if err := runRustContainer(engine, baseArgs, "cargo", "build", "--release", "--target", target); err != nil {
+		return fmt.Errorf("container Cargo build failed: %w", err)
+	}
+
+	if bridgePath == "" {
+		return nil
+	}
+	bridgeDir, err := os.MkdirTemp("", "guify-rust-bridge-")
 	if err != nil {
 		return fmt.Errorf("create temporary cdylib package: %w", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer os.RemoveAll(bridgeDir)
 
-	srcDir := filepath.Join(tempDir, "src")
+	srcDir := filepath.Join(bridgeDir, "src")
 	if err := os.MkdirAll(srcDir, 0755); err != nil {
 		return err
 	}
@@ -1868,55 +1938,185 @@ func buildCrossBridgeLibrary(projectDir, bridgePath string, crateDirs []string, 
 		if crateName == "" {
 			crateName = strings.ReplaceAll(filepath.Base(crateDir), "-", "_")
 		}
+		containerCratePath, pathErr := filepath.Rel(projectDir, crateDir)
+		if pathErr != nil || containerCratePath == ".." || strings.HasPrefix(containerCratePath, ".."+string(os.PathSeparator)) {
+			return fmt.Errorf("Rust dependency crate %q is outside the project directory", crateDir)
+		}
+		containerCratePath = "/workspace/" + filepath.ToSlash(containerCratePath)
 		manifest.WriteString(fmt.Sprintf("%s = { package = %s, path = %s }\n",
 			strconv.Quote(strings.ReplaceAll(crateName, "-", "_")),
-			strconv.Quote(crateName), strconv.Quote(crateDir)))
+			strconv.Quote(crateName), strconv.Quote(containerCratePath)))
 	}
-	manifestPath := filepath.Join(tempDir, "Cargo.toml")
+	manifestPath := filepath.Join(bridgeDir, "Cargo.toml")
 	if err := os.WriteFile(manifestPath, []byte(manifest.String()), 0644); err != nil {
 		return fmt.Errorf("write temporary Cargo manifest: %w", err)
 	}
+	bridgeArgs := append([]string(nil), baseArgs[:len(baseArgs)-1]...)
+	bridgeArgs = append(bridgeArgs, "-v", bridgeDir+":/bridge:Z", tag)
+	return runRustContainer(engine, bridgeArgs, "cargo", "build", "--release", "--lib", "--target", target, "--manifest-path", "/bridge/Cargo.toml")
+}
 
-	// cross supports extra host mounts through CROSS_CONFIG. Mount the project
-	// at its existing absolute path so absolute path dependencies remain valid
-	// inside the container, including when the path contains spaces.
-	configPath := filepath.Join(tempDir, "cross.toml")
-	config := "[build.env]\nvolumes = [" + strconv.Quote("GUIFY_CROSS_PROJECT_DIR="+projectDir) + "]\n"
-	if err := os.WriteFile(configPath, []byte(config), 0600); err != nil {
-		return fmt.Errorf("write temporary cross config: %w", err)
+const rustArm64CrossDockerfile = `FROM debian:bookworm-slim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN dpkg --add-architecture arm64 && apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates curl crossbuild-essential-arm64 pkg-config && rm -rf /var/lib/apt/lists/*
+ENV CARGO_HOME=/usr/local/cargo RUSTUP_HOME=/usr/local/rustup PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable && rustup target add aarch64-unknown-linux-gnu
+`
+
+const rustAMD64CrossDockerfile = `FROM debian:bookworm-slim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN dpkg --add-architecture amd64 && apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates curl crossbuild-essential-amd64 pkg-config && rm -rf /var/lib/apt/lists/*
+ENV CARGO_HOME=/usr/local/cargo RUSTUP_HOME=/usr/local/rustup PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable && rustup target add x86_64-unknown-linux-gnu
+`
+
+const androidRustARM64Dockerfile = `FROM debian:bookworm-slim
+ENV DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && apt-get install -y --no-install-recommends build-essential ca-certificates clang curl lld llvm unzip && rm -rf /var/lib/apt/lists/*
+ENV ANDROID_NDK_HOME=/opt/android-ndk
+RUN curl -fsSL https://dl.google.com/android/repository/android-ndk-r26b-linux.zip -o /tmp/android-ndk.zip && unzip -q /tmp/android-ndk.zip -d /opt && mv /opt/android-ndk-r26b /opt/android-ndk && rm /tmp/android-ndk.zip
+RUN printf '%s\n' '#!/bin/sh' 'NDK_LLVM=/opt/android-ndk/toolchains/llvm/prebuilt/linux-x86_64' 'exec clang --target=aarch64-linux-android26 --sysroot="$NDK_LLVM/sysroot" -resource-dir="$NDK_LLVM/lib/clang/17" --rtlib=compiler-rt -L"$NDK_LLVM/lib/clang/17/lib/linux/aarch64" -fuse-ld=lld "$@"' > /usr/local/bin/aarch64-linux-android-clang && chmod 0755 /usr/local/bin/aarch64-linux-android-clang
+RUN printf 'int main(void) { return 0; }\n' | /usr/local/bin/aarch64-linux-android-clang -x c - -lunwind -o /tmp/android-link-check && rm /tmp/android-link-check
+ENV RUSTUP_HOME=/usr/local/rustup CARGO_HOME=/usr/local/cargo PATH=/usr/local/cargo/bin:$PATH
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable --target aarch64-linux-android
+`
+
+// buildAndroidRustContainer runs the Android build in a native ARM64 container.
+// A host-architecture Clang driver links against Google's Android NDK sysroot.
+func buildAndroidRustContainer(projectDir, crateName, binaryName string, logLevel logger.LogLevel) error {
+	engine := "docker"
+	if _, err := exec.LookPath(engine); err != nil {
+		if _, err := exec.LookPath("podman"); err != nil {
+			return fmt.Errorf("neither docker nor podman is available")
+		}
+		engine = "podman"
+	}
+	tag := "guify-rust-android-arm64-v5"
+	if err := ensureRustCrossBuilderImage(engine, tag, "linux/arm64", androidRustARM64Dockerfile, logLevel); err != nil {
+		return err
+	}
+	pruneAndroidRustBuilderImages(engine, tag, logLevel)
+
+	projectDir, err := filepath.Abs(projectDir)
+	if err != nil {
+		return fmt.Errorf("resolve project directory: %w", err)
+	}
+	cacheDir := filepath.Join(projectDir, "target", "guify-android-container")
+	if err := os.MkdirAll(cacheDir, 0755); err != nil {
+		return fmt.Errorf("create Android container cache directory: %w", err)
+	}
+	uid, gid := os.Getuid(), os.Getgid()
+	ndkHome := "/opt/android-ndk"
+	linker := "/usr/local/bin/aarch64-linux-android-clang"
+	args := []string{"run", "--rm", "--platform", "linux/arm64", "--user", fmt.Sprintf("%d:%d", uid, gid)}
+	if engine == "podman" {
+		args = append(args, "--userns=keep-id")
+	}
+	args = append(args, "-v", projectDir+":/workspace:Z", "-w", "/workspace",
+		"-e", "HOME=/workspace/target/guify-android-container/home",
+		"-e", "CARGO_HOME=/workspace/target/guify-android-container/cargo-home",
+		"-e", "CARGO_TARGET_DIR=/workspace/target",
+		"-e", "ANDROID_NDK_HOME="+ndkHome,
+		"-e", "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="+linker,
+		"-e", "CC_aarch64_linux_android="+linker,
+		"-e", "CC_aarch64-linux-android="+linker,
+		"-e", "AR_aarch64_linux_android=/usr/bin/llvm-ar", tag)
+	if err := runRustContainer(engine, args, "cargo", "build", "--release", "--target", "aarch64-linux-android"); err != nil {
+		return fmt.Errorf("container Cargo build failed: %w", err)
 	}
 
-	cmd := rustCommand("cross", "build", "--release", "--lib", "--target", target, "--manifest-path", manifestPath)
-	cmd.Dir = tempDir
-	cmd.Env = replaceEnv(cmd.Env, "CROSS_CONTAINER_ENGINE", "podman")
-	cmd.Env = replaceEnv(cmd.Env, "CROSS_CONFIG", configPath)
-	cmd.Env = replaceEnv(cmd.Env, "GUIFY_CROSS_PROJECT_DIR", projectDir)
-	linkerArch := "amd64"
-	if strings.HasPrefix(target, "aarch64-") {
-		linkerArch = "arm64"
-	}
-	linker := linuxCrossLinker(linkerArch)
-	cmd.Env = replaceEnv(cmd.Env, "CARGO_TARGET_"+strings.ToUpper(strings.ReplaceAll(target, "-", "_"))+"_LINKER", linker)
-	var output strings.Builder
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = &output
-	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("cross build failed: %s\n%w", output.String(), err)
-	}
-
-	artifact := filepath.Join(tempDir, "target", target, "release", "libguify_cross_bridge.so")
+	artifact := filepath.Join(projectDir, "target", "aarch64-linux-android", "release", crateName)
+	destination := binaryName + "_android_aarch64"
 	if err := copyExecutable(artifact, destination); err != nil {
-		return fmt.Errorf("copy cdylib artifact: %w", err)
+		if hasBinaryTarget(projectDir) {
+			return fmt.Errorf("copy Android executable: %w", err)
+		}
+		return nil
+	}
+	logger.Info(logLevel, "  • Built Android AArch64 executable in ARM64 Debian container: %s", destination)
+	return nil
+}
+
+func ensureRustCrossBuilderImage(engine, tag, platform, dockerfile string, logLevel logger.LogLevel) error {
+	inspect := exec.Command(engine, "image", "inspect", "--format={{.Os}}/{{.Architecture}}", tag)
+	if output, err := inspect.Output(); err == nil && strings.TrimSpace(string(output)) == platform {
+		return nil
+	}
+	logger.Info(logLevel, "Building Debian Rust cross-builder image %s for %s", tag, platform)
+	build := exec.Command(engine, "build", "--platform", platform, "-t", tag, "-")
+	build.Stdin = strings.NewReader(dockerfile)
+	build.Stdout, build.Stderr = os.Stdout, os.Stderr
+	if err := build.Run(); err != nil {
+		return fmt.Errorf("build Rust cross-builder image %q: %w", tag, err)
 	}
 	return nil
 }
 
-// buildRustBridgeLibrary retains the direct rustc path for hosts without cross.
-func buildRustBridgeLibrary(projectDir, bridgePath string, crateDirs []string, target, linker, sysroot, destination string) error {
-	args := []string{"--edition", "2021", "--crate-type", "cdylib", "--target", target, "-C", "linker=" + linker}
-	if sysroot != "" {
-		args = append(args, "-C", "link-arg=--sysroot="+sysroot)
+// pruneAndroidRustBuilderImages removes superseded Android builder image tags
+// after the current ARM64 image is available. Other images are left untouched.
+func pruneAndroidRustBuilderImages(engine, currentTag string, logLevel logger.LogLevel) {
+	staleTags := []string{
+		"guify-rust-android-arm64-v1",
+		"guify-rust-android-arm64-v2",
+		"guify-rust-android-arm64-v3",
+		"guify-rust-android-arm64-v4",
+		"guify-rust-android-amd64-v1",
 	}
+	for _, tag := range staleTags {
+		if tag == currentTag {
+			continue
+		}
+		if err := exec.Command(engine, "image", "inspect", tag).Run(); err != nil {
+			continue
+		}
+		if err := exec.Command(engine, "image", "rm", "-f", tag).Run(); err != nil {
+			logger.Warn(logLevel, "Could not remove stale Android Rust builder image %s: %v", tag, err)
+			continue
+		}
+		logger.Info(logLevel, "Removed stale Android Rust builder image %s", tag)
+	}
+}
+
+// pruneRustCrossBuilderImages removes older images owned by this Rust builder.
+// It runs only after the current image is available and leaves unrelated images
+// and the current builder untouched.
+func pruneRustCrossBuilderImages(engine, currentTag string, logLevel logger.LogLevel) {
+	cmd := exec.Command(engine, "images", "--format={{.Repository}}:{{.Tag}}")
+	output, err := cmd.Output()
+	if err != nil {
+		logger.Warn(logLevel, "Could not list cached Rust builder images for cleanup: %v", err)
+		return
+	}
+
+	for _, image := range strings.Split(string(output), "\n") {
+		repo, _, found := strings.Cut(strings.TrimSpace(image), ":")
+		if !found || (!strings.HasPrefix(repo, "guify-rust-bookworm-") && !strings.Contains(repo, "/guify-rust-bookworm-")) {
+			continue
+		}
+		if repo == currentTag || strings.HasSuffix(repo, "/"+currentTag) {
+			continue
+		}
+		if err := exec.Command(engine, "image", "rm", "-f", image).Run(); err != nil {
+			logger.Warn(logLevel, "Could not remove stale Rust builder image %s: %v", image, err)
+			continue
+		}
+		logger.Info(logLevel, "Removed stale Rust builder image %s", image)
+	}
+}
+
+func runRustContainer(engine string, args []string, command ...string) error {
+	args = append(append([]string(nil), args...), command...)
+	cmd := exec.Command(engine, args...)
+	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("%s %s: %w", engine, strings.Join(args, " "), err)
+	}
+	return nil
+}
+
+// buildRustBridgeLibrary builds the generated bridge using the configured target linker.
+func buildRustBridgeLibrary(projectDir, bridgePath string, crateDirs []string, target, linker, destination string) error {
+	args := []string{"--edition", "2021", "--crate-type", "cdylib", "--target", target, "-C", "linker=" + linker}
 	args = append(args, bridgePath, "-o", destination)
 	depsDir := filepath.Join(projectDir, "target", target, "release", "deps")
 	for _, crateDir := range crateDirs {
@@ -1979,19 +2179,6 @@ func copyDirectoryFiles(source, destination string) error {
 	})
 }
 
-// crossProjectPath converts a host path inside the Cargo project to a relative
-// path that is also valid at cross's /project mount point.
-func crossProjectPath(projectRoot, path string) (string, error) {
-	relative, err := filepath.Rel(projectRoot, path)
-	if err != nil {
-		return "", err
-	}
-	if relative == ".." || strings.HasPrefix(relative, ".."+string(os.PathSeparator)) {
-		return "", fmt.Errorf("path %q is outside Cargo project %q", path, projectRoot)
-	}
-	return filepath.ToSlash(relative), nil
-}
-
 func replaceEnv(env []string, key, value string) []string {
 	prefix := key + "="
 	updated := make([]string, 0, len(env)+1)
@@ -2022,77 +2209,6 @@ func linuxCrossLinker(goarch string) string {
 		return "aarch64-linux-gnu-gcc"
 	}
 	return "x86_64-linux-gnu-gcc"
-}
-
-// linuxCrossSysroot finds an installed target C library sysroot for cross GCC.
-// Fedora packages its cross glibc under a release subdirectory, while Debian
-// and Arch generally expose the sysroot at the compiler's reported root.
-func linuxCrossSysroot(linker string) string {
-	command := exec.Command(linker, "-print-sysroot")
-	output, err := command.Output()
-	root := ""
-	if err == nil {
-		root = strings.TrimSpace(string(output))
-	}
-
-	var candidates []string
-	var sysrootGlobs []string
-	switch filepath.Base(linker) {
-	case "aarch64-linux-gnu-gcc":
-		candidates = append(candidates,
-			"/usr/aarch64-linux-gnu",
-			"/usr/aarch64-redhat-linux/sys-root",
-			"/usr/aarch64-linux-gnu/sys-root",
-		)
-		sysrootGlobs = []string{
-			"/usr/aarch64-redhat-linux/sys-root/*/usr/lib/Scrt1.o",
-			"/usr/aarch64-redhat-linux/sys-root/usr/lib/Scrt1.o",
-		}
-	case "x86_64-linux-gnu-gcc":
-		candidates = append(candidates,
-			"/usr/x86_64-linux-gnu",
-			"/usr/x86_64-redhat-linux/sys-root",
-			"/usr/x86_64-linux-gnu/sys-root",
-		)
-		sysrootGlobs = []string{
-			"/usr/x86_64-redhat-linux/sys-root/*/usr/lib/Scrt1.o",
-			"/usr/x86_64-redhat-linux/sys-root/usr/lib/Scrt1.o",
-		}
-	}
-	if root != "" && root != string(os.PathSeparator) {
-		candidates = append(candidates, root)
-	}
-	if root != "" && root != string(os.PathSeparator) {
-		for _, pattern := range []string{
-			filepath.Join(root, "*"),
-			filepath.Join(root, "*", "*"),
-		} {
-			matches, _ := filepath.Glob(pattern)
-			candidates = append(candidates, matches...)
-		}
-	}
-	// Fedora ships versioned cross sysroots such as
-	// /usr/aarch64-redhat-linux/sys-root/fc44/usr/lib/Scrt1.o. Discover that
-	// layout explicitly because some cross-GCC builds report an empty sysroot.
-	for _, pattern := range sysrootGlobs {
-		matches, _ := filepath.Glob(pattern)
-		for _, startupObject := range matches {
-			candidates = append(candidates, filepath.Dir(filepath.Dir(filepath.Dir(startupObject))))
-		}
-	}
-	for _, candidate := range candidates {
-		for _, relative := range []string{
-			"usr/lib/Scrt1.o", "lib/Scrt1.o", "usr/lib64/Scrt1.o",
-			"usr/lib/aarch64-linux-gnu/Scrt1.o", "usr/lib/x86_64-linux-gnu/Scrt1.o",
-			"lib/aarch64-linux-gnu/Scrt1.o", "lib/x86_64-linux-gnu/Scrt1.o",
-			"aarch64-linux-gnu/lib/Scrt1.o", "x86_64-linux-gnu/lib/Scrt1.o",
-		} {
-			if info, err := os.Stat(filepath.Join(candidate, relative)); err == nil && !info.IsDir() {
-				return candidate
-			}
-		}
-	}
-	return ""
 }
 
 // toPascalCase converts snake_case or camelCase to PascalCase

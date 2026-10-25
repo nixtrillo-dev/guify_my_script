@@ -23,7 +23,7 @@ import (
 // =====================================================================
 
 //export GoCompileScriptWithGuiConfig
-func GoCompileScriptWithGuiConfig(inputPath *C.char, scriptType *C.char, outputJSON *C.char, excludePackages *C.char, outputBridge *C.char, binaryName *C.char, compile C.int, overwriteJson C.int, logLevel *C.char, includeFuncParams C.int, autoOpen C.int) C.int {
+func GoCompileScriptWithGuiConfig(inputPath *C.char, scriptType *C.char, outputJSON *C.char, excludePackages *C.char, outputBridge *C.char, binaryName *C.char, compile C.int, overwriteJson C.int, logLevel *C.char, includeFuncParams C.int, autoOpen C.int, targetBuilds *C.char) C.int {
 
 	go_inputPath := C.GoString(inputPath)
 
@@ -47,7 +47,9 @@ func GoCompileScriptWithGuiConfig(inputPath *C.char, scriptType *C.char, outputJ
 
 	go_autoOpen := autoOpen == 1
 
-	err := CompileScriptWithGuiConfig(go_inputPath, go_scriptType, go_outputJSON, go_excludePackages, go_outputBridge, go_binaryName, go_compile, go_overwriteJson, go_logLevel, go_includeFuncParams, go_autoOpen)
+	go_targetBuilds := C.GoString(targetBuilds)
+
+	err := CompileScriptWithGuiConfig(go_inputPath, go_scriptType, go_outputJSON, go_excludePackages, go_outputBridge, go_binaryName, go_compile, go_overwriteJson, go_logLevel, go_includeFuncParams, go_autoOpen, go_targetBuilds)
 	if err != nil {
 		fmt.Printf("Pipeline Error in CompileScriptWithGuiConfig: %v\n", err)
 		return 0
@@ -303,7 +305,7 @@ func GoGenerateBridge(inputPath *C.char, outputPath *C.char, excludePackages *C.
 }
 
 //export GoCompileLocal
-func GoCompileLocal(targetDir *C.char, absBridge *C.char, binaryName *C.char, logLevelStr *C.char) C.int {
+func GoCompileLocal(targetDir *C.char, absBridge *C.char, binaryName *C.char, logLevelStr *C.char, targetBuilds *C.char) C.int {
 
 	go_targetDir := C.GoString(targetDir)
 
@@ -313,7 +315,9 @@ func GoCompileLocal(targetDir *C.char, absBridge *C.char, binaryName *C.char, lo
 
 	go_logLevelStr := C.GoString(logLevelStr)
 
-	err := go_gen.CompileLocal(go_targetDir, go_absBridge, go_binaryName, go_logLevelStr)
+	go_targetBuilds := C.GoString(targetBuilds)
+
+	err := go_gen.CompileLocal(go_targetDir, go_absBridge, go_binaryName, go_logLevelStr, go_targetBuilds)
 	if err != nil {
 		fmt.Printf("Pipeline Error in CompileLocal: %v\n", err)
 		return 0
@@ -368,6 +372,20 @@ func GoGenerateUI(configPath *C.char, compileMode *C.char, logLevelStr *C.char, 
 	err := gui_gen.GenerateUI(go_configPath, go_compileMode, go_logLevelStr, go_clearCache, go_targetBuilds)
 	if err != nil {
 		fmt.Printf("Pipeline Error in GenerateUI: %v\n", err)
+		return 0
+	}
+
+	return 1
+}
+
+//export GoParseBuildArchitectures
+func GoParseBuildArchitectures(value *C.char) C.int {
+
+	go_value := C.GoString(value)
+
+	_, err := internal_utils.ParseBuildArchitectures(go_value)
+	if err != nil {
+		fmt.Printf("Pipeline Error in ParseBuildArchitectures: %v\n", err)
 		return 0
 	}
 
@@ -505,15 +523,17 @@ func GoFatal(lvl C.int, format *C.char, args *C.char) C.int {
 }
 
 //export GoInstallLocalPackage
-func GoInstallLocalPackage(pkgPath *C.char, updateFirst C.int, logLevel C.int) C.int {
+func GoInstallLocalPackage(pkgPath *C.char, updateFirst C.int, reinstallIfInstalled C.int, logLevel C.int) C.int {
 
 	go_pkgPath := C.GoString(pkgPath)
 
 	go_updateFirst := updateFirst == 1
 
+	go_reinstallIfInstalled := reinstallIfInstalled == 1
+
 	go_logLevel := logger.LogLevel(int(logLevel))
 
-	err := package_installer.InstallLocalPackage(go_pkgPath, go_updateFirst, go_logLevel)
+	err := package_installer.InstallLocalPackage(go_pkgPath, go_updateFirst, go_reinstallIfInstalled, go_logLevel)
 	if err != nil {
 		fmt.Printf("Pipeline Error in InstallLocalPackage: %v\n", err)
 		return 0
@@ -563,7 +583,7 @@ func GoGenerateRustBridge(inputPath *C.char, outputPath *C.char, excludePackages
 }
 
 //export GoCompileRust
-func GoCompileRust(targetDir *C.char, absBridge *C.char, binaryName *C.char, logLevelStr *C.char) C.int {
+func GoCompileRust(targetDir *C.char, absBridge *C.char, binaryName *C.char, logLevelStr *C.char, targetBuilds *C.char) C.int {
 
 	go_targetDir := C.GoString(targetDir)
 
@@ -573,7 +593,9 @@ func GoCompileRust(targetDir *C.char, absBridge *C.char, binaryName *C.char, log
 
 	go_logLevelStr := C.GoString(logLevelStr)
 
-	err := rust_gen.CompileRust(go_targetDir, go_absBridge, go_binaryName, go_logLevelStr)
+	go_targetBuilds := C.GoString(targetBuilds)
+
+	err := rust_gen.CompileRust(go_targetDir, go_absBridge, go_binaryName, go_logLevelStr, go_targetBuilds)
 	if err != nil {
 		fmt.Printf("Pipeline Error in CompileRust: %v\n", err)
 		return 0
@@ -653,7 +675,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "compile_script_with_gui_config":
-		if len(os.Args) < 13 {
+		if len(os.Args) < 14 {
 			fmt.Println("Error: compile_script_with_gui_config requires parameters")
 			os.Exit(1)
 		}
@@ -722,7 +744,9 @@ func main() {
 			}
 		}
 
-		err := CompileScriptWithGuiConfig(cli_inputPath, cli_scriptType, cli_outputJSON, cli_excludePackages, cli_outputBridge, cli_binaryName, cli_compile, cli_overwriteJson, cli_logLevel, cli_includeFuncParams, cli_autoOpen)
+		cli_targetBuilds := os.Args[13]
+
+		err := CompileScriptWithGuiConfig(cli_inputPath, cli_scriptType, cli_outputJSON, cli_excludePackages, cli_outputBridge, cli_binaryName, cli_compile, cli_overwriteJson, cli_logLevel, cli_includeFuncParams, cli_autoOpen, cli_targetBuilds)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -1103,7 +1127,7 @@ func main() {
 		}
 
 	case "compile_local":
-		if len(os.Args) < 6 {
+		if len(os.Args) < 7 {
 			fmt.Println("Error: compile_local requires parameters")
 			os.Exit(1)
 		}
@@ -1118,7 +1142,9 @@ func main() {
 
 		cli_logLevelStr := os.Args[5]
 
-		err := go_gen.CompileLocal(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr)
+		cli_targetBuilds := os.Args[6]
+
+		err := go_gen.CompileLocal(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr, cli_targetBuilds)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -1189,6 +1215,22 @@ func main() {
 		cli_targetBuilds := os.Args[6]
 
 		err := gui_gen.GenerateUI(cli_configPath, cli_compileMode, cli_logLevelStr, cli_clearCache, cli_targetBuilds)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "parse_build_architectures":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: parse_build_architectures requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		cli_value := os.Args[2]
+
+		_, err := internal_utils.ParseBuildArchitectures(cli_value)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -1405,7 +1447,7 @@ func main() {
 		logger.Fatal(cli_lvl, cli_format, cli_args)
 
 	case "install_local_package":
-		if len(os.Args) < 5 {
+		if len(os.Args) < 6 {
 			fmt.Println("Error: install_local_package requires parameters")
 			os.Exit(1)
 		}
@@ -1426,8 +1468,20 @@ func main() {
 			}
 		}
 
+		cli_reinstallIfInstalled, err_reinstallIfInstalled := strconv.ParseBool(os.Args[4])
+		if err_reinstallIfInstalled != nil {
+			if os.Args[4] == "1" {
+				cli_reinstallIfInstalled = true
+			} else if os.Args[4] == "0" {
+				cli_reinstallIfInstalled = false
+			} else {
+				fmt.Printf("Error: parameter 'reinstallIfInstalled' must be a valid boolean evaluation: %v\n", err_reinstallIfInstalled)
+				os.Exit(1)
+			}
+		}
+
 		var cli_logLevel_raw int
-		raw_logLevel := os.Args[4]
+		raw_logLevel := os.Args[5]
 		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
 			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
 			if err_logLevel != nil {
@@ -1438,7 +1492,7 @@ func main() {
 		}
 		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
 
-		err := package_installer.InstallLocalPackage(cli_pkgPath, cli_updateFirst, cli_logLevel)
+		err := package_installer.InstallLocalPackage(cli_pkgPath, cli_updateFirst, cli_reinstallIfInstalled, cli_logLevel)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -1509,7 +1563,7 @@ func main() {
 		}
 
 	case "compile_rust":
-		if len(os.Args) < 6 {
+		if len(os.Args) < 7 {
 			fmt.Println("Error: compile_rust requires parameters")
 			os.Exit(1)
 		}
@@ -1524,7 +1578,9 @@ func main() {
 
 		cli_logLevelStr := os.Args[5]
 
-		err := rust_gen.CompileRust(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr)
+		cli_targetBuilds := os.Args[6]
+
+		err := rust_gen.CompileRust(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr, cli_targetBuilds)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)

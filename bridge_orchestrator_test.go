@@ -35,6 +35,7 @@ func TestCompileScriptWithGuiConfig_RustProject(t *testing.T) {
 		"DEBUG",      // logLevel
 		false,        // includeFuncParams
 		false,        // autoOpen
+		"",           // targetBuilds (all architectures)
 	)
 	if err != nil {
 		t.Fatalf("CompileScriptWithGuiConfig failed for Rust: %v", err)
@@ -77,7 +78,7 @@ func TestCompileScriptWithGuiConfig_RustProjectAutoDetect(t *testing.T) {
 
 	err = CompileScriptWithGuiConfig(
 		absParentDir,
-		"",           // auto-detect
+		"", // auto-detect
 		outputJSON,
 		"",
 		"",
@@ -87,6 +88,7 @@ func TestCompileScriptWithGuiConfig_RustProjectAutoDetect(t *testing.T) {
 		"DEBUG",
 		false,
 		false,
+		"",
 	)
 	if err != nil {
 		t.Fatalf("Auto-detect failed: %v", err)
@@ -96,4 +98,3 @@ func TestCompileScriptWithGuiConfig_RustProjectAutoDetect(t *testing.T) {
 		t.Fatalf("Expected output JSON %s to exist", outputJSON)
 	}
 }
-

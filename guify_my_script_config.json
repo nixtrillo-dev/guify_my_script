@@ -437,6 +437,34 @@
                         "path_to_default": null,
                         "path_to_enabled": null
                     }
+                },
+                {
+                    "name": "Target Builds",
+                    "options": [
+                        "android_aarch64",
+                        "linux_aarch64",
+                        "linux_amd64"
+                    ],
+                    "refresh_fields_on_change": [],
+                    "field_type": "MCB",
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": [
+                        "android_aarch64",
+                        "linux_aarch64",
+                        "linux_amd64"
+                    ],
+                    "maximum": "0",
+                    "minimum": "1",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    }
                 }
             ]
         },
@@ -609,6 +637,23 @@
                 },
                 {
                     "name": "Update First",
+                    "refresh_fields_on_change": [],
+                    "field_type": "CK",
+                    "advanced_menu": false,
+                    "data_type": "string",
+                    "default": "1",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    }
+                },
+                {
+                    "name": "Reinstall if Already Installed",
                     "refresh_fields_on_change": [],
                     "field_type": "CK",
                     "advanced_menu": false,

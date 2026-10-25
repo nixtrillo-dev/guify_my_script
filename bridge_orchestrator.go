@@ -10,12 +10,13 @@ import (
 	"guify_my_script/config_gen"
 	"guify_my_script/endpoint_utils"
 	"guify_my_script/go_gen"
+	"guify_my_script/internal_utils"
 	"guify_my_script/logger"
 	"guify_my_script/rust_gen"
 )
 
 // CompileScriptWithGuiConfig strings together the JSON schema generation and the C++ bridge construction.
-func CompileScriptWithGuiConfig(inputPath, scriptType, outputJSON, excludePackages, outputBridge, binaryName string, compile bool, overwriteJson bool, logLevel string, includeFuncParams bool, autoOpen bool) error {
+func CompileScriptWithGuiConfig(inputPath, scriptType, outputJSON, excludePackages, outputBridge, binaryName string, compile bool, overwriteJson bool, logLevel string, includeFuncParams bool, autoOpen bool, targetBuilds string) error {
 	parsedLogLevel := logger.ParseLogLevel(logLevel)
 
 	// If scriptType is empty, determine it dynamically from the file extension
@@ -60,6 +61,15 @@ func CompileScriptWithGuiConfig(inputPath, scriptType, outputJSON, excludePackag
 	}
 
 	logger.Debug(parsedLogLevel, "scriptType: %s", scriptType)
+
+	// Architecture selection only applies to compiled Go and Rust projects.
+	// Validate it before bridge generation or single-file project promotion can
+	// make changes on disk.
+	if compile && (strings.EqualFold(scriptType, "GO") || strings.EqualFold(scriptType, "RS") || strings.EqualFold(scriptType, "RUST")) {
+		if _, err := internal_utils.ParseBuildArchitectures(targetBuilds); err != nil {
+			return err
+		}
+	}
 
 	if strings.ToUpper(scriptType) == "GO" {
 		// Single-file .go promotion: if inputPath is a plain .go file, scaffold a minimal
@@ -142,7 +152,7 @@ func CompileScriptWithGuiConfig(inputPath, scriptType, outputJSON, excludePackag
 
 		// 3. Compile the local GO binary assets if requested (from generate_go_bridge.go)
 		if compile {
-			if err := go_gen.CompileLocal(targetDir, absBridge, binaryName, logLevel); err != nil {
+			if err := go_gen.CompileLocal(targetDir, absBridge, binaryName, logLevel, targetBuilds); err != nil {
 				return fmt.Errorf("GO: compilation failed: %w", err)
 			}
 		}
@@ -236,7 +246,7 @@ func CompileScriptWithGuiConfig(inputPath, scriptType, outputJSON, excludePackag
 
 		// 3. Compile the local RUST binary assets if requested (from generate_rust_bridge.go)
 		if compile {
-			if err := rust_gen.CompileRust(targetDir, absBridge, binaryName, logLevel); err != nil {
+			if err := rust_gen.CompileRust(targetDir, absBridge, binaryName, logLevel, targetBuilds); err != nil {
 				return fmt.Errorf("RUST: compilation failed: %w", err)
 			}
 		}

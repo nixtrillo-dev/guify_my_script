@@ -26,16 +26,41 @@ const (
 	androidToolsURL   = "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip"
 )
 
-// SetupAndroidNDKForRust installs the Android command-line tools, platform-tools,
-// and the NDK version used by the Rust Android build. It is intended to be
-// called by a root process; user-owned SDK files and shell profiles are written
-// while temporarily de-elevated through sudoers.RunAsSudoUser.
+// SetupAndroidNDKForRust prepares the Android Rust target. On amd64 it installs
+// the Android command-line tools and NDK for native builds; on arm64 the
+// containerized builder supplies the NDK sysroot. It is intended to be called
+// by a root process; user-owned SDK files and shell profiles are written while
+// temporarily de-elevated through sudoers.RunAsSudoUser.
 func SetupAndroidNDKForRust(logLevel logger.LogLevel) error {
 	if runtime.GOOS != "linux" {
 		return fmt.Errorf("Android NDK setup is only supported on Linux")
 	}
-	// Google's Linux Android command-line tools and NDK host toolchain are
-	// distributed for x86_64. Fail before downloading incompatible binaries.
+	if runtime.GOARCH == "arm64" {
+		// Run the Android build in an ARM64 Debian container. Its native Clang
+		// uses the Android sysroot from Google's NDK archive, so no amd64 tools
+		// or CPU emulation are needed.
+		engine := "docker"
+		if _, dockerErr := exec.LookPath(engine); dockerErr != nil {
+			if _, podmanErr := exec.LookPath("podman"); podmanErr == nil {
+				engine = "podman"
+			} else {
+				if err := installDevelopmentDependencies(logLevel, "Android Rust container build", map[string][]string{
+					"apt-get": {"podman"},
+					"dnf":     {"podman"},
+					"pacman":  {"podman"},
+				}); err != nil {
+					return err
+				}
+				engine = "podman"
+			}
+		}
+		if err := installRustupToolchain(logLevel, "aarch64-linux-android"); err != nil {
+			return fmt.Errorf("install Android Rust target: %w", err)
+		}
+		logger.Info(logLevel, "Android Rust setup completed; the ARM64 Debian builder image will provide Clang and the Android NDK sysroot.")
+		return nil
+	}
+	// The native SDK setup below uses Google's x86_64 Linux command-line tools.
 	if runtime.GOARCH != "amd64" {
 		return fmt.Errorf("Android NDK setup is currently supported only on Linux amd64; Google does not provide Linux %s host tools", runtime.GOARCH)
 	}
@@ -109,49 +134,7 @@ func SetupRustDependencies(logLevel logger.LogLevel, crossCompile bool) error {
 	if !crossCompile {
 		return nil
 	}
-	if err := installRustCrossDependencies(logLevel); err != nil {
-		return err
-	}
-	return installCross(logLevel)
-}
-
-// installRustCrossDependencies installs a supported container engine for
-// cross-rs. Target compilers and libc sysroots are provided by its images.
-func installRustCrossDependencies(logLevel logger.LogLevel) error {
-	return installDevelopmentDependencies(logLevel, "Rust cross-compilation", map[string][]string{
-		"apt-get": {"podman"},
-		"dnf":     {"podman"},
-		"pacman":  {"podman"},
-	})
-}
-
-// installCross installs cross for the invoking user, keeping Cargo and Rust
-// tools out of the root user's home when setup is launched with sudo.
-func installCross(logLevel logger.LogLevel) error {
-	return sudoers.RunAsSudoUser(func() error {
-		usr, err := currentSetupUser()
-		if err != nil {
-			return err
-		}
-		cargoBin := filepath.Join(usr.HomeDir, ".cargo", "bin")
-		cross := filepath.Join(cargoBin, "cross")
-		if _, err := os.Stat(cross); err == nil {
-			logger.Info(logLevel, "cross is already installed for %s.", usr.Username)
-			return nil
-		}
-		cargo := filepath.Join(cargoBin, "cargo")
-		if _, err := os.Stat(cargo); err != nil {
-			return fmt.Errorf("Cargo is not installed for %s; install Rust before cross", usr.Username)
-		}
-		logger.Info(logLevel, "Installing cross for %s...", usr.Username)
-		command := exec.Command(cargo, "install", "cross", "--locked")
-		command.Env = rustupUserEnvironment(usr)
-		command.Stdout, command.Stderr = os.Stdout, os.Stderr
-		if err := command.Run(); err != nil {
-			return fmt.Errorf("install cross for %s: %w", usr.Username, err)
-		}
-		return nil
-	})
+	return SetupCrossCompileDependencies(logLevel)
 }
 
 // SetupCrossCompileDependencies installs tools needed to cross-compile for

@@ -29,5 +29,5 @@ if [ ! -x "$EXEC" ]; then
 fi
 
 # Build the application with the correct architecture
-"$EXEC" compile_script_with_gui_config ../ 'GO' ../guify_my_script_config.json '' ../main.go ../guify_my_script 1 0 "INFO" 0 0
+"$EXEC" compile_script_with_gui_config ../ 'GO' ../guify_my_script_config.json '' ../main.go ../guify_my_script 1 0 "INFO" 0 0 ''
 "$EXEC" generate_ui ../guify_my_script_config.json 'production' 'INFO' '0' ''

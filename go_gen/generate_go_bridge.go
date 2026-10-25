@@ -736,8 +736,20 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 	return targetDir, absOutput, nil
 }
 
-func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) error {
+func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string, targetBuilds ...string) error {
 	lvl := logger.ParseLogLevel(logLevelStr)
+	buildSelection := ""
+	if len(targetBuilds) > 0 {
+		buildSelection = targetBuilds[0]
+	}
+	architectures, err := internal_utils.ParseBuildArchitectures(buildSelection)
+	if err != nil {
+		return err
+	}
+	selected := make(map[string]bool, len(architectures))
+	for _, architecture := range architectures {
+		selected[architecture] = true
+	}
 
 	if binaryName == "" {
 		binaryName = filepath.Base(targetDir)
@@ -761,7 +773,7 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 	// anywhere, so no project containment is enforced. Resolving to an
 	// absolute path up front also keeps `go build -o` correct regardless of
 	// the cmd.Dir working directory used below.
-	binaryName, err := internal_utils.ResolveBinaryOutputPath(binaryName, targetDir)
+	binaryName, err = internal_utils.ResolveBinaryOutputPath(binaryName, targetDir)
 	if err != nil {
 		return err
 	}
@@ -807,6 +819,9 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 	}
 
 	for _, target := range targets {
+		if !selected[target.ArchSuffix] {
+			continue
+		}
 		logger.Info(lvl, "Building for architecture: %s...", target.ArchSuffix)
 
 		cliBinName := fmt.Sprintf("%s_%s", binaryName, target.ArchSuffix)
@@ -855,6 +870,11 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string) e
 	}
 
 	// 3. Build for Android Termux: android_aarch64 (CLI executable only)
+	if !selected["android_aarch64"] {
+		logger.Info(lvl, "Skipping unrequested architecture: android_aarch64")
+		logger.Info(lvl, "Successfully compiled selected Go deliverables in %s.", targetDir)
+		return nil
+	}
 	logger.Info(lvl, "Building for architecture: android_aarch64...")
 	cliBinAndroid := fmt.Sprintf("%s_android_aarch64", binaryName)
 

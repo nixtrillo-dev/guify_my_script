@@ -19,7 +19,7 @@ import (
 
 // InstallLocalPackage attempts to install a local package file, determining the correct
 // package manager while actively preventing the installation of foreign package types.
-func InstallLocalPackage(pkgPath string, updateFirst bool, logLevel logger.LogLevel) error {
+func InstallLocalPackage(pkgPath string, updateFirst, reinstallIfInstalled bool, logLevel logger.LogLevel) error {
 	logger.Info(logLevel, "Starting installation process for local package: %s", pkgPath)
 
 	var pkgExt string
@@ -71,7 +71,7 @@ func InstallLocalPackage(pkgPath string, updateFirst bool, logLevel logger.LogLe
 	logger.Info(logLevel, "System verified as %s. Preparing to install %s package as root.", pkgManager, pkgExt)
 
 	// 6. Build and execute the root-level installation command
-	cmd := buildInstallCommand(pkgManager, pkgPath)
+	cmd := buildInstallCommand(pkgManager, pkgPath, reinstallIfInstalled)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -191,18 +191,38 @@ func isValidForManager(ext, manager string) bool {
 }
 
 // buildInstallCommand generates the correct command-line invocation for the local file.
-func buildInstallCommand(manager, pkgPath string) *exec.Cmd {
+func buildInstallCommand(manager, pkgPath string, reinstallIfInstalled bool) *exec.Cmd {
 	switch manager {
 	case "pacman":
-		return exec.Command("pacman", "-U", "--noconfirm", pkgPath)
+		args := []string{"-U", "--noconfirm"}
+		if !reinstallIfInstalled {
+			args = append(args, "--needed")
+		}
+		return exec.Command("pacman", append(args, pkgPath)...)
 	case "apt":
-		return exec.Command("apt-get", "install", "-y", pkgPath) // apt-get handles local files and their deps elegantly
+		args := []string{"install"}
+		if reinstallIfInstalled {
+			args = append(args, "--reinstall")
+		}
+		args = append(args, "-y", pkgPath)
+		return exec.Command("apt-get", args...) // apt-get handles local files and their deps elegantly
 	case "dnf":
+		if reinstallIfInstalled {
+			return exec.Command("dnf", "reinstall", "-y", pkgPath)
+		}
 		return exec.Command("dnf", "install", "-y", pkgPath)
 	case "zypper":
-		return exec.Command("zypper", "install", "-y", "--allow-unsigned-rpm", pkgPath)
+		args := []string{"install", "-y", "--allow-unsigned-rpm"}
+		if reinstallIfInstalled {
+			args = append(args, "--force")
+		}
+		return exec.Command("zypper", append(args, pkgPath)...)
 	case "apk":
-		return exec.Command("apk", "add", "--allow-untrusted", pkgPath)
+		args := []string{"add", "--allow-untrusted"}
+		if reinstallIfInstalled {
+			args = append(args, "--upgrade")
+		}
+		return exec.Command("apk", append(args, pkgPath)...)
 	default:
 		return nil
 	}

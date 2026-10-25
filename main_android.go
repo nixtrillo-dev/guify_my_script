@@ -28,7 +28,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "compile_script_with_gui_config":
-		if len(os.Args) < 13 {
+		if len(os.Args) < 14 {
 			fmt.Println("Error: compile_script_with_gui_config requires parameters")
 			os.Exit(1)
 		}
@@ -97,7 +97,9 @@ func main() {
 			}
 		}
 
-		err := CompileScriptWithGuiConfig(cli_inputPath, cli_scriptType, cli_outputJSON, cli_excludePackages, cli_outputBridge, cli_binaryName, cli_compile, cli_overwriteJson, cli_logLevel, cli_includeFuncParams, cli_autoOpen)
+		cli_targetBuilds := os.Args[13]
+
+		err := CompileScriptWithGuiConfig(cli_inputPath, cli_scriptType, cli_outputJSON, cli_excludePackages, cli_outputBridge, cli_binaryName, cli_compile, cli_overwriteJson, cli_logLevel, cli_includeFuncParams, cli_autoOpen, cli_targetBuilds)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -478,7 +480,7 @@ func main() {
 		}
 
 	case "compile_local":
-		if len(os.Args) < 6 {
+		if len(os.Args) < 7 {
 			fmt.Println("Error: compile_local requires parameters")
 			os.Exit(1)
 		}
@@ -493,7 +495,9 @@ func main() {
 
 		cli_logLevelStr := os.Args[5]
 
-		err := go_gen.CompileLocal(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr)
+		cli_targetBuilds := os.Args[6]
+
+		err := go_gen.CompileLocal(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr, cli_targetBuilds)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -564,6 +568,22 @@ func main() {
 		cli_targetBuilds := os.Args[6]
 
 		err := gui_gen.GenerateUI(cli_configPath, cli_compileMode, cli_logLevelStr, cli_clearCache, cli_targetBuilds)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "parse_build_architectures":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: parse_build_architectures requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		cli_value := os.Args[2]
+
+		_, err := internal_utils.ParseBuildArchitectures(cli_value)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -780,7 +800,7 @@ func main() {
 		logger.Fatal(cli_lvl, cli_format, cli_args)
 
 	case "install_local_package":
-		if len(os.Args) < 5 {
+		if len(os.Args) < 6 {
 			fmt.Println("Error: install_local_package requires parameters")
 			os.Exit(1)
 		}
@@ -801,8 +821,20 @@ func main() {
 			}
 		}
 
+		cli_reinstallIfInstalled, err_reinstallIfInstalled := strconv.ParseBool(os.Args[4])
+		if err_reinstallIfInstalled != nil {
+			if os.Args[4] == "1" {
+				cli_reinstallIfInstalled = true
+			} else if os.Args[4] == "0" {
+				cli_reinstallIfInstalled = false
+			} else {
+				fmt.Printf("Error: parameter 'reinstallIfInstalled' must be a valid boolean evaluation: %v\n", err_reinstallIfInstalled)
+				os.Exit(1)
+			}
+		}
+
 		var cli_logLevel_raw int
-		raw_logLevel := os.Args[4]
+		raw_logLevel := os.Args[5]
 		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
 			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
 			if err_logLevel != nil {
@@ -813,7 +845,7 @@ func main() {
 		}
 		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
 
-		err := package_installer.InstallLocalPackage(cli_pkgPath, cli_updateFirst, cli_logLevel)
+		err := package_installer.InstallLocalPackage(cli_pkgPath, cli_updateFirst, cli_reinstallIfInstalled, cli_logLevel)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
@@ -884,7 +916,7 @@ func main() {
 		}
 
 	case "compile_rust":
-		if len(os.Args) < 6 {
+		if len(os.Args) < 7 {
 			fmt.Println("Error: compile_rust requires parameters")
 			os.Exit(1)
 		}
@@ -899,7 +931,9 @@ func main() {
 
 		cli_logLevelStr := os.Args[5]
 
-		err := rust_gen.CompileRust(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr)
+		cli_targetBuilds := os.Args[6]
+
+		err := rust_gen.CompileRust(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr, cli_targetBuilds)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
