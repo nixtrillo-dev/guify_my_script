@@ -32,10 +32,6 @@ jobs:
           ASSETS_JSON=$(curl -sS -H "Authorization: token ${{ secrets.FORGEJO_TOKEN }}" \
             "${{ secrets.FORGEJO_INSTANCE_URL }}/api/v1/repos/${{ github.repository }}/releases/tags/${{ github.event.release.tag_name }}")
           
-          echo "--- Forgejo API Response ---"
-          echo "$ASSETS_JSON"
-          echo "----------------------------"
-          
           echo "$ASSETS_JSON" | jq -r '.assets // [] | .[] | "\(.name) \(.browser_download_url)"' | while read -r name url; do
             echo "Downloading $name from $url"
             curl -sS -L -o "./dist/$name" "$url"
