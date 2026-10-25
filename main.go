@@ -635,13 +635,14 @@ func GoSetupGoDependencies(logLevel C.int, crossCompile C.int) C.int {
 }
 
 //export GoSetupRustDependencies
-func GoSetupRustDependencies(logLevel C.int, crossCompile C.int) C.int {
+func GoSetupRustDependencies(logLevel C.int, crossCompile C.int, setupAndroid C.int) C.int {
 
 	go_logLevel := logger.LogLevel(int(logLevel))
 
 	go_crossCompile := crossCompile == 1
+	go_setupAndroid := setupAndroid == 1
 
-	err := setup_utils.SetupRustDependencies(go_logLevel, go_crossCompile)
+	err := setup_utils.SetupRustDependencies(go_logLevel, go_crossCompile, go_setupAndroid)
 	if err != nil {
 		fmt.Printf("Pipeline Error in SetupRustDependencies: %v\n", err)
 		return 0
@@ -1682,7 +1683,21 @@ func main() {
 			}
 		}
 
-		err := setup_utils.SetupRustDependencies(cli_logLevel, cli_crossCompile)
+		cli_setupAndroid := false
+		if len(os.Args) > 4 {
+			parsedSetupAndroid, errSetupAndroid := strconv.ParseBool(os.Args[4])
+			if errSetupAndroid != nil {
+				if os.Args[4] == "1" {
+					parsedSetupAndroid = true
+				} else if os.Args[4] != "0" {
+					fmt.Printf("Error: parameter 'setupAndroid' must be a valid boolean evaluation: %v\n", errSetupAndroid)
+					os.Exit(1)
+				}
+			}
+			cli_setupAndroid = parsedSetupAndroid
+		}
+
+		err := setup_utils.SetupRustDependencies(cli_logLevel, cli_crossCompile, cli_setupAndroid)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)

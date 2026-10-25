@@ -122,8 +122,9 @@ func SetupGoDependencies(logLevel logger.LogLevel, crossCompile bool) error {
 	return nil
 }
 
-// SetupRustDependencies installs Rust and Cargo for source compilation.
-func SetupRustDependencies(logLevel logger.LogLevel, crossCompile bool) error {
+// SetupRustDependencies installs Rust and Cargo for source compilation. When
+// setupAndroid is true, it also prepares the Android NDK/toolchain.
+func SetupRustDependencies(logLevel logger.LogLevel, crossCompile, setupAndroid bool) error {
 	target := ""
 	if crossCompile {
 		target = linuxRustCrossTarget()
@@ -131,10 +132,17 @@ func SetupRustDependencies(logLevel logger.LogLevel, crossCompile bool) error {
 	if err := installRustupToolchain(logLevel, target); err != nil {
 		return err
 	}
-	if !crossCompile {
-		return nil
+	if crossCompile {
+		if err := SetupCrossCompileDependencies(logLevel); err != nil {
+			return err
+		}
 	}
-	return SetupCrossCompileDependencies(logLevel)
+	if setupAndroid {
+		if err := SetupAndroidNDKForRust(logLevel); err != nil {
+			return fmt.Errorf("Android Rust setup: %w", err)
+		}
+	}
+	return nil
 }
 
 // SetupCrossCompileDependencies installs tools needed to cross-compile for

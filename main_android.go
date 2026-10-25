@@ -1035,7 +1035,21 @@ func main() {
 			}
 		}
 
-		err := setup_utils.SetupRustDependencies(cli_logLevel, cli_crossCompile)
+		cli_setupAndroid := false
+		if len(os.Args) > 4 {
+			parsedSetupAndroid, errSetupAndroid := strconv.ParseBool(os.Args[4])
+			if errSetupAndroid != nil {
+				if os.Args[4] == "1" {
+					parsedSetupAndroid = true
+				} else if os.Args[4] != "0" {
+					fmt.Printf("Error: parameter 'setupAndroid' must be a valid boolean evaluation: %v\n", errSetupAndroid)
+					os.Exit(1)
+				}
+			}
+			cli_setupAndroid = parsedSetupAndroid
+		}
+
+		err := setup_utils.SetupRustDependencies(cli_logLevel, cli_crossCompile, cli_setupAndroid)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
