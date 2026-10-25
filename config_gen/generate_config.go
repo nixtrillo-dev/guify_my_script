@@ -57,12 +57,13 @@ type JsonEndpoints struct {
 
 // UIField maps directly to your C++ application UI schema rules
 type UIField struct {
-	Name     string        `json:"name"`
-	Type     string        `json:"type"`
-	DataType string        `json:"data_type"`
-	ArgName  string        `json:"arg_name,omitempty"`
-	Options  []interface{} `json:"options,omitempty"`
-	Default  any           `json:"default"`
+	Name              string        `json:"name"`
+	Type              string        `json:"type"`
+	DataType          string        `json:"data_type"`
+	ArgName           string        `json:"arg_name,omitempty"`
+	ParameterPosition int           `json:"parameter_position"`
+	Options           []interface{} `json:"options,omitempty"`
+	Default           any           `json:"default"`
 	// Bounds are meaningful only for MCB, MFL, TIME, DATE, and NUM fields.
 	// Omitting nil values prevents unrelated field types from receiving null bounds.
 	Minimum               *json.RawMessage `json:"minimum,omitempty"`
@@ -251,14 +252,18 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		outputPath = "config.json"
 	}
 
+	// The schema belongs alongside the config and is refreshed independently of
+	// whether the config JSON itself is regenerated.
+	if err := copySchemaToOutputDir(outputPath); err != nil {
+		return fmt.Errorf("failed to copy schema to output directory: %w", err)
+	}
+	logger.Info(lvl, "  • Successfully copied JSON schema: %s\n", filepath.Join(filepath.Dir(outputPath), "guify_my_script_config_schema.json"))
+
 	logger.Info(lvl, "Generating JSON template for GUI...")
 
 	if !overwrite {
 		if _, err := os.Stat(outputPath); err == nil {
 			logger.Warn(lvl, "Safety abort: target file '%s' already exists. Skipping JSON generation.\n", outputPath)
-			if err := copySchemaToOutputDir(outputPath); err != nil {
-				return fmt.Errorf("failed to copy schema to output directory: %w", err)
-			}
 			if autoOpen {
 				openFileInEditor(outputPath, lvl)
 			} else {
@@ -415,13 +420,6 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		logger.Debug(lvl, "autoOpen is: False")
 	}
 
-	// Copy the embedded schema to the output directory
-	if err := copySchemaToOutputDir(outputPath); err != nil {
-		return fmt.Errorf("failed to copy schema to output directory: %w", err)
-	}
-
-	logger.Info(lvl, "  • Successfully copied JSON schema: %s\n", filepath.Join(filepath.Dir(outputPath), "guify_my_script_config_schema.json"))
-
 	return nil
 }
 
@@ -550,12 +548,13 @@ func createField(displayName string, index int) UIField {
 
 	// Unconditionally apply the empty endpoints object so it is visible in the JSON
 	field := UIField{
-		Name:         internal_utils.ToTitleCase(displayName),
-		Type:         fieldType,
-		DataType:     "string",
-		Default:      "",
-		AdvancedMenu: false,
-		Enabled:      true,
+		Name:              internal_utils.ToTitleCase(displayName),
+		ParameterPosition: (index + 1) * 100,
+		Type:              fieldType,
+		DataType:          "string",
+		Default:           "",
+		AdvancedMenu:      false,
+		Enabled:           true,
 		JsonEndpoints: JsonEndpoints{
 			ArrayEndpoint:       emptyArrayJSON(),
 			PathToArray:         nullJSON(),
@@ -857,12 +856,13 @@ func createPythonField(param string, index int) UIField {
 	}
 
 	field := UIField{
-		Name:         internal_utils.ToTitleCase(paramName),
-		Type:         fieldType,
-		DataType:     dataType,
-		Default:      defaultVal,
-		AdvancedMenu: false,
-		Enabled:      true,
+		Name:              internal_utils.ToTitleCase(paramName),
+		ParameterPosition: (index + 1) * 100,
+		Type:              fieldType,
+		DataType:          dataType,
+		Default:           defaultVal,
+		AdvancedMenu:      false,
+		Enabled:           true,
 		JsonEndpoints: JsonEndpoints{
 			ArrayEndpoint:       emptyArrayJSON(),
 			PathToArray:         nullJSON(),

@@ -74,6 +74,7 @@ type UIField struct {
 	Type                  string        `json:"type,omitempty"`
 	DataType              string        `json:"data_type"`
 	ArgName               string        `json:"arg_name,omitempty"`
+	ParameterPosition     *int          `json:"parameter_position"`
 	Options               []interface{} `json:"options,omitempty"`
 	Default               interface{}   `json:"default"`
 	Minimum               string        `json:"minimum,omitempty"`

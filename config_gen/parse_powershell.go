@@ -41,6 +41,7 @@ func parsePowerShellFile(path string) ([]UIAction, error) {
 				param = param[:comma]
 			}
 			if field := createPowerShellField(param); field.Name != "" {
+				field.ParameterPosition = (len(fields) + 1) * 100
 				fields = append(fields, field)
 			}
 		}

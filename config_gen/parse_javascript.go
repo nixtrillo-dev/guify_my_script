@@ -97,6 +97,7 @@ func jsFieldsFromParams(params []string, docs map[string]jsDocParam) ([]UIField,
 				def = prop.Default
 			}
 			f := createJSField(prop.Name, hint, def)
+			f.ParameterPosition = (len(fields) + 1) * 100
 			if f.Name != "" {
 				fields = append(fields, f)
 			}
@@ -118,6 +119,7 @@ func jsFieldsFromParams(params []string, docs map[string]jsDocParam) ([]UIField,
 			def = p.Default
 		}
 		f := createJSField(p.Name, hint, def)
+		f.ParameterPosition = (len(fields) + 1) * 100
 		if f.Name != "" {
 			fields = append(fields, f)
 		}

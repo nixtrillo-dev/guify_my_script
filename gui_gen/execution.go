@@ -7,8 +7,54 @@ package gui_gen
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
+
+// orderedParameterFields returns fields in script argument order while leaving
+// the original field slice untouched for GUI construction.
+func orderedParameterFields(fields []UIField) []UIField {
+	indices := parameterOrderIndices(fields)
+	ordered := make([]UIField, 0, len(fields))
+	for _, index := range indices {
+		ordered = append(ordered, fields[index])
+	}
+	return ordered
+}
+
+func parameterOrderIndices(fields []UIField) []int {
+	indices := make([]int, len(fields))
+	for i := range indices {
+		indices[i] = i
+	}
+	sort.SliceStable(indices, func(i, j int) bool {
+		left, right := fields[indices[i]].ParameterPosition, fields[indices[j]].ParameterPosition
+		if left == nil {
+			return false
+		}
+		if right == nil {
+			return true
+		}
+		return *left < *right
+	})
+	return indices
+}
+
+func parameterOrderCPP(fields []UIField) string {
+	if len(fields) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("        {\n            QStringList orderedArgs;\n            const int parameterOrder[] = {")
+	for i, index := range parameterOrderIndices(fields) {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		fmt.Fprintf(&b, "%d", index)
+	}
+	b.WriteString("};\n            for (int index : parameterOrder) if (index < args.size()) orderedArgs.append(args.at(index));\n            args = orderedArgs;\n        }\n")
+	return b.String()
+}
 
 // buildExecutionLambda generates the Qt C++ lambda for executing the bash/binary processes,
 // handling IO pipes, and connecting the execution button.
@@ -79,7 +125,7 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
 	} else if sourceType == "javascript" {
 		cpp.WriteString(buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, "SOURCE_SCRIPT", true))
 	} else if sourceType == "powershell" {
-		cpp.WriteString(buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, "SOURCE_SCRIPT", true, action.Fields))
+		cpp.WriteString(buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, "SOURCE_SCRIPT", true, orderedParameterFields(action.Fields)))
 	} else {
 		cpp.WriteString(fmt.Sprintf(`
         QString shell_cmd;
@@ -403,13 +449,14 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
             } else if (QStringLiteral("%[3]s") == "powershell") {
                 args.append(formatPowerShellArg(rawVal, dataType));
             } else {
-                args.append(rawVal);
+            args.append(rawVal);
             }
         }
+%[5]s
 %[4]s
         execLogic_%[1]s(args, false);
     });
-        `, actIdxStr, fieldsArrName, sourceType, buildJavaScriptObjectWrapCPP(action, sourceType)))
+		`, actIdxStr, fieldsArrName, sourceType, buildJavaScriptObjectWrapCPP(UIAction{InvokeAsObject: action.InvokeAsObject, Fields: orderedParameterFields(action.Fields)}, sourceType), parameterOrderCPP(action.Fields)))
 
 	return cpp.String()
 }

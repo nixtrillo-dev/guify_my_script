@@ -510,6 +510,7 @@
           "description": "Scaffolds a standard text input field.",
           "body": {
             "name": "${1:Text Input}",
+            "parameter_position": null,
             "field_type": "TXT",
             "data_type": "string",
             "default": "Initial Value",
@@ -531,6 +532,7 @@
           "description": "Scaffolds a directory picker field.",
           "body": {
             "name": "${1:Directory Picker}",
+            "parameter_position": null,
             "field_type": "DIR",
             "data_type": "string",
             "default": "/home",
@@ -552,6 +554,7 @@
           "description": "Scaffolds a single file picker field.",
           "body": {
             "name": "${1:File Picker}",
+            "parameter_position": null,
             "field_type": "FL",
             "data_type": "string",
             "default": "",
@@ -574,6 +577,7 @@
           "description": "Scaffolds a multi-file picker field.",
           "body": {
             "name": "${1:Multi-File Picker}",
+            "parameter_position": null,
             "field_type": "MFL",
             "data_type": "string",
             "default": "",
@@ -598,6 +602,7 @@
           "description": "Scaffolds a save file picker field.",
           "body": {
             "name": "${1:Save File Picker}",
+            "parameter_position": null,
             "field_type": "FS",
             "data_type": "string",
             "default": "",
@@ -620,6 +625,7 @@
           "description": "Scaffolds a single-select dropdown field.",
           "body": {
             "name": "${1:Combo Box}",
+            "parameter_position": null,
             "field_type": "CB",
             "data_type": "string",
             "options": ["Option1", "Option2", "Option3"],
@@ -642,6 +648,7 @@
           "description": "Scaffolds a boolean checkbox field.",
           "body": {
             "name": "${1:Checkbox}",
+            "parameter_position": null,
             "field_type": "CK",
             "data_type": "bool",
             "default": "0",
@@ -663,6 +670,7 @@
           "description": "Scaffolds a hybrid file or directory picker.",
           "body": {
             "name": "${1:File or Directory Picker}",
+            "parameter_position": null,
             "field_type": "FD",
             "data_type": "string",
             "default": "",
@@ -685,6 +693,7 @@
           "description": "Scaffolds a multi-select dropdown field.",
           "body": {
             "name": "${1:Multi-Combo Box}",
+            "parameter_position": null,
             "field_type": "MCB",
             "data_type": "list",
             "options": ["Option1", "Option2", "Option3"],
@@ -709,6 +718,7 @@
           "description": "Scaffolds a multi-line text area field.",
           "body": {
             "name": "${1:Long Text}",
+            "parameter_position": null,
             "field_type": "LTXT",
             "data_type": "string",
             "default": "Initial Long Text Value",
@@ -732,6 +742,7 @@
           "description": "Scaffolds a time picker field.",
           "body": {
             "name": "${1:Time Picker}",
+            "parameter_position": null,
             "field_type": "TIME",
             "data_type": "string",
             "default": "12:00:00",
@@ -755,6 +766,7 @@
           "description": "Scaffolds a date picker field.",
           "body": {
             "name": "${1:Date Picker}",
+            "parameter_position": null,
             "field_type": "DATE",
             "data_type": "string",
             "default": "2026-01-01",
@@ -778,6 +790,7 @@
           "description": "Scaffolds a numeric input field.",
           "body": {
             "name": "${1:Number Input}",
+            "parameter_position": null,
             "field_type": "NUM",
             "data_type": "int",
             "default": "0",
@@ -804,7 +817,8 @@
         "enabled",
         "advanced_menu",
         "json_endpoints",
-        "refresh_fields_on_change"
+        "refresh_fields_on_change",
+        "parameter_position"
       ],
       "anyOf": [
         { "required": ["field_type"] },
@@ -1095,6 +1109,10 @@
         "name": {
           "type": "string",
           "description": "Display label for this field in the UI. Used as the field identifier and in the argument passing to the function."
+        },
+        "parameter_position": {
+          "type": ["integer", "null"],
+          "description": "Script argument ordering priority. Non-null positions are passed first in ascending numeric order; gaps are allowed. Fields with null positions trail after in their JSON order."
         },
         "arg_name": {
           "type": "string",

@@ -73,6 +73,7 @@
             "fields": [
                 {
                     "name": "Log Level",
+                    "parameter_position": 100,
                     "options": [["5 - TRACE", "5"], ["4 - INFO", "4"], ["3 - WARNING", "3"], ["2 - ERROR", "2"], ["1 - FATAL", "1"], ["0 - SILENT", "0"]],
                     "refresh_fields_on_change": [],
                     "field_type": "CB",
@@ -84,6 +85,7 @@
                 },
                 {
                     "name": "Install cross-compilation tools and targets?",
+                    "parameter_position": 200,
                     "field_type": "CK",
                     "advanced_menu": false,
                     "data_type": "bool",
@@ -111,6 +113,7 @@
             "fields": [
                 {
                     "name": "Log Level",
+                    "parameter_position": 100,
                     "options": [["5 - TRACE", "5"], ["4 - INFO", "4"], ["3 - WARNING", "3"], ["2 - ERROR", "2"], ["1 - FATAL", "1"], ["0 - SILENT", "0"]],
                     "refresh_fields_on_change": [],
                     "field_type": "CB",
@@ -122,6 +125,7 @@
                 },
                 {
                     "name": "Install cross-compilation tools and targets?",
+                    "parameter_position": 200,
                     "field_type": "CK",
                     "advanced_menu": false,
                     "data_type": "bool",
@@ -132,6 +136,7 @@
                 },
                 {
                     "name": "Install Android NDK and Rust target?",
+                    "parameter_position": 300,
                     "field_type": "CK",
                     "advanced_menu": false,
                     "data_type": "bool",
@@ -157,6 +162,7 @@
             "fields": [
                 {
                     "name": "Input Script or Source Directory",
+                    "parameter_position": 100,
                     "refresh_fields_on_change": [
                         "Script Type",
                         "Output JSON Path",
@@ -189,6 +195,7 @@
                 },
                 {
                     "name": "Script Type",
+                    "parameter_position": 200,
                     "options": [
                         "GO",
                         "RUST"
@@ -220,6 +227,7 @@
                 },
                 {
                     "name": "Output JSON Path",
+                    "parameter_position": 300,
                     "refresh_fields_on_change": [],
                     "field_type": "FS",
                     "advanced_menu": false,
@@ -245,6 +253,7 @@
                 },
                 {
                     "name": "Exclude Packages",
+                    "parameter_position": 400,
                     "options": [],
                     "refresh_fields_on_change": [],
                     "field_type": "MCB",
@@ -275,6 +284,7 @@
                 },
                 {
                     "name": "Output Bridge Path",
+                    "parameter_position": 500,
                     "refresh_fields_on_change": null,
                     "field_type": "FS",
                     "advanced_menu": false,
@@ -300,6 +310,7 @@
                 },
                 {
                     "name": "Binary Output",
+                    "parameter_position": 600,
                     "refresh_fields_on_change": [],
                     "field_type": "FS",
                     "advanced_menu": false,
@@ -327,6 +338,7 @@
                 },
                 {
                     "name": "Compile?",
+                    "parameter_position": 700,
                     "refresh_fields_on_change": [],
                     "field_type": "CK",
                     "advanced_menu": true,
@@ -356,24 +368,47 @@
                         "path_to_enabled": null
                     },
                     "name": "Overwrite JSON? (if exists)",
+                    "parameter_position": 800,
                     "refresh_fields_on_change": [],
                     "field_type": "CK"
                 },
                 {
-                    "name": "Log Level",
+                    "name": "Auto Open Ouput JSON",
+                    "parameter_position": 1100,
+                    "refresh_fields_on_change": [],
+                    "field_type": "CK",
+                    "advanced_menu": false,
+                    "data_type": "string",
+                    "default": "1",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    }
+                },
+                {
+                    "name": "Target Builds",
+                    "parameter_position": 1200,
                     "options": [
-                        "TRACE",
-                        "INFO",
-                        "WARNING",
-                        "ERROR",
-                        "FATAL",
-                        "SILENT"
+                        "android_aarch64",
+                        "linux_aarch64",
+                        "linux_amd64"
                     ],
                     "refresh_fields_on_change": [],
-                    "field_type": "CB",
+                    "field_type": "MCB",
                     "advanced_menu": true,
                     "data_type": "string",
-                    "default": "INFO",
+                    "default": [
+                        "android_aarch64",
+                        "linux_aarch64",
+                        "linux_amd64"
+                    ],
+                    "maximum": "0",
+                    "minimum": "1",
                     "enabled": true,
                     "json_endpoints": {
                         "array_endpoint": [],
@@ -386,6 +421,7 @@
                 },
                 {
                     "name": "Include Func Params",
+                    "parameter_position": 1000,
                     "refresh_fields_on_change": [],
                     "field_type": "CK",
                     "advanced_menu": true,
@@ -404,40 +440,21 @@
                     }
                 },
                 {
-                    "name": "Auto Open Ouput JSON",
-                    "refresh_fields_on_change": [],
-                    "field_type": "CK",
-                    "advanced_menu": false,
-                    "data_type": "string",
-                    "default": "1",
-                    "enabled": true,
-                    "json_endpoints": {
-                        "array_endpoint": [],
-                        "get_defaults_endpoint": [],
-                        "get_enabled_endpoint": [],
-                        "path_to_array": null,
-                        "path_to_default": null,
-                        "path_to_enabled": null
-                    }
-                },
-                {
-                    "name": "Target Builds",
+                    "name": "Log Level",
+                    "parameter_position": 900,
                     "options": [
-                        "android_aarch64",
-                        "linux_aarch64",
-                        "linux_amd64"
+                        "TRACE",
+                        "INFO",
+                        "WARNING",
+                        "ERROR",
+                        "FATAL",
+                        "SILENT"
                     ],
                     "refresh_fields_on_change": [],
-                    "field_type": "MCB",
+                    "field_type": "CB",
                     "advanced_menu": true,
                     "data_type": "string",
-                    "default": [
-                        "android_aarch64",
-                        "linux_aarch64",
-                        "linux_amd64"
-                    ],
-                    "maximum": "0",
-                    "minimum": "1",
+                    "default": "INFO",
                     "enabled": true,
                     "json_endpoints": {
                         "array_endpoint": [],
@@ -465,6 +482,7 @@
             "fields": [
                 {
                     "name": "JSON Config Path",
+                    "parameter_position": 100,
                     "refresh_fields_on_change": [],
                     "field_type": "FL",
                     "advanced_menu": false,
@@ -483,6 +501,7 @@
                 },
                 {
                     "name": "Compile Mode",
+                    "parameter_position": 200,
                     "options": [
                         "debug",
                         "production"
@@ -503,32 +522,8 @@
                     }
                 },
                 {
-                    "name": "Log Level",
-                    "options": [
-                        "TRACE",
-                        "INFO",
-                        "WARNING",
-                        "ERROR",
-                        "FATAL",
-                        "SILENT"
-                    ],
-                    "refresh_fields_on_change": [],
-                    "field_type": "CB",
-                    "advanced_menu": true,
-                    "data_type": "string",
-                    "default": "INFO",
-                    "enabled": true,
-                    "json_endpoints": {
-                        "array_endpoint": [],
-                        "get_defaults_endpoint": [],
-                        "get_enabled_endpoint": [],
-                        "path_to_array": null,
-                        "path_to_default": null,
-                        "path_to_enabled": null
-                    }
-                },
-                {
                     "name": "Clear Dependency Cache?",
+                    "parameter_position": 400,
                     "refresh_fields_on_change": [],
                     "field_type": "CK",
                     "advanced_menu": true,
@@ -546,6 +541,7 @@
                 },
                 {
                     "name": "Target Builds",
+                    "parameter_position": 500,
                     "options": [
                         ".pkg.tar.zst_linux_amd64",
                         ".deb_linux_amd64",
@@ -568,6 +564,32 @@
                     ],
                     "maximum": "0",
                     "minimum": "1",
+                    "enabled": true,
+                    "json_endpoints": {
+                        "array_endpoint": [],
+                        "get_defaults_endpoint": [],
+                        "get_enabled_endpoint": [],
+                        "path_to_array": null,
+                        "path_to_default": null,
+                        "path_to_enabled": null
+                    }
+                },
+                {
+                    "name": "Log Level",
+                    "parameter_position": 300,
+                    "options": [
+                        "TRACE",
+                        "INFO",
+                        "WARNING",
+                        "ERROR",
+                        "FATAL",
+                        "SILENT"
+                    ],
+                    "refresh_fields_on_change": [],
+                    "field_type": "CB",
+                    "advanced_menu": true,
+                    "data_type": "string",
+                    "default": "INFO",
                     "enabled": true,
                     "json_endpoints": {
                         "array_endpoint": [],
@@ -597,6 +619,7 @@
             "fields": [
                 {
                     "name": "Pkg Path",
+                    "parameter_position": 100,
                     "refresh_fields_on_change": [],
                     "field_type": "FL",
                     "advanced_menu": false,
@@ -619,6 +642,7 @@
                 },
                 {
                     "name": "Update First",
+                    "parameter_position": 200,
                     "refresh_fields_on_change": [],
                     "field_type": "CK",
                     "advanced_menu": false,
@@ -636,6 +660,7 @@
                 },
                 {
                     "name": "Reinstall if Already Installed",
+                    "parameter_position": 300,
                     "refresh_fields_on_change": [],
                     "field_type": "CK",
                     "advanced_menu": false,
@@ -653,6 +678,7 @@
                 },
                 {
                     "name": "Log Level",
+                    "parameter_position": 400,
                     "options": [
                         [
                             "5 - TRACE",

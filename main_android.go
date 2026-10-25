@@ -1004,7 +1004,7 @@ func main() {
 		}
 
 	case "setup_rust_dependencies":
-		if len(os.Args) < 4 {
+		if len(os.Args) < 5 {
 			fmt.Println("Error: setup_rust_dependencies requires parameters")
 			os.Exit(1)
 		}
@@ -1035,18 +1035,16 @@ func main() {
 			}
 		}
 
-		cli_setupAndroid := false
-		if len(os.Args) > 4 {
-			parsedSetupAndroid, errSetupAndroid := strconv.ParseBool(os.Args[4])
-			if errSetupAndroid != nil {
-				if os.Args[4] == "1" {
-					parsedSetupAndroid = true
-				} else if os.Args[4] != "0" {
-					fmt.Printf("Error: parameter 'setupAndroid' must be a valid boolean evaluation: %v\n", errSetupAndroid)
-					os.Exit(1)
-				}
+		cli_setupAndroid, err_setupAndroid := strconv.ParseBool(os.Args[4])
+		if err_setupAndroid != nil {
+			if os.Args[4] == "1" {
+				cli_setupAndroid = true
+			} else if os.Args[4] == "0" {
+				cli_setupAndroid = false
+			} else {
+				fmt.Printf("Error: parameter 'setupAndroid' must be a valid boolean evaluation: %v\n", err_setupAndroid)
+				os.Exit(1)
 			}
-			cli_setupAndroid = parsedSetupAndroid
 		}
 
 		err := setup_utils.SetupRustDependencies(cli_logLevel, cli_crossCompile, cli_setupAndroid)

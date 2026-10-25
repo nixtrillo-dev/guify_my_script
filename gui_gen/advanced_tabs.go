@@ -416,7 +416,7 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
 	} else if sourceType == "javascript" {
 		cpp.WriteString(buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, "targetScript", false))
 	} else if sourceType == "powershell" {
-		cpp.WriteString(buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, "targetScript", false, action.Fields))
+		cpp.WriteString(buildPowerShellShellCmdCPP(mode, funcName, sudoPrefix, "targetScript", false, orderedParameterFields(action.Fields)))
 	} else {
 		cpp.WriteString(fmt.Sprintf(`
         QString shell_cmd;
@@ -605,10 +605,11 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
                 args.append(rawVal);
             }
         }
+%[5]s
 %[4]s
         execLogic_%[1]s(args, false);
     });
-`, actIdxStr, fieldsArrName, sourceType, buildJavaScriptObjectWrapCPP(action, sourceType)))
+`, actIdxStr, fieldsArrName, sourceType, buildJavaScriptObjectWrapCPP(UIAction{InvokeAsObject: action.InvokeAsObject, Fields: orderedParameterFields(action.Fields)}, sourceType), parameterOrderCPP(action.Fields)))
 
 	return cpp.String()
 }
