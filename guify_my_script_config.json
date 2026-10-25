@@ -42,13 +42,13 @@
                 ]
             }
         ],
-        "description": "Generated Qt GUI package staged by guify_my_script.",
+        "description": "Guify My Script is a tool for wrapping a script or source project executable into a desktop application with a generated GUI.",
         "license": "MIT",
-        "maintainer": "gms",
+        "maintainer": "nixtrillo",
         "release_number": "1",
-        "summary": "A GUI frontend for executing commands for guify_my_script",
-        "support_email": "maintainer@example.invalid",
-        "version": "0.0.1"
+        "summary": "A GUI wrapper for scripts and CLI applications.",
+        "support_email": "nixtrillo.dev@gmail.com",
+        "version": "1.0.0"
     },
     "main_menu": {
         "info_label": null,
