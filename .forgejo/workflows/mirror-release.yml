@@ -7,54 +7,46 @@ jobs:
   mirror:
     runs-on: ubuntu-latest
     steps:
-      - name: Create GitHub Release
-        id: create_gh_release
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GH_MIRROR_TOKEN }}
-          script: |
-            const release = context.payload.release;
-            const result = await github.rest.repos.createRelease({
-              owner: 'nixtrillo-dev',
-              repo: 'guify_my_script',
-              tag_name: release.tag_name,
-              name: release.name,
-              body: release.body,
-              draft: release.draft,
-              prerelease: release.prerelease
-            });
-            return result.data;
+      - name: Create GitHub Release and get Release ID
+        id: create_release
+        run: |
+          RELEASE_DATA=$(curl -s -X POST \
+            -H "Authorization: token ${{ secrets.GH_MIRROR_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/nixtrillo-dev/guify_my_script/releases \
+            -d '{
+              "tag_name": "${{ github.event.release.tag_name }}",
+              "name": "${{ github.event.release.name }}",
+              "body": ${{ toJSON(github.event.release.body) }},
+              "draft": ${{ github.event.release.draft }},
+              "prerelease": ${{ github.event.release.prerelease }}
+            }')
+          RELEASE_ID=$(echo "$RELEASE_DATA" | jq -r '.id')
+          echo "release_id=$RELEASE_ID" >> $GITHUB_OUTPUT
 
-      - name: Download Assets from Private Forgejo
-        uses: actions/forgejo-release@v2
-        with:
-          direction: download
-          url: ${{ secrets.FORGEJO_INSTANCE_URL }} 
-          repo: nixtrillo-dev/guify_my_script
-          tag: ${{ github.event.release.tag_name }}
-          release-dir: ./dist 
-          token: ${{ secrets.FORGEJO_TOKEN }} 
+      - name: Download Assets from Forgejo
+        run: |
+          mkdir -p ./dist
+          # Get list of assets from the Forgejo release
+          ASSETS_JSON=$(curl -s -H "Authorization: token ${{ secrets.FORGEJO_TOKEN }}" \
+            "${{ secrets.FORGEJO_INSTANCE_URL }}/api/v1/repos/nixtrillo-dev/guify_my_script/releases/tags/${{ github.event.release.tag_name }}")
+          
+          echo "$ASSETS_JSON" | jq -r '.assets[] | "\(.name) \(.browser_download_url)"' | while read -r name url; do
+            echo "Downloading $name from $url"
+            curl -sL -o "./dist/$name" "$url"
+          done
 
       - name: Upload Assets to GitHub
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GH_MIRROR_TOKEN }}
-          script: |
-            const fs = require('fs').promises;
-            const path = require('path');
-            const githubRelease = ${{ steps.create_gh_release.outputs.result }};
-            const assetDir = './dist';
-
-            const files = await fs.readdir(assetDir);
-            for (const file of files) {
-              const filePath = path.join(assetDir, file);
-              const fileData = await fs.readFile(filePath);
-              await github.rest.repos.uploadReleaseAsset({
-                owner: 'nixtrillo-dev',
-                repo: 'guify_my_script',
-                release_id: githubRelease.id,
-                name: file,
-                data: fileData,
-              });
-              console.log(`Uploaded ${file}`);
-            }
+        run: |
+          RELEASE_ID="${{ steps.create_release.outputs.release_id }}"
+          for file in ./dist/*; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "Uploading $filename..."
+              curl -s -X POST \
+                -H "Authorization: token ${{ secrets.GH_MIRROR_TOKEN }}" \
+                -H "Content-Type: application/octet-stream" \
+                --data-binary "@$file" \
+                "https://uploads.github.com/repos/nixtrillo-dev/guify_my_script/releases/$RELEASE_ID/assets?name=$filename"
+            fi
+          done
