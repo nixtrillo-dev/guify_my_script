@@ -208,9 +208,15 @@ func runBuildLoop(ctx BuildContext) error {
 			return err
 		}
 
-		// 2. Translate paths relative to /workspace mount
-		relCppFile, _ := filepath.Rel(ctx.BaseDir, archCppFile)
-		relOutputBinary, _ := filepath.Rel(ctx.BaseDir, archOutputBinary)
+		// 2. Mount only the directory needed for this compilation. The :Z option
+		// gives SELinux-confined Podman/Docker access on Fedora without relabeling
+		// the entire project tree.
+		workspaceDir := archOutputDir
+		if ctx.CompileMode == "production" {
+			workspaceDir = archStageDir
+		}
+		relCppFile, _ := filepath.Rel(workspaceDir, archCppFile)
+		relOutputBinary, _ := filepath.Rel(workspaceDir, archOutputBinary)
 
 		// 3. Resolve pkg-config flags inside the container
 		pkgCmdStr := fmt.Sprintf("%s run --rm --platform %s %s sh -c \"%spkg-config --cflags --libs Qt6Widgets Qt6Network\"",
@@ -223,9 +229,9 @@ func runBuildLoop(ctx BuildContext) error {
 
 		// 4. Compile binary inside the container
 		compileCmdStr := fmt.Sprintf(
-			"%s run --rm --platform %s -v \"%s:/workspace\" -w /workspace %s sh -c "+
+			"%s run --rm --platform %s -v \"%s:/workspace:Z\" -w /workspace %s sh -c "+
 				"\"%s -O3 -s -std=c++17 -fPIC -flto=auto -fvisibility=hidden -ffunction-sections -fdata-sections '%s' %s -o '%s' -Wl,--gc-sections\"",
-			containerEngine, platform, ctx.BaseDir, builderTag, compilerBin, relCppFile, pkgFlags, relOutputBinary,
+			containerEngine, platform, workspaceDir, builderTag, compilerBin, relCppFile, pkgFlags, relOutputBinary,
 		)
 
 		cmd := exec.Command("sh", "-c", compileCmdStr)

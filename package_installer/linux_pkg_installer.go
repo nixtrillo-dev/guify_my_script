@@ -71,7 +71,10 @@ func InstallLocalPackage(pkgPath string, updateFirst, reinstallIfInstalled bool,
 	logger.Info(logLevel, "System verified as %s. Preparing to install %s package as root.", pkgManager, pkgExt)
 
 	// 6. Build and execute the root-level installation command
-	cmd := buildInstallCommand(pkgManager, pkgPath, reinstallIfInstalled)
+	cmd, err := buildInstallCommand(pkgManager, pkgPath, reinstallIfInstalled)
+	if err != nil {
+		return err
+	}
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
@@ -191,39 +194,77 @@ func isValidForManager(ext, manager string) bool {
 }
 
 // buildInstallCommand generates the correct command-line invocation for the local file.
-func buildInstallCommand(manager, pkgPath string, reinstallIfInstalled bool) *exec.Cmd {
+func buildInstallCommand(manager, pkgPath string, reinstallIfInstalled bool) (*exec.Cmd, error) {
 	switch manager {
 	case "pacman":
 		args := []string{"-U", "--noconfirm"}
 		if !reinstallIfInstalled {
 			args = append(args, "--needed")
 		}
-		return exec.Command("pacman", append(args, pkgPath)...)
+		return exec.Command("pacman", append(args, pkgPath)...), nil
 	case "apt":
 		args := []string{"install"}
 		if reinstallIfInstalled {
 			args = append(args, "--reinstall")
 		}
 		args = append(args, "-y", pkgPath)
-		return exec.Command("apt-get", args...) // apt-get handles local files and their deps elegantly
+		return exec.Command("apt-get", args...), nil // apt-get handles local files and their deps elegantly
 	case "dnf":
 		if reinstallIfInstalled {
-			return exec.Command("dnf", "reinstall", "-y", pkgPath)
+			sameVersionInstalled, err := isSameRPMVersionInstalled(pkgPath)
+			if err != nil {
+				return nil, fmt.Errorf("check whether local RPM is already installed: %w", err)
+			}
+			if sameVersionInstalled {
+				return exec.Command("dnf", "reinstall", "-y", pkgPath), nil
+			}
 		}
-		return exec.Command("dnf", "install", "-y", pkgPath)
+		return exec.Command("dnf", "install", "-y", pkgPath), nil
 	case "zypper":
 		args := []string{"install", "-y", "--allow-unsigned-rpm"}
 		if reinstallIfInstalled {
 			args = append(args, "--force")
 		}
-		return exec.Command("zypper", append(args, pkgPath)...)
+		return exec.Command("zypper", append(args, pkgPath)...), nil
 	case "apk":
 		args := []string{"add", "--allow-untrusted"}
 		if reinstallIfInstalled {
 			args = append(args, "--upgrade")
 		}
-		return exec.Command("apk", append(args, pkgPath)...)
+		return exec.Command("apk", append(args, pkgPath)...), nil
 	default:
-		return nil
+		return nil, fmt.Errorf("unsupported package manager: %s", manager)
 	}
+}
+
+// isSameRPMVersionInstalled compares a local RPM's NEVRA with the installed
+// package database. DNF's reinstall command only works when that exact package
+// version is already installed; otherwise the local RPM must be installed.
+func isSameRPMVersionInstalled(pkgPath string) (bool, error) {
+	queryFormat := "%{EPOCHNUM}\t%{NAME}\t%{VERSION}\t%{RELEASE}\t%{ARCH}\n"
+	localQuery := exec.Command("rpm", "-qp", "--qf", queryFormat, pkgPath)
+	localOutput, err := localQuery.Output()
+	if err != nil {
+		return false, fmt.Errorf("query local RPM %q: %w", pkgPath, err)
+	}
+	fields := strings.Split(strings.TrimSpace(string(localOutput)), "\t")
+	if len(fields) != 5 || fields[1] == "" {
+		return false, fmt.Errorf("unexpected RPM metadata for %q: %q", pkgPath, strings.TrimSpace(string(localOutput)))
+	}
+	localNEVRA := fields[0] + ":" + fields[1] + "-" + fields[2] + "-" + fields[3] + "." + fields[4]
+
+	installedQuery := exec.Command("rpm", "-q", "--qf", "%{EPOCHNUM}:%{NAME}-%{VERSION}-%{RELEASE}.%{ARCH}\n", fields[1])
+	installedOutput, err := installedQuery.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 1 {
+			return false, nil
+		}
+		return false, fmt.Errorf("query installed RPM package %q: %w", fields[1], err)
+	}
+	for _, installedNEVRA := range strings.Split(strings.TrimSpace(string(installedOutput)), "\n") {
+		if installedNEVRA == localNEVRA {
+			return true, nil
+		}
+	}
+	return false, nil
 }

@@ -191,7 +191,7 @@ esac
 
 # Persist both the downloaded packages AND the repository metadata databases
 $ENGINE run --rm \
-  -v "$(pwd)/..:/workspace" \
+  -v "$(pwd)/..:/workspace:Z" \
   -v arch_pacman_cache:/var/cache/pacman/pkg \
   -v arch_pacman_db:/var/lib/pacman/sync \
   -w /workspace/arch \
@@ -257,7 +257,7 @@ if ! command -v docker >/dev/null 2>&1; then ENGINE="podman"; fi
 # Dynamically detect the mapped owner to gracefully handle both rootless and rootful engines.
 # (Debian uses native tools pre-installed in the slim image, so no package cache volume is needed).
 $ENGINE run --rm \
-  -v "$(pwd)/..:/workspace" \
+  -v "$(pwd)/..:/workspace:Z" \
   -w /workspace/debian \
   debian:bookworm-slim \
   bash -c 'ORIG_UID=$(stat -c "%%u" /workspace/debian) && \
@@ -304,7 +304,7 @@ if ! command -v docker >/dev/null 2>&1; then ENGINE="podman"; fi
 
 # DNF5 (Fedora 41+) uses /var/cache/libdnf5. Map the volume there to persist metadata and packages.
 $ENGINE run --rm \
-  -v "$(pwd)/..:/workspace" \
+  -v "$(pwd)/..:/workspace:Z" \
   -v fedora_dnf_cache:/var/cache/libdnf5 \
   -w /workspace/fedora \
   fedora:latest \
