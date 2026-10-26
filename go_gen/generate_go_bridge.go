@@ -869,6 +869,30 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string, t
 		logger.Info(lvl, "")
 	}
 
+	// Windows is an additive CLI target. The generated bridge imports C, so
+	// Windows builds use cgo and require a MinGW-w64 compiler (or CC override).
+	if selected["windows_amd64"] {
+		cc := os.Getenv("WINDOWS_AMD64_CC")
+		if cc == "" {
+			cc = "x86_64-w64-mingw32-gcc"
+		}
+		if _, err := exec.LookPath(cc); err != nil {
+			logger.Warn(lvl, "Skipping windows_amd64 Go CLI build: C cross-compiler %q is unavailable (install MinGW-w64 or set WINDOWS_AMD64_CC).", cc)
+		} else {
+			windowsBin := binaryName + "_windows_amd64.exe"
+			cmdWindows := exec.Command("go", "build", "-o", windowsBin, ".")
+			cmdWindows.Dir = targetDir
+			cmdWindows.Env = append(os.Environ(), "CGO_ENABLED=1", "GOARCH=amd64", "GOOS=windows", "CC="+cc)
+			var windowsErr strings.Builder
+			cmdWindows.Stdout = os.Stdout
+			cmdWindows.Stderr = &windowsErr
+			if err := cmdWindows.Run(); err != nil {
+				return fmt.Errorf("CLI binary build failure for windows_amd64 (install MinGW-w64 or set WINDOWS_AMD64_CC):\n%s\ninternal error: %w", windowsErr.String(), err)
+			}
+			logger.Info(lvl, "  • Built: %s", windowsBin)
+		}
+	}
+
 	// 3. Build for Android Termux: android_aarch64 (CLI executable only)
 	if !selected["android_aarch64"] {
 		logger.Info(lvl, "Skipping unrequested architecture: android_aarch64")

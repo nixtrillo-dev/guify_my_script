@@ -809,6 +809,49 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string, ta
 		logger.Info(lvl, "Skipping unrequested architecture: %s", nativeSuffix)
 	}
 
+	// Windows CLI output is independent of the Linux and Android builds. The
+	// GNU target can be cross-compiled from Linux when the Rust target and
+	// MinGW-w64 linker are installed. Override the linker when needed.
+	if selected["windows_amd64"] {
+		const windowsTarget = "x86_64-pc-windows-gnu"
+		linker := os.Getenv("CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER")
+		if linker == "" {
+			linker = "x86_64-w64-mingw32-gcc"
+		}
+		targetLibDirOutput, targetLibErr := exec.Command("rustc", "--print", "target-libdir", "--target", windowsTarget).Output()
+		targetLibDir := strings.TrimSpace(string(targetLibDirOutput))
+		targetInstalled := false
+		if targetLibErr == nil {
+			if info, statErr := os.Stat(targetLibDir); statErr == nil && info.IsDir() {
+				targetInstalled = true
+			}
+		}
+		if !targetInstalled {
+			logger.Warn(lvl, "Skipping windows_amd64 Rust build: Rust target %s is unavailable (install it with rustup target add %s).", windowsTarget, windowsTarget)
+		} else if _, err := exec.LookPath(linker); err != nil {
+			logger.Warn(lvl, "Skipping windows_amd64 Rust build: linker %q is unavailable (install MinGW-w64 or set CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER).", linker)
+		} else {
+			cmdWindows := rustCommand("cargo", "build", "--release", "--target", windowsTarget)
+			cmdWindows.Dir = buildDir
+			cmdWindows.Env = append(os.Environ(), "CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER="+linker)
+			var windowsErr strings.Builder
+			cmdWindows.Stdout = os.Stdout
+			cmdWindows.Stderr = &windowsErr
+			if err := cmdWindows.Run(); err != nil {
+				return fmt.Errorf("Rust windows_amd64 build failure (install target %s and MinGW-w64 or set CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER):\n%s\ninternal error: %w", windowsTarget, windowsErr.String(), err)
+			}
+			candidate := filepath.Join(buildDir, "target", windowsTarget, "release", crateName+".exe")
+			destination := binaryName + "_windows_amd64.exe"
+			if _, err := os.Stat(candidate); err != nil {
+				return fmt.Errorf("Windows build succeeded but expected executable was not found at %s: %w", candidate, err)
+			}
+			if err := copyExecutable(candidate, destination); err != nil {
+				return fmt.Errorf("failed copying windows_amd64 executable: %w", err)
+			}
+			logger.Info(lvl, "  • Built: %s", destination)
+		}
+	}
+
 	// Build the other Linux architecture when its Rust target is installed.
 	crossArch := "amd64"
 	if runtime.GOARCH == "amd64" {

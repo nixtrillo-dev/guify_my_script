@@ -93,6 +93,17 @@
                     "enabled": true,
                     "refresh_fields_on_change": [],
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
+                },
+                {
+                    "name": "Install Windows cross-compilation dependencies?",
+                    "parameter_position": 300,
+                    "field_type": "CK",
+                    "advanced_menu": false,
+                    "data_type": "bool",
+                    "default": "0",
+                    "enabled": true,
+                    "refresh_fields_on_change": [],
+                    "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 }
             ]
         },
@@ -141,6 +152,17 @@
                     "advanced_menu": false,
                     "data_type": "bool",
                     "default": "1",
+                    "enabled": true,
+                    "refresh_fields_on_change": [],
+                    "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
+                },
+                {
+                    "name": "Install Windows cross-compilation dependencies?",
+                    "parameter_position": 400,
+                    "field_type": "CK",
+                    "advanced_menu": false,
+                    "data_type": "bool",
+                    "default": "0",
                     "enabled": true,
                     "refresh_fields_on_change": [],
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
@@ -396,7 +418,8 @@
                     "options": [
                         "android_aarch64",
                         "linux_aarch64",
-                        "linux_amd64"
+                        "linux_amd64",
+                        "windows_amd64"
                     ],
                     "refresh_fields_on_change": [],
                     "field_type": "MCB",
@@ -405,7 +428,8 @@
                     "default": [
                         "android_aarch64",
                         "linux_aarch64",
-                        "linux_amd64"
+                        "linux_amd64",
+                        "windows_amd64"
                     ],
                     "maximum": "0",
                     "minimum": "1",

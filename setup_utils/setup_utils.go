@@ -108,7 +108,7 @@ func SetupAndroidNDKForRust(logLevel logger.LogLevel) error {
 }
 
 // SetupGoDependencies installs the Go compiler for source compilation.
-func SetupGoDependencies(logLevel logger.LogLevel, crossCompile bool) error {
+func SetupGoDependencies(logLevel logger.LogLevel, crossCompile, setupWindows bool) error {
 	if err := installDevelopmentDependencies(logLevel, "Go", map[string][]string{
 		"apt-get": {"golang-go"},
 		"dnf":     {"golang"},
@@ -117,19 +117,27 @@ func SetupGoDependencies(logLevel logger.LogLevel, crossCompile bool) error {
 		return err
 	}
 	if crossCompile {
-		return SetupCrossCompileDependencies(logLevel)
+		if err := SetupCrossCompileDependencies(logLevel); err != nil {
+			return err
+		}
+	}
+	if setupWindows {
+		return installWindowsCrossCompileDependencies(logLevel)
 	}
 	return nil
 }
 
 // SetupRustDependencies installs Rust and Cargo for source compilation. When
 // setupAndroid is true, it also prepares the Android NDK/toolchain.
-func SetupRustDependencies(logLevel logger.LogLevel, crossCompile, setupAndroid bool) error {
-	target := ""
+func SetupRustDependencies(logLevel logger.LogLevel, crossCompile, setupAndroid, setupWindows bool) error {
+	var targets []string
 	if crossCompile {
-		target = linuxRustCrossTarget()
+		targets = append(targets, linuxRustCrossTarget())
 	}
-	if err := installRustupToolchain(logLevel, target); err != nil {
+	if setupWindows {
+		targets = append(targets, "x86_64-pc-windows-gnu")
+	}
+	if err := installRustupToolchain(logLevel, targets...); err != nil {
 		return err
 	}
 	if crossCompile {
@@ -141,6 +149,31 @@ func SetupRustDependencies(logLevel logger.LogLevel, crossCompile, setupAndroid 
 		if err := SetupAndroidNDKForRust(logLevel); err != nil {
 			return fmt.Errorf("Android Rust setup: %w", err)
 		}
+	}
+	if setupWindows {
+		if err := installWindowsCrossCompileDependencies(logLevel); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// installWindowsCrossCompileDependencies installs the MinGW-w64 linker used
+// by Go cgo and Rust's x86_64-pc-windows-gnu target.
+func installWindowsCrossCompileDependencies(logLevel logger.LogLevel) error {
+	if _, err := exec.LookPath("x86_64-w64-mingw32-gcc"); err == nil {
+		logger.Info(logLevel, "MinGW-w64 cross-compiler is already installed.")
+		return nil
+	}
+	if err := installDevelopmentDependencies(logLevel, "Windows cross-compilation", map[string][]string{
+		"apt-get": {"mingw-w64"},
+		"dnf":     {"mingw64-gcc"},
+		"pacman":  {"mingw-w64-gcc"},
+	}); err != nil {
+		return err
+	}
+	if _, err := exec.LookPath("x86_64-w64-mingw32-gcc"); err != nil {
+		return fmt.Errorf("Windows cross-compiler was installed but x86_64-w64-mingw32-gcc is still not on PATH: %w", err)
 	}
 	return nil
 }
@@ -178,7 +211,7 @@ func linuxRustCrossTarget() string {
 
 // installRustupCrossTarget installs rustup for the invoking user when needed,
 // then adds the standard library for the opposite Linux architecture.
-func installRustupToolchain(logLevel logger.LogLevel, target string) error {
+func installRustupToolchain(logLevel logger.LogLevel, targets ...string) error {
 	if runtime.GOOS != "linux" || (runtime.GOARCH != "amd64" && runtime.GOARCH != "arm64") {
 		return fmt.Errorf("Rustup setup is supported only on Linux amd64 and arm64")
 	}
@@ -228,7 +261,7 @@ func installRustupToolchain(logLevel logger.LogLevel, target string) error {
 		rustup := filepath.Join(usr.HomeDir, ".cargo", "bin", "rustup")
 		if _, err := os.Stat(rustup); err != nil {
 			installerArgs := []string{"-y", "--profile", "minimal", "--default-toolchain", "stable"}
-			if target != "" {
+			for _, target := range targets {
 				installerArgs = append(installerArgs, "--target", target)
 			}
 			command := exec.Command(tempPath, installerArgs...)
@@ -239,7 +272,7 @@ func installRustupToolchain(logLevel logger.LogLevel, target string) error {
 			}
 		}
 		toolchainArgs := []string{"toolchain", "install", "stable", "--profile", "minimal"}
-		if target != "" {
+		for _, target := range targets {
 			toolchainArgs = append(toolchainArgs, "--target", target)
 		}
 		command := exec.Command(rustup, toolchainArgs...)
@@ -254,8 +287,8 @@ func installRustupToolchain(logLevel logger.LogLevel, target string) error {
 		if err := command.Run(); err != nil {
 			return fmt.Errorf("select Rust stable toolchain for %s: %w", usr.Username, err)
 		}
-		if target != "" {
-			logger.Info(logLevel, "Installed Rust cross-compilation target %s for %s.", target, usr.Username)
+		for _, target := range targets {
+			logger.Info(logLevel, "Installed Rust target %s for %s.", target, usr.Username)
 		}
 		return nil
 	})

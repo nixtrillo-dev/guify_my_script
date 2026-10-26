@@ -966,7 +966,7 @@ func main() {
 		}
 
 	case "setup_go_dependencies":
-		if len(os.Args) < 4 {
+		if len(os.Args) < 5 {
 			fmt.Println("Error: setup_go_dependencies requires parameters")
 			os.Exit(1)
 		}
@@ -997,14 +997,26 @@ func main() {
 			}
 		}
 
-		err := setup_utils.SetupGoDependencies(cli_logLevel, cli_crossCompile)
+		cli_setupWindows, err_setupWindows := strconv.ParseBool(os.Args[4])
+		if err_setupWindows != nil {
+			if os.Args[4] == "1" {
+				cli_setupWindows = true
+			} else if os.Args[4] == "0" {
+				cli_setupWindows = false
+			} else {
+				fmt.Printf("Error: parameter 'setupWindows' must be a valid boolean evaluation: %v\n", err_setupWindows)
+				os.Exit(1)
+			}
+		}
+
+		err := setup_utils.SetupGoDependencies(cli_logLevel, cli_crossCompile, cli_setupWindows)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)
 		}
 
 	case "setup_rust_dependencies":
-		if len(os.Args) < 5 {
+		if len(os.Args) < 6 {
 			fmt.Println("Error: setup_rust_dependencies requires parameters")
 			os.Exit(1)
 		}
@@ -1047,7 +1059,19 @@ func main() {
 			}
 		}
 
-		err := setup_utils.SetupRustDependencies(cli_logLevel, cli_crossCompile, cli_setupAndroid)
+		cli_setupWindows, err_setupWindows := strconv.ParseBool(os.Args[5])
+		if err_setupWindows != nil {
+			if os.Args[5] == "1" {
+				cli_setupWindows = true
+			} else if os.Args[5] == "0" {
+				cli_setupWindows = false
+			} else {
+				fmt.Printf("Error: parameter 'setupWindows' must be a valid boolean evaluation: %v\n", err_setupWindows)
+				os.Exit(1)
+			}
+		}
+
+		err := setup_utils.SetupRustDependencies(cli_logLevel, cli_crossCompile, cli_setupAndroid, cli_setupWindows)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)

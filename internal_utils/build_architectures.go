@@ -10,13 +10,14 @@ var supportedBuildArchitectures = map[string]struct{}{
 	"android_aarch64": {},
 	"linux_aarch64":   {},
 	"linux_amd64":     {},
+	"windows_amd64":   {},
 }
 
 // ParseBuildArchitectures validates a CSV architecture selection. An empty
 // value selects every supported architecture.
 func ParseBuildArchitectures(value string) ([]string, error) {
 	if strings.TrimSpace(value) == "" {
-		return []string{"linux_amd64", "linux_aarch64", "android_aarch64"}, nil
+		return []string{"linux_amd64", "linux_aarch64", "android_aarch64", "windows_amd64"}, nil
 	}
 
 	reader := csv.NewReader(strings.NewReader(value))
@@ -35,7 +36,7 @@ func ParseBuildArchitectures(value string) ([]string, error) {
 	for _, item := range record {
 		architecture := strings.TrimSpace(item)
 		if _, ok := supportedBuildArchitectures[architecture]; !ok {
-			return nil, fmt.Errorf("invalid target build %q; allowed values are android_aarch64, linux_aarch64, linux_amd64", architecture)
+			return nil, fmt.Errorf("invalid target build %q; allowed values are android_aarch64, linux_aarch64, linux_amd64, windows_amd64", architecture)
 		}
 		if _, duplicate := seen[architecture]; duplicate {
 			return nil, fmt.Errorf("targetBuilds contains duplicate architecture %q", architecture)
