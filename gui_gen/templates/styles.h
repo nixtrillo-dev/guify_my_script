@@ -95,9 +95,9 @@ static QString appMcbStyle() {
         "QListWidget:focus { border: 1px solid #10a37f; } "
         "QListWidget::item { padding: 2px; border: 1px solid transparent; border-radius: 3px; } "
         "QListWidget::item:hover { background-color: %4; } "
-        "QListWidget::item:focus, QListWidget::item:selected { background-color: rgba(16, 163, 127, 0.15); border: 1px solid #10a37f; } "
+        "QListWidget::item:focus, QListWidget::item:selected { background-color: rgba(16, 163, 127, 0.15); color: %7; border: 1px solid #10a37f; } "
         "QListWidget QScrollBar:vertical { background: %5; width: 10px; margin: 0px; border: none; } "
         "QListWidget QScrollBar::handle:vertical { background: %6; min-height: 20px; border-radius: 3px; } "
         "QListWidget QScrollBar::handle:vertical:hover { background: #10a37f; }"
-    ).arg(themeVal("#23272a", "#ffffff"), themeVal("#ffffff", "#202124"), themeVal("#3a3f44", "#c9d1d9"), themeVal("#2c3135", "#f6f8fa"), themeVal("#1b1e20", "#f6f8fa"), themeVal("#43494e", "#c9d1d9"));
+    ).arg(themeVal("#23272a", "#ffffff"), themeVal("#ffffff", "#202124"), themeVal("#3a3f44", "#c9d1d9"), themeVal("#2c3135", "#f6f8fa"), themeVal("#1b1e20", "#f6f8fa"), themeVal("#43494e", "#c9d1d9"), themeVal("#ffffff", "#202124"));
 }
