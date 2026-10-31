@@ -444,7 +444,12 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         execBtn_%[2]s->setText("%[3]s");
         stopBtn_%[2]s->setEnabled(true);
 
+#ifdef Q_OS_WIN
+        proc->setProgram(actionProgram);
+        proc->setArguments(actionArgs);
+#else
         configureShellProcess(proc, shell_cmd, %[5]s);
+#endif
 
         connect(stopBtn_%[2]s, &QPushButton::clicked, proc, [proc]() {
 #ifdef Q_OS_WIN
@@ -473,7 +478,12 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
 	} else if mode == "d" {
 		// Parity Restored: Detached mode correctly ported
 		cpp.WriteString(fmt.Sprintf(`
-		configureShellProcess(proc, shell_cmd, %[2]s);
+#ifdef Q_OS_WIN
+        proc->setProgram(actionProgram);
+        proc->setArguments(actionArgs);
+#else
+        configureShellProcess(proc, shell_cmd, %[2]s);
+#endif
         proc->startDetached();
         proc->deleteLater();
 		%[1]s
@@ -485,7 +495,12 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         execBtn_%[2]s->setText("%[3]s");
         stopBtn_%[2]s->setEnabled(true);
 
+#ifdef Q_OS_WIN
+        proc->setProgram(actionProgram);
+        proc->setArguments(actionArgs);
+#else
         configureShellProcess(proc, shell_cmd, %[5]s);
+#endif
         proc->setProcessChannelMode(QProcess::MergedChannels);
 
         logOutputWindow_%[2]s->clear();

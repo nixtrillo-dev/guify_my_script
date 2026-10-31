@@ -57,8 +57,10 @@ func SetupWindowsQtGUIContainer(logLevel logger.LogLevel) (string, error) {
 			engine = "podman"
 		}
 	}
-	if err := exec.Command(engine, "image", "rm", "-f", legacyWindowsQtImage).Run(); err == nil {
-		logger.Info(logLevel, "Removed obsolete Windows Qt builder image %s.", legacyWindowsQtImage)
+	if err := exec.Command(engine, "image", "inspect", legacyWindowsQtImage).Run(); err == nil {
+		if err := exec.Command(engine, "image", "rm", "-f", legacyWindowsQtImage).Run(); err == nil {
+			logger.Info(logLevel, "Removed obsolete Windows Qt builder image %s.", legacyWindowsQtImage)
+		}
 	}
 	const platform = "linux/amd64"
 	inspect := exec.Command(engine, "image", "inspect", "--format={{.Os}}/{{.Architecture}}", windowsQtImage)

@@ -417,7 +417,12 @@ public static class GuifyActionRunner {
             proc->start();
 #endif
         } else {
+#ifdef Q_OS_WIN
+            proc->setProgram(actionProgram);
+            proc->setArguments(actionArgs);
+#else
             configureActionProcess(proc, shell_cmd, %[4]s, QStringLiteral("%[8]s"), SOURCE_SCRIPT, QStringLiteral("%[9]s"), args);
+#endif
             proc->setProcessChannelMode(QProcess::MergedChannels);
 
             connect(proc, &QProcess::readyReadStandardOutput, [proc, logOutputWindow_%[1]s]() {
@@ -462,7 +467,12 @@ public static class GuifyActionRunner {
 			`, actIdxStr, mode, compStr, elevated, actIdxStr, cppStringLiteral(execLabel), "", cppStringLiteral(sourceType), cppStringLiteral(funcName)))
 	} else if mode == "s" {
 		cpp.WriteString(fmt.Sprintf(`
+#ifdef Q_OS_WIN
+        proc->setProgram(actionProgram);
+        proc->setArguments(actionArgs);
+#else
         configureActionProcess(proc, shell_cmd, %[2]s, QStringLiteral("%[3]s"), SOURCE_SCRIPT, QStringLiteral("%[4]s"), args);
+#endif
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), [proc, closeOnFinish, this](int exitCode, QProcess::ExitStatus status) {
             if (status == QProcess::NormalExit && exitCode == 0) {
@@ -480,7 +490,12 @@ public static class GuifyActionRunner {
             `, compStr, elevated, cppStringLiteral(sourceType), cppStringLiteral(funcName)))
 	} else if mode == "d" {
 		cpp.WriteString(fmt.Sprintf(`
+#ifdef Q_OS_WIN
+        proc->setProgram(actionProgram);
+        proc->setArguments(actionArgs);
+#else
         configureActionProcess(proc, shell_cmd, %[1]s, QStringLiteral("%[3]s"), SOURCE_SCRIPT, QStringLiteral("%[4]s"), args);
+#endif
         proc->startDetached();
 %[2]s
         if (closeOnFinish) { QTimer::singleShot(100, this, &MainWindow::cleanupAndExit); }
@@ -610,9 +625,9 @@ func buildWindowsShellCommandCPP(sourceType, funcName, scriptExpr, mode string) 
 		b.WriteString("        QString actionProgram = QStandardPaths::findExecutable(QStringLiteral(\"python\")); if (actionProgram.isEmpty()) actionProgram = QStringLiteral(\"python\");\n        QStringList actionArgs; actionArgs << QStringLiteral(\"-u\") << QStringLiteral(\"-c\") << pyCode;\n")
 		b.WriteString("        shell_cmd = QStringLiteral(\"& python -u -c \") + powershellQuote(pyCode);\n")
 	case "javascript":
-		fmt.Fprintf(&b, "        QString actionProgram = QStringLiteral(\"node\"); QStringList actionArgs; actionArgs << QStringLiteral(\"--input-type=module\") << QStringLiteral(\"-e\") << jsRunner << %s << QStringLiteral(\"%s\"); actionArgs.append(args);\n", scriptExpr, cppStringLiteral(funcName))
+		fmt.Fprintf(&b, "        QString actionProgram = QStringLiteral(\"node\"); QStringList actionArgs; actionArgs << QStringLiteral(\"--preserve-symlinks\") << QStringLiteral(\"--preserve-symlinks-main\") << QStringLiteral(\"--input-type=module\") << QStringLiteral(\"-e\") << jsRunner << %s << QStringLiteral(\"%s\"); actionArgs.append(args);\n", scriptExpr, cppStringLiteral(funcName))
 		fmt.Fprintf(&b, "        QStringList winArgs; winArgs << powershellQuote(%s) << powershellQuote(QStringLiteral(\"%s\"));\n", scriptExpr, cppStringLiteral(funcName))
-		b.WriteString("        for (const auto &a : args) winArgs << powershellQuote(a);\n        shell_cmd = QStringLiteral(\"& node --input-type=module -e \") + powershellQuote(jsRunner) + QStringLiteral(\" \") + winArgs.join(\" \");\n")
+		b.WriteString("        for (const auto &a : args) winArgs << powershellQuote(a);\n        shell_cmd = QStringLiteral(\"& node --preserve-symlinks --preserve-symlinks-main --input-type=module -e \") + powershellQuote(jsRunner) + QStringLiteral(\" \") + winArgs.join(\" \");\n")
 	case "powershell":
 		b.WriteString("        QString actionProgram = QStringLiteral(\"powershell.exe\"); QStringList actionArgs; actionArgs << QStringLiteral(\"-NoLogo\") << QStringLiteral(\"-NoProfile\") << QStringLiteral(\"-ExecutionPolicy\") << QStringLiteral(\"Bypass\") << QStringLiteral(\"-Command\") << (psRunner + psArgv);\n")
 		b.WriteString("        shell_cmd = QStringLiteral(\"& powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \") + powershellQuote(psRunner) + psArgv;\n")
@@ -632,13 +647,8 @@ if (typeof funcName !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(funcName)) 
   throw new Error('Invalid function name');
 }
 const callArgs = process.argv.slice(3).map((s) => JSON.parse(s));
-let fn;
-try {
-  const mod = await import(pathToFileURL(script).href);
-  fn = mod[funcName];
-} catch {
-  fn = undefined;
-}
+const mod = await import(pathToFileURL(script).href);
+let fn = mod[funcName];
 if (typeof fn !== 'function') {
   const src = readFileSync(script, 'utf8');
   const shim = src + '\nexport { ' + funcName + ' };\n';
