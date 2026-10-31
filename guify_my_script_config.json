@@ -46,10 +46,10 @@
         "description": "Guify My Script is a tool for wrapping a script or source project executable into a desktop application with a generated GUI.",
         "license": "MIT",
         "maintainer": "nixtrillo",
-        "release_number": "1",
+        "release_number": "2",
         "summary": "A GUI wrapper for scripts and CLI applications.",
         "support_email": "nixtrillo.dev@gmail.com",
-        "version": "1.0.0"
+        "version": "2.0.0"
     },
     "main_menu": {
         "info_label": null,
