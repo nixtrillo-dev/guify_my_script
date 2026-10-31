@@ -1,0 +1,21 @@
+name: Mirror to GitHub
+on:
+  push:
+    branches: ['**']
+    tags: ['**']
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mirror to GitHub
+        run: |
+          set -euo pipefail
+          # Clone the Forgejo repo as a bare mirror
+          git clone --mirror "${{ github.server_url }}/${{ github.repository }}.git" repo.git
+          cd repo.git
+          # Push with prune to sync branches and tags, deleting ones removed on Forgejo
+          git push --prune \
+            "https://x-access-token:${{ secrets.GH_MIRROR_TOKEN }}@github.com/nixtrillo-dev/guify_my_script.git" \
+            '+refs/heads/*:refs/heads/*' \
+            '+refs/tags/*:refs/tags/*'
