@@ -6,11 +6,10 @@
 package gui_gen
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/csv"
 	"fmt"
-	"image"
+	"image/color"
 	"image/png"
 	"os"
 	"os/exec"
@@ -421,11 +420,21 @@ func buildWindowsGUI(ctx BuildContext) error {
 	}
 
 	outputDir := filepath.Join(ctx.BaseDir, "build_output", "windows_amd64")
+	workspaceDir := outputDir
 	outputName := "custom_toolkit_app_windows_amd64.exe"
+	sourcePath := filepath.Join(outputDir, "generated_app.cpp")
+	containerSourcePath := filepath.Base(sourcePath)
+	containerOutputPath := outputName
 	if ctx.CompileMode == "production" {
 		stageDir := filepath.Join(ctx.BaseDir, "dist", ctx.PackageName+"_windows_amd64")
-		outputDir = filepath.Join(stageDir, "build")
+		buildDir := filepath.Join(stageDir, "build")
+		payloadDirName := ctx.RootConfig.Config.Title
+		outputDir = filepath.Join(stageDir, "payload", payloadDirName)
+		workspaceDir = stageDir
 		outputName = ctx.PackageName + ".exe"
+		sourcePath = filepath.Join(buildDir, "generated_app.cpp")
+		containerSourcePath = filepath.ToSlash(filepath.Join("build", "generated_app.cpp"))
+		containerOutputPath = filepath.ToSlash(filepath.Join("payload", payloadDirName, outputName))
 		logger.Info(ctx.LogLevel, "Cleaning Windows staging directories for requested target...")
 		for _, dir := range []string{"payload", "build"} {
 			if err := os.RemoveAll(filepath.Join(stageDir, dir)); err != nil {
@@ -434,7 +443,7 @@ func buildWindowsGUI(ctx BuildContext) error {
 		}
 	}
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		return fmt.Errorf("create Windows build directory: %w", err)
+		return fmt.Errorf("create Windows payload directory: %w", err)
 	}
 	if err := copyWindowsIcon(ctx.IconPath, outputDir); err != nil {
 		return err
@@ -446,18 +455,20 @@ func buildWindowsGUI(ctx BuildContext) error {
 		}
 		sourceBundleName = windowsBundledSourceName(ctx.BundledSourceName, ctx.RootConfig.Config.SourceType)
 		if err := copyFile(ctx.SourcePathWindowsAMD64, filepath.Join(outputDir, sourceBundleName), 0755); err != nil {
-			return fmt.Errorf("stage Windows script executable next to the GUI build: %w", err)
+			return fmt.Errorf("stage Windows script executable next to the GUI executable: %w", err)
 		}
 		if err := os.WriteFile(filepath.Join(outputDir, "runtime_defaults.json"), ctx.DefaultsJSON, 0644); err != nil {
 			return fmt.Errorf("write Windows build runtime defaults: %w", err)
 		}
 	}
-	sourcePath := filepath.Join(outputDir, "generated_app.cpp")
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0755); err != nil {
+		return fmt.Errorf("create Windows source directory: %w", err)
+	}
 	if err := os.WriteFile(sourcePath, []byte(ctx.FinalSourceCode), 0644); err != nil {
 		return fmt.Errorf("write generated Windows C++ source: %w", err)
 	}
 
-	workspaceDir, err := filepath.Abs(outputDir)
+	workspaceDir, err = filepath.Abs(workspaceDir)
 	if err != nil {
 		return fmt.Errorf("resolve Windows build directory: %w", err)
 	}
@@ -466,37 +477,15 @@ func buildWindowsGUI(ctx BuildContext) error {
 	if engine == "podman" {
 		args = append(args, "--userns=keep-id")
 	}
-	args = append(args, "-v", workspaceDir+":/workspace:Z", "-w", "/workspace", setup_utils.WindowsQtGUIImage(), "sh", "-c", windowsQtContainerBuildScript, "sh", filepath.Base(sourcePath), outputName)
+	args = append(args, "-v", workspaceDir+":/workspace:Z", "-w", "/workspace", setup_utils.WindowsQtGUIImage(), "sh", "-c", windowsQtContainerBuildScript, "sh", containerSourcePath, containerOutputPath)
 	compileCmd := exec.Command(engine, args...)
 	compileCmd.Stdout, compileCmd.Stderr = os.Stdout, os.Stderr
 	if err := compileCmd.Run(); err != nil {
 		return fmt.Errorf("Windows Qt compilation in Fedora container failed: %w", err)
 	}
 
-	if ctx.CompileMode == "production" {
-		payloadApp := filepath.Join(ctx.BaseDir, "dist", ctx.PackageName+"_windows_amd64", "payload", ctx.PackageName)
-		if err := os.MkdirAll(payloadApp, 0755); err != nil {
-			return fmt.Errorf("create Windows application payload: %w", err)
-		}
-		if err := copyFile(filepath.Join(outputDir, outputName), filepath.Join(payloadApp, outputName), 0755); err != nil {
-			return fmt.Errorf("stage Windows GUI executable: %w", err)
-		}
-		if err := copyFile(filepath.Join(outputDir, sourceBundleName), filepath.Join(payloadApp, sourceBundleName), 0755); err != nil {
-			return fmt.Errorf("stage Windows script executable: %w", err)
-		}
-		if err := copyFile(filepath.Join(outputDir, "runtime_defaults.json"), filepath.Join(payloadApp, "runtime_defaults.json"), 0644); err != nil {
-			return fmt.Errorf("write Windows runtime defaults: %w", err)
-		}
-		if err := copyWindowsIcon(ctx.IconPath, payloadApp); err != nil {
-			return err
-		}
-		if err := copyWindowsContainerRuntime(outputDir, payloadApp); err != nil {
-			return err
-		}
-	} else {
-		if err := copyWindowsContainerRuntime(outputDir, outputDir); err != nil {
-			return err
-		}
+	if err := copyWindowsContainerRuntime(outputDir, outputDir); err != nil {
+		return err
 	}
 	logger.Info(ctx.LogLevel, "Built Windows GUI executable: %s", filepath.Join(outputDir, outputName))
 	return nil
@@ -504,30 +493,39 @@ func buildWindowsGUI(ctx BuildContext) error {
 
 const windowsQtContainerBuildScript = `set -eu
 prefix=/usr/x86_64-w64-mingw32/sys-root/mingw
+output_dir=$(dirname "$2")
+mkdir -p "$output_dir"
 export PKG_CONFIG_PATH="$prefix/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig"
 flags=$(pkg-config --cflags --libs Qt6Widgets Qt6Network)
 resource_object=
-if [ -f app_icon.ico ]; then
-  printf 'IDI_ICON1 ICON "app_icon.ico"\n' > app_icon.rc
+if [ -f "$output_dir/app_icon.ico" ]; then
+  printf '1 ICON "%s"\nIDI_ICON1 ICON "%s"\n' \
+    "$output_dir/app_icon.ico" "$output_dir/app_icon.ico" > app_icon.rc
   x86_64-w64-mingw32-windres app_icon.rc -O coff -o app_icon.o
   resource_object=app_icon.o
 fi
-x86_64-w64-mingw32-g++ -O3 -s -std=c++17 -fvisibility=hidden -ffunction-sections -fdata-sections \
-  -static-libgcc -static-libstdc++ "$1" $resource_object $flags -o "$2" -Wl,--gc-sections -mwindows
+if [ -n "$resource_object" ]; then
+  x86_64-w64-mingw32-g++ -O3 -s -std=c++17 -fvisibility=hidden -ffunction-sections -fdata-sections \
+    -static-libgcc -static-libstdc++ "$1" "$resource_object" $flags -o "$2" -Wl,--gc-sections -mwindows
+else
+  x86_64-w64-mingw32-g++ -O3 -s -std=c++17 -fvisibility=hidden -ffunction-sections -fdata-sections \
+    -static-libgcc -static-libstdc++ "$1" $flags -o "$2" -Wl,--gc-sections -mwindows
+fi
+rm -f app_icon.rc app_icon.o
 for file in "$prefix/bin"/*.dll; do
-  [ -f "$file" ] && cp "$file" /workspace/
+  [ -f "$file" ] && cp "$file" "$output_dir/"
 done
-mkdir -p /workspace/platforms /workspace/imageformats /workspace/styles
-cp "$prefix/lib/qt6/plugins/platforms/qwindows.dll" /workspace/platforms/
+mkdir -p "$output_dir/platforms" "$output_dir/imageformats" "$output_dir/styles"
+cp "$prefix/lib/qt6/plugins/platforms/qwindows.dll" "$output_dir/platforms/"
 for group in imageformats styles; do
   for file in "$prefix/lib/qt6/plugins/$group"/*.dll; do
-    [ -f "$file" ] && cp "$file" "/workspace/$group/"
+    [ -f "$file" ] && cp "$file" "$output_dir/$group/"
   done
 done
 for name in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do
   file=$(find /usr -path '*mingw*' -name "$name" -print -quit)
-  [ -z "$file" ] || cp "$file" /workspace/
+  [ -z "$file" ] || cp "$file" "$output_dir/"
 done
 `
 
@@ -537,6 +535,9 @@ func copyWindowsContainerRuntime(sourceDir, destination string) error {
 		return fmt.Errorf("list Windows runtime DLLs: %w", err)
 	}
 	for _, source := range dllFiles {
+		if filepath.Clean(sourceDir) == filepath.Clean(destination) {
+			break
+		}
 		if err := copyFile(source, filepath.Join(destination, filepath.Base(source)), 0644); err != nil {
 			return fmt.Errorf("stage Windows runtime %s: %w", source, err)
 		}
@@ -556,6 +557,9 @@ func copyWindowsContainerRuntime(sourceDir, destination string) error {
 		for _, entry := range entries {
 			if entry.IsDir() || strings.ToLower(filepath.Ext(entry.Name())) != ".dll" {
 				continue
+			}
+			if filepath.Clean(sourceDir) == filepath.Clean(destination) {
+				break
 			}
 			if err := copyFile(filepath.Join(sourceDir, group, entry.Name()), filepath.Join(targetDir, entry.Name()), 0644); err != nil {
 				return fmt.Errorf("stage Windows Qt %s plugin %s: %w", group, entry.Name(), err)
@@ -615,53 +619,73 @@ func writeWindowsICOFromPNG(sourcePath, destination string) error {
 	if sourceWidth < 1 || sourceHeight < 1 {
 		return fmt.Errorf("Windows PNG icon has invalid dimensions")
 	}
-	width, height := sourceWidth, sourceHeight
-	longest := width
-	if height > longest {
-		longest = height
-	}
-	if longest > 256 {
-		width = width * 256 / longest
-		height = height * 256 / longest
-		if width == 0 {
-			width = 1
+	const directoryHeaderSize = 6
+	const directoryEntrySize = 16
+	sizes := []int{16, 32, 48, 256}
+	imageOffset := directoryHeaderSize + directoryEntrySize*len(sizes)
+	frames := make([][]byte, 0, len(sizes))
+	for _, size := range sizes {
+		maskStride := ((size + 31) / 32) * 4
+		pixelDataSize := size * size * 4
+		frame := make([]byte, 40+pixelDataSize+maskStride*size)
+		binary.LittleEndian.PutUint32(frame[0:4], 40) // BITMAPINFOHEADER size.
+		binary.LittleEndian.PutUint32(frame[4:8], uint32(size))
+		binary.LittleEndian.PutUint32(frame[8:12], uint32(size*2)) // XOR and AND masks.
+		binary.LittleEndian.PutUint16(frame[12:14], 1)             // Planes.
+		binary.LittleEndian.PutUint16(frame[14:16], 32)            // Bits per pixel.
+		binary.LittleEndian.PutUint32(frame[20:24], uint32(pixelDataSize))
+		binary.LittleEndian.PutUint32(frame[24:28], 2835) // 96 DPI.
+		binary.LittleEndian.PutUint32(frame[28:32], 2835) // 96 DPI.
+
+		drawWidth, drawHeight := size, size
+		if sourceWidth > sourceHeight {
+			drawHeight = size * sourceHeight / sourceWidth
+		} else if sourceHeight > sourceWidth {
+			drawWidth = size * sourceWidth / sourceHeight
 		}
-		if height == 0 {
-			height = 1
+		if drawWidth < 1 {
+			drawWidth = 1
 		}
-	}
-	if width > 256 || height > 256 {
-		return fmt.Errorf("Windows icon dimensions exceed the ICO format limit")
-	}
-	resized := image.NewNRGBA(image.Rect(0, 0, width, height))
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			sourceX := bounds.Min.X + x*sourceWidth/width
-			sourceY := bounds.Min.Y + y*sourceHeight/height
-			resized.Set(x, y, decoded.At(sourceX, sourceY))
+		if drawHeight < 1 {
+			drawHeight = 1
 		}
+		offsetX, offsetY := (size-drawWidth)/2, (size-drawHeight)/2
+		for y := offsetY; y < offsetY+drawHeight; y++ {
+			sourceY := bounds.Min.Y + (y-offsetY)*sourceHeight/drawHeight
+			dibY := size - 1 - y // DIB rows are stored bottom-up.
+			for x := offsetX; x < offsetX+drawWidth; x++ {
+				sourceX := bounds.Min.X + (x-offsetX)*sourceWidth/drawWidth
+				c := color.NRGBAModel.Convert(decoded.At(sourceX, sourceY)).(color.NRGBA)
+				pixelOffset := 40 + (dibY*size+x)*4
+				frame[pixelOffset+0] = c.B
+				frame[pixelOffset+1] = c.G
+				frame[pixelOffset+2] = c.R
+				frame[pixelOffset+3] = c.A
+				if c.A == 0 {
+					maskOffset := 40 + pixelDataSize + dibY*maskStride + x/8
+					frame[maskOffset] |= 1 << (7 - uint(x%8))
+				}
+			}
+		}
+		frames = append(frames, frame)
 	}
-	var pngData bytes.Buffer
-	if err := png.Encode(&pngData, resized); err != nil {
-		return fmt.Errorf("encode Windows ICO image: %w", err)
-	}
-	if pngData.Len() > int(^uint32(0))-22 {
-		return fmt.Errorf("Windows ICO image is too large")
-	}
-	icoData := make([]byte, 22+pngData.Len())
+
+	icoData := make([]byte, imageOffset)
 	icoData[2] = 1 // ICO resource type.
-	icoData[4] = 1 // One image entry.
-	if width < 256 {
-		icoData[6] = byte(width)
+	icoData[4] = byte(len(sizes))
+	for index, size := range sizes {
+		entryOffset := directoryHeaderSize + index*directoryEntrySize
+		if size < 256 {
+			icoData[entryOffset] = byte(size)
+			icoData[entryOffset+1] = byte(size)
+		}
+		binary.LittleEndian.PutUint16(icoData[entryOffset+4:entryOffset+6], 1)
+		binary.LittleEndian.PutUint16(icoData[entryOffset+6:entryOffset+8], 32)
+		binary.LittleEndian.PutUint32(icoData[entryOffset+8:entryOffset+12], uint32(len(frames[index])))
+		binary.LittleEndian.PutUint32(icoData[entryOffset+12:entryOffset+16], uint32(imageOffset))
+		icoData = append(icoData, frames[index]...)
+		imageOffset += len(frames[index])
 	}
-	if height < 256 {
-		icoData[7] = byte(height)
-	}
-	binary.LittleEndian.PutUint16(icoData[10:12], 1)
-	binary.LittleEndian.PutUint16(icoData[12:14], 32)
-	binary.LittleEndian.PutUint32(icoData[14:18], uint32(pngData.Len()))
-	binary.LittleEndian.PutUint32(icoData[18:22], 22)
-	copy(icoData[22:], pngData.Bytes())
 	if err := os.WriteFile(destination, icoData, 0644); err != nil {
 		return fmt.Errorf("write Windows ICO icon: %w", err)
 	}
