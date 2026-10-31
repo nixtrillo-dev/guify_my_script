@@ -109,7 +109,7 @@ void MainWindow::initTray() {
     m_trayIcon->setToolTip(windowTitle());
 
     m_trayMenu->addSeparator();
-    QAction *quitAct = new QAction("Quit Toolkit", this);
+    QAction *quitAct = new QAction("Exit Application", this);
     connect(quitAct, &QAction::triggered, this, &MainWindow::cleanupAndExit);
     m_trayMenu->addAction(quitAct);
 

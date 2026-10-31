@@ -66,7 +66,7 @@ void MainWindow::initUi() {
     connect(advancedSettingsBtn, &QPushButton::clicked, this, &MainWindow::openAdvancedSettings);
     mainMenuLayout->addWidget(advancedSettingsBtn);
 
-    QPushButton *exitAppBtn = new QPushButton("✖ Exit Application Completely");
+    QPushButton *exitAppBtn = new QPushButton("✖ Exit Application");
     exitAppBtn->setObjectName("ExitAppBtn");
     exitAppBtn->setStyleSheet(appSimpleAccentButtonStyle("#a34747"));
     exitAppBtn->setFocusPolicy(Qt::TabFocus);
