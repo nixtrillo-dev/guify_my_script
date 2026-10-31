@@ -122,6 +122,7 @@ type UIConfig struct {
 	ScriptAlias              string  `json:"script_alias"`
 	SourceScriptLinuxAMD64   string  `json:"source_script_linux_amd64"`
 	SourceScriptLinuxAArch64 string  `json:"source_script_linux_aarch64"`
+	SourceScriptWindowsAMD64 string  `json:"source_script_windows_amd64,omitempty"`
 	SourceScriptAMD64        string  `json:"source_script_amd64,omitempty"`
 	SourceScriptARM64        string  `json:"source_script_arm64,omitempty"`
 	SourceType               string  `json:"source_type"`
@@ -283,6 +284,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	var scriptAlias string
 	var sourceScriptLinuxAMD64 string
 	var sourceScriptLinuxAArch64 string
+	var sourceScriptWindowsAMD64 string
 	if strings.TrimSpace(binaryName) != "" {
 		absBinary, _ := filepath.Abs(binaryName)
 		targetName = filepath.Base(absBinary)
@@ -306,6 +308,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		scriptAlias = filepath.Base(sourceScriptBase)
 		sourceScriptLinuxAMD64 = sourceScriptBase + "_linux_amd64"
 		sourceScriptLinuxAArch64 = sourceScriptBase + "_linux_aarch64"
+		sourceScriptWindowsAMD64 = sourceScriptBase + "_windows_amd64.exe"
 	} else if ext == ".rs" {
 		actions, err = parseRustFile(absInput)
 		if err != nil {
@@ -316,6 +319,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		scriptAlias = filepath.Base(sourceScriptBase)
 		sourceScriptLinuxAMD64 = sourceScriptBase + "_linux_amd64"
 		sourceScriptLinuxAArch64 = sourceScriptBase + "_linux_aarch64"
+		sourceScriptWindowsAMD64 = sourceScriptBase + "_windows_amd64.exe"
 	} else if ext == ".py" {
 		actions, err = parsePythonFile(absInput)
 		if err != nil {
@@ -327,6 +331,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		scriptAlias = filepath.Base(absInput)
 		sourceScriptLinuxAMD64 = absInput
 		sourceScriptLinuxAArch64 = absInput
+		sourceScriptWindowsAMD64 = absInput
 	} else if ext == ".js" || ext == ".mjs" {
 		actions, err = parseJavaScriptFile(absInput)
 		if err != nil {
@@ -336,6 +341,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		scriptAlias = filepath.Base(absInput)
 		sourceScriptLinuxAMD64 = absInput
 		sourceScriptLinuxAArch64 = absInput
+		sourceScriptWindowsAMD64 = absInput
 	} else if ext == ".psm1" {
 		actions, err = parsePowerShellFile(absInput)
 		if err != nil {
@@ -345,6 +351,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		scriptAlias = filepath.Base(absInput)
 		sourceScriptLinuxAMD64 = absInput
 		sourceScriptLinuxAArch64 = absInput
+		sourceScriptWindowsAMD64 = absInput
 	} else {
 		actions, err = parseBashFile(absInput)
 		if err != nil {
@@ -354,6 +361,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		scriptAlias = filepath.Base(sourceScript)
 		sourceScriptLinuxAMD64 = sourceScript
 		sourceScriptLinuxAArch64 = sourceScript
+		sourceScriptWindowsAMD64 = sourceScript
 	}
 
 	guiConfig := RootGUIConfig{}
@@ -368,6 +376,7 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	guiConfig.Config.ScriptAlias = scriptAlias
 	guiConfig.Config.SourceScriptLinuxAMD64 = sourceScriptLinuxAMD64
 	guiConfig.Config.SourceScriptLinuxAArch64 = sourceScriptLinuxAArch64
+	guiConfig.Config.SourceScriptWindowsAMD64 = sourceScriptWindowsAMD64
 	guiConfig.Config.SourceType = sourceType
 	guiConfig.Config.Startup = "tray"
 	guiConfig.Config.TrayOnMinimize = true

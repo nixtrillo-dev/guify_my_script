@@ -24,6 +24,7 @@ type configContext struct {
 	packageName            string
 	sourcePathLinuxAMD64   string
 	sourcePathLinuxAArch64 string
+	sourcePathWindowsAMD64 string
 	sourcePathAMD64        string // Deprecated: Kept for backwards compatibility
 	sourcePathARM64        string // Deprecated: Kept for backwards compatibility
 	bundledSourceName      string
@@ -138,6 +139,20 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 	}
 	ctx.sourcePathARM64 = ctx.sourcePathLinuxAArch64
 
+	ctx.sourcePathWindowsAMD64 = ctx.root.Config.SourceScriptWindowsAMD64
+	if ctx.sourcePathWindowsAMD64 == "" && !isWindowsCompiledSourceType(ctx.root.Config.SourceType) {
+		ctx.sourcePathWindowsAMD64 = ctx.sourcePathLinuxAMD64
+	}
+	if ctx.sourcePathWindowsAMD64 != "" && !filepath.IsAbs(ctx.sourcePathWindowsAMD64) {
+		ctx.sourcePathWindowsAMD64 = filepath.Join(ctx.baseDir, ctx.sourcePathWindowsAMD64)
+	}
+	if strings.EqualFold(strings.TrimSpace(ctx.root.Config.SourceType), "rust") && strings.HasSuffix(ctx.sourcePathWindowsAMD64, "_windows_amd64_cli.exe") {
+		legacyPath := strings.TrimSuffix(ctx.sourcePathWindowsAMD64, "_windows_amd64_cli.exe") + "_windows_amd64.exe"
+		if _, err := os.Stat(legacyPath); err == nil {
+			ctx.sourcePathWindowsAMD64 = legacyPath
+		}
+	}
+
 	// Handle icon configuration
 	// iconName is the theme-able icon name (e.g., package name or a system icon name)
 	// iconPath is the absolute filesystem path to the icon file (for debug mode)
@@ -186,6 +201,15 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 			if _, err := os.Stat(ctx.sourcePathLinuxAArch64); err == nil {
 				ctx.targetArchs = append(ctx.targetArchs, "linux_aarch64")
 			}
+		}
+		if ctx.sourcePathWindowsAMD64 != "" {
+			if _, err := os.Stat(ctx.sourcePathWindowsAMD64); err == nil {
+				ctx.targetArchs = append(ctx.targetArchs, "windows_amd64")
+			}
+		}
+	} else if os.Getenv("WINDOWS_QT6_PREFIX") != "" && ctx.sourcePathWindowsAMD64 != "" {
+		if _, err := os.Stat(ctx.sourcePathWindowsAMD64); err == nil {
+			ctx.targetArchs = append(ctx.targetArchs, "windows_amd64")
 		}
 	}
 

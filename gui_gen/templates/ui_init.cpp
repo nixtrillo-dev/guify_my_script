@@ -89,7 +89,23 @@ void MainWindow::initTray() {
     if (!QSystemTrayIcon::isSystemTrayAvailable()) return;
 
     m_trayIcon = new QSystemTrayIcon(this);
-    m_trayIcon->setIcon(m_appIcon);
+    QIcon trayIcon = m_appIcon;
+#ifdef Q_OS_WIN
+    if (trayIcon.isNull()) {
+        QPixmap fallbackPixmap(32, 32);
+        fallbackPixmap.fill(Qt::transparent);
+        QPainter painter(&fallbackPixmap);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor("#287b9b"));
+        painter.drawRoundedRect(QRectF(1, 1, 30, 30), 6, 6);
+        painter.setPen(Qt::white);
+        painter.setFont(QFont("Segoe UI", 18, QFont::Bold));
+        painter.drawText(fallbackPixmap.rect(), Qt::AlignCenter, "G");
+        trayIcon = QIcon(fallbackPixmap);
+    }
+#endif
+    m_trayIcon->setIcon(trayIcon);
     m_trayIcon->setToolTip(windowTitle());
 
     m_trayMenu->addSeparator();

@@ -242,7 +242,7 @@ func buildActionTabs(actions []UIAction, sourceType string, actionOnStartup stri
 
     logFrameLayout_%[1]s->addWidget(consoleWidgetFrame_%[1]s, 1);
     tabOuterLayout_%[1]s->addWidget(logFrame_%[1]s, 1);
-            `, actIdxStr))
+			`, actIdxStr))
 		}
 
 		// Determine button labels with fallbacks

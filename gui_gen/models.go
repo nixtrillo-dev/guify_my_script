@@ -260,6 +260,7 @@ type AppConfig struct {
 	ScriptAlias              string      `json:"script_alias"`
 	SourceScriptLinuxAMD64   string      `json:"source_script_linux_amd64,omitempty"`
 	SourceScriptLinuxAArch64 string      `json:"source_script_linux_aarch64,omitempty"`
+	SourceScriptWindowsAMD64 string      `json:"source_script_windows_amd64,omitempty"`
 	SourceScriptAMD64        string      `json:"source_script_amd64,omitempty"`
 	SourceScriptARM64        string      `json:"source_script_arm64,omitempty"`
 	SourceType               string      `json:"source_type"`

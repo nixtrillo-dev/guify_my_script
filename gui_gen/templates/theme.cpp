@@ -17,6 +17,17 @@ QString MainWindow::readThemeCommand(const QString &program, const QStringList &
 }
 
 QString MainWindow::detectSystemThemeColor() const {
+#ifdef Q_OS_WIN
+    QSettings personalize(
+        QStringLiteral("HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"),
+        QSettings::NativeFormat);
+    for (const QString &settingName : {QStringLiteral("AppsUseLightTheme"), QStringLiteral("SystemUsesLightTheme")}) {
+        bool ok = false;
+        const int useLightTheme = personalize.value(settingName).toInt(&ok);
+        if (ok) return useLightTheme == 0 ? QStringLiteral("dark") : QStringLiteral("light");
+    }
+    return QStringLiteral("dark");
+#else
     QStringList desktops = QString::fromLocal8Bit(qgetenv("XDG_CURRENT_DESKTOP")).toLower().split(':', Qt::SkipEmptyParts);
     QString desktopSession = QString::fromLocal8Bit(qgetenv("DESKTOP_SESSION")).toLower();
 
@@ -62,6 +73,7 @@ QString MainWindow::detectSystemThemeColor() const {
     if (!resolved.isEmpty()) return resolved;
 
     return "dark";
+#endif
 }
 
 void MainWindow::refreshThemedOverrides() {

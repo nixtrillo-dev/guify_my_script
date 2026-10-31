@@ -57,6 +57,57 @@ func TestBuildExecutionLambda_PowerShellUsesLiteralImportAndJsonArgs(t *testing.
 	}
 }
 
+func TestBuildExecutionLambda_GUICommandlineWindowsShowsConsoleAndCapturesOutput(t *testing.T) {
+	cpp := buildExecutionLambda(UIAction{Label: "Run", Func: "run", Mode: "gc"}, "Run", "0", "fields_run_0", "rust")
+	for _, expected := range []string{
+		"configureTerminalProcess(proc, consoleCommand, false, false, true)",
+		"createCommandOutputLogPath()",
+		"drainCommandLog()",
+		"QProcess::MergedChannels",
+		"configureActionProcess(proc, shell_cmd",
+	} {
+		if !strings.Contains(cpp, expected) {
+			t.Errorf("GUI_COMMANDLINE execution lambda is missing %q", expected)
+		}
+	}
+	if !strings.Contains(cppTemplateUtilsH, "QProcess::ForwardedChannels") {
+		t.Error("Windows terminal helper must forward console output while the GUI tails its output log")
+	}
+}
+
+func TestBuildExecutionLambda_CommandlineWindowsStartsUntrackedConsole(t *testing.T) {
+	cpp := buildExecutionLambda(UIAction{Label: "Run", Func: "run", Mode: "c"}, "Run", "0", "fields_run_0", "python")
+	for _, expected := range []string{
+		"configureTerminalProcess(proc, shell_cmd, false, true)",
+		"if (!proc->startDetached())",
+		"proc->deleteLater();",
+	} {
+		if !strings.Contains(cpp, expected) {
+			t.Errorf("COMMANDLINE execution lambda is missing %q", expected)
+		}
+	}
+}
+
+func TestMultiValueFieldsUseQuotedCSV(t *testing.T) {
+	want := `"one, two","say ""hello"""`
+	got := joinCSVValues([]string{"one, two", `say "hello"`})
+	if got != want {
+		t.Fatalf("joinCSVValues() = %q, want %q", got, want)
+	}
+	if gotDefault := getDefaultString([]interface{}{"one, two", `say "hello"`}); gotDefault != want {
+		t.Fatalf("getDefaultString() = %q, want %q", gotDefault, want)
+	}
+	for _, expected := range []string{
+		"QStringList parseCsvValues(const QString& rawVal)",
+		"QString joinCsvValues(const QStringList& values)",
+		"QStringList parts = parseCsvValues(rawVal)",
+	} {
+		if !strings.Contains(cppTemplateUtilsH, expected) {
+			t.Errorf("Qt CSV helpers are missing %q", expected)
+		}
+	}
+}
+
 func TestBuildExecutionLambda_JavaScriptInvokeAsObject(t *testing.T) {
 	fields := []UIField{
 		{Name: "A", ArgName: "a", Type: "TXT", DataType: "string", Default: "hello"},

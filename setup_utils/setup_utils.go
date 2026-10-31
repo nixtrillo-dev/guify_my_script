@@ -22,9 +22,58 @@ import (
 )
 
 const (
-	androidNDKVersion = "26.1.10909125"
-	androidToolsURL   = "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip"
+	androidNDKVersion    = "26.1.10909125"
+	androidToolsURL      = "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip"
+	windowsQtImage       = "guify-windows-qt-fedora-v2"
+	legacyWindowsQtImage = "guify-windows-qt-fedora-v1"
 )
+
+const windowsQtDockerfile = `FROM fedora:latest
+RUN dnf install -y mingw64-binutils mingw64-gcc-c++ mingw64-qt6-qtbase mingw64-qt6-qtimageformats \
+    qt6-qtbase-devel pkgconf-pkg-config && dnf clean all
+`
+
+// WindowsQtGUIImage is the image tag prepared by SetupWindowsQtGUIContainer.
+func WindowsQtGUIImage() string { return windowsQtImage }
+
+// SetupWindowsQtGUIContainer prepares a Fedora cross-compilation image for
+// Windows Qt GUI builds and returns the available Docker or Podman executable.
+func SetupWindowsQtGUIContainer(logLevel logger.LogLevel) (string, error) {
+	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
+		return "", fmt.Errorf("Windows Qt GUI container builds require Linux amd64")
+	}
+	engine := "docker"
+	if _, err := exec.LookPath(engine); err != nil {
+		if _, err := exec.LookPath("podman"); err == nil {
+			engine = "podman"
+		} else {
+			if err := installDevelopmentDependencies(logLevel, "Windows Qt GUI container build", map[string][]string{
+				"apt-get": {"podman"},
+				"dnf":     {"podman"},
+				"pacman":  {"podman"},
+			}); err != nil {
+				return "", err
+			}
+			engine = "podman"
+		}
+	}
+	if err := exec.Command(engine, "image", "rm", "-f", legacyWindowsQtImage).Run(); err == nil {
+		logger.Info(logLevel, "Removed obsolete Windows Qt builder image %s.", legacyWindowsQtImage)
+	}
+	const platform = "linux/amd64"
+	inspect := exec.Command(engine, "image", "inspect", "--format={{.Os}}/{{.Architecture}}", windowsQtImage)
+	if output, err := inspect.Output(); err == nil && strings.TrimSpace(string(output)) == platform {
+		return engine, nil
+	}
+	logger.Info(logLevel, "Building Fedora Windows Qt GUI builder image %s...", windowsQtImage)
+	build := exec.Command(engine, "build", "--platform", platform, "-t", windowsQtImage, "-")
+	build.Stdin = strings.NewReader(windowsQtDockerfile)
+	build.Stdout, build.Stderr = os.Stdout, os.Stderr
+	if err := build.Run(); err != nil {
+		return "", fmt.Errorf("build Fedora Windows Qt GUI image: %w", err)
+	}
+	return engine, nil
+}
 
 // SetupAndroidNDKForRust prepares the Android Rust target. On amd64 it installs
 // the Android command-line tools and NDK for native builds; on arm64 the
@@ -281,6 +330,24 @@ func installRustupToolchain(logLevel logger.LogLevel, targets ...string) error {
 		if err := command.Run(); err != nil {
 			return fmt.Errorf("install Rust stable toolchain for %s: %w", usr.Username, err)
 		}
+		for _, target := range targets {
+			command = exec.Command(rustup, "target", "add", "--toolchain", "stable", target)
+			command.Env = rustupUserEnvironment(usr)
+			command.Stdout, command.Stderr = os.Stdout, os.Stderr
+			if err := command.Run(); err != nil {
+				return fmt.Errorf("install Rust target %s for %s: %w", target, usr.Username, err)
+			}
+			rustc := filepath.Join(usr.HomeDir, ".cargo", "bin", "rustc")
+			command = exec.Command(rustc, "--print", "target-libdir", "--target", target)
+			command.Env = rustupUserEnvironment(usr)
+			targetLibDir, err := command.Output()
+			if err != nil {
+				return fmt.Errorf("verify Rust target %s for %s: %w", target, usr.Username, err)
+			}
+			if info, err := os.Stat(strings.TrimSpace(string(targetLibDir))); err != nil || !info.IsDir() {
+				return fmt.Errorf("Rust target %s was added for %s, but its standard library directory is missing", target, usr.Username)
+			}
+		}
 		command = exec.Command(rustup, "default", "stable")
 		command.Env = rustupUserEnvironment(usr)
 		command.Stdout, command.Stderr = os.Stdout, os.Stderr
@@ -298,6 +365,10 @@ func rustupUserEnvironment(usr *user.User) []string {
 	path := filepath.Join(usr.HomeDir, ".cargo", "bin") + string(os.PathListSeparator) + os.Getenv("PATH")
 	env := replaceSetupEnv(os.Environ(), "HOME", usr.HomeDir)
 	env = replaceSetupEnv(env, "USER", usr.Username)
+	// GUI actions may elevate setup through sudo. Do not let root's exported
+	// Cargo or rustup directories redirect installation away from this user.
+	env = replaceSetupEnv(env, "CARGO_HOME", filepath.Join(usr.HomeDir, ".cargo"))
+	env = replaceSetupEnv(env, "RUSTUP_HOME", filepath.Join(usr.HomeDir, ".rustup"))
 	return replaceSetupEnv(env, "PATH", path)
 }
 

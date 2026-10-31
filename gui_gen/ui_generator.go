@@ -70,6 +70,10 @@ var cppTemplateMain string
 // GenerateUI orchestrates the parsing of the configuration and the generation of the C++ UI code.
 func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, targetBuilds string) error {
 	logLevel := logger.ParseLogLevel(logLevelStr)
+	targetBuilds = strings.TrimSpace(targetBuilds)
+	if strings.EqualFold(targetBuilds, "null") {
+		targetBuilds = ""
+	}
 
 	logger.Debug(logLevel, "targetBuilds will be printed on the next line...")
 	logger.Debug(logLevel, targetBuilds)
@@ -99,6 +103,7 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 
 		// Define the exhaustive list of valid target builds based on supported PMs and Architectures
 		validBuilds := map[string]bool{
+			".exe_windows_amd64":         true,
 			".pkg.tar.zst_linux_amd64":   true,
 			".pkg.tar.zst_linux_aarch64": true,
 			".deb_linux_amd64":           true,
@@ -123,7 +128,7 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 
 			// Halt immediately if an unmapped target is requested
 			if !validBuilds[cleanBuild] {
-				return fmt.Errorf("invalid target build specified: '%s'. Allowed values are an empty string (compile all), or comma-separated combinations like '.deb_linux_amd64', '.pkg.tar.zst_linux_aarch64', etc", cleanBuild)
+				return fmt.Errorf("invalid target build specified: '%s'. Allowed values include '.exe_windows_amd64', an empty string (compile all), or package targets like '.deb_linux_amd64' and '.pkg.tar.zst_linux_aarch64'", cleanBuild)
 			}
 		}
 	}
@@ -132,6 +137,24 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	ctx, err := loadAndPrepareConfig(configPath, compileMode)
 	if err != nil {
 		return err
+	}
+	if strings.TrimSpace(targetBuilds) != "" {
+		requestedArchs, err := architecturesForTargetBuilds(targetBuilds)
+		if err != nil {
+			return err
+		}
+		if len(requestedArchs) > 0 {
+			availableArchs := make(map[string]bool, len(ctx.targetArchs))
+			for _, arch := range ctx.targetArchs {
+				availableArchs[arch] = true
+			}
+			for _, arch := range requestedArchs {
+				if !availableArchs[arch] {
+					return fmt.Errorf("requested GUI target %s has no matching source binary configured or available", arch)
+				}
+			}
+			ctx.targetArchs = requestedArchs
+		}
 	}
 
 	// Load all JSON configurations under /advanced_tools/
@@ -144,16 +167,21 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	}
 
 	sourceScriptPath := ""
+	sourceScriptWindowsPath := ""
 	if ctx.compileMode == "debug" {
 		if (runtime.GOARCH == "arm64" || runtime.GOARCH == "aarch64") && ctx.sourcePathLinuxAArch64 != "" {
 			sourceScriptPath = ctx.sourcePathLinuxAArch64
 		} else if ctx.sourcePathLinuxAMD64 != "" {
 			sourceScriptPath = ctx.sourcePathLinuxAMD64
 		}
+		sourceScriptWindowsPath = ctx.sourcePathWindowsAMD64
 	}
 	sourceScriptExpr := fmt.Sprintf("QStringLiteral(\"%s\")", cppStringLiteral(sourceScriptPath))
+	sourceScriptWindowsExpr := fmt.Sprintf("QStringLiteral(\"%s\")", cppStringLiteral(sourceScriptWindowsPath))
 	if ctx.compileMode == "production" {
 		sourceScriptExpr = fmt.Sprintf("QCoreApplication::applicationDirPath() + QStringLiteral(\"/%s\")", cppStringLiteral(ctx.bundledSourceName))
+		windowsBundleName := windowsBundledSourceName(ctx.bundledSourceName, ctx.root.Config.SourceType)
+		sourceScriptWindowsExpr = fmt.Sprintf("QCoreApplication::applicationDirPath() + QStringLiteral(\"/%s\")", cppStringLiteral(windowsBundleName))
 	}
 
 	var cpp strings.Builder
@@ -240,6 +268,7 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 
 	finalSource := cpp.String()
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_SOURCE_SCRIPT_EXPR", sourceScriptExpr)
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_SOURCE_SCRIPT_WINDOWS_EXPR", sourceScriptWindowsExpr)
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_UUID", ctx.root.Config.UUID)
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_TRAY_ON_MINIMIZE", ctx.trayMinimizeState)
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_STARTUP_TO_TRAY", ctx.startupTrayState)
@@ -309,6 +338,7 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 		BundledSourceName:      ctx.bundledSourceName,
 		SourcePathLinuxAMD64:   ctx.sourcePathLinuxAMD64,
 		SourcePathLinuxAArch64: ctx.sourcePathLinuxAArch64,
+		SourcePathWindowsAMD64: ctx.sourcePathWindowsAMD64,
 		SourcePathAMD64:        ctx.sourcePathAMD64,
 		SourcePathARM64:        ctx.sourcePathARM64,
 		FinalSourceCode:        finalSource,
@@ -322,4 +352,33 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	}
 
 	return runBuildLoop(buildCtx)
+}
+
+func architecturesForTargetBuilds(targetBuilds string) ([]string, error) {
+	reader := csv.NewReader(strings.NewReader(targetBuilds))
+	reader.TrimLeadingSpace = true
+	builds, err := reader.Read()
+	if err != nil && err.Error() != "EOF" {
+		return nil, fmt.Errorf("failed to parse targetBuilds parameter: %w", err)
+	}
+
+	seen := make(map[string]bool)
+	var archs []string
+	for _, build := range builds {
+		build = strings.TrimSpace(build)
+		var arch string
+		switch {
+		case build == ".exe_windows_amd64":
+			arch = "windows_amd64"
+		case strings.HasSuffix(build, "_linux_amd64"), build == ".pkg.tar.zst_amd64", build == ".deb_amd64", build == ".rpm_amd64":
+			arch = "linux_amd64"
+		case strings.HasSuffix(build, "_linux_aarch64"), build == ".pkg.tar.zst_arm64", build == ".deb_arm64", build == ".rpm_arm64":
+			arch = "linux_aarch64"
+		}
+		if arch != "" && !seen[arch] {
+			seen[arch] = true
+			archs = append(archs, arch)
+		}
+	}
+	return archs, nil
 }

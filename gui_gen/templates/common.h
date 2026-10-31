@@ -49,6 +49,9 @@
 #include <QFontDatabase>
 #include <QClipboard>
 #include <QFile>
+#include <QSaveFile>
+#include <QSharedPointer>
+#include <QTemporaryFile>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QFrame>
@@ -57,6 +60,7 @@
 #include <QPainter>
 #include <QPaintEvent>
 #include <QStandardPaths>
+#include <QSettings>
 #include <QCloseEvent>
 #include <QContextMenuEvent>
 #include <QEvent>
@@ -68,12 +72,10 @@
 #include <QCursor>
 #include <QProcessEnvironment>
 #include <QRegularExpression>
+#include <QLockFile>
+#include <QSysInfo>
 #include <cstdlib>
-#include <unistd.h>
 #include <signal.h>
-#include <fcntl.h>
-#include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/types.h>
 #include <iostream>
 #include <fstream>
@@ -81,7 +83,15 @@
 #include <utility>
 #include <tuple>
 #include <vector>
+#ifdef Q_OS_WIN
+#include <windows.h>
+#else
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/file.h>
+#include <sys/stat.h>
 #include <malloc.h>
+#endif
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
@@ -91,7 +101,23 @@
 #define FALLBACK_CMD " || { echo -e \"\\n\\033[1;31m[Shell Error Handled] Press Enter to close...\\033[0m\"; read; }"
 
 QString sourceScriptPath() {
+#ifdef Q_OS_WIN
+    QString configuredPath = TEMPLATE_SOURCE_SCRIPT_WINDOWS_EXPR;
+    if (!QFileInfo::exists(configuredPath) && configuredPath.endsWith(QStringLiteral(".exe"), Qt::CaseInsensitive)) {
+        QString cliPath;
+        if (configuredPath.endsWith(QStringLiteral("_windows_amd64.exe"), Qt::CaseInsensitive)) {
+            cliPath = configuredPath.left(configuredPath.size() - QStringLiteral("_windows_amd64.exe").size()) + QStringLiteral("_windows_amd64_cli.exe");
+        } else {
+            cliPath = configuredPath.left(configuredPath.size() - QStringLiteral(".exe").size()) + QStringLiteral("_cli.exe");
+        }
+        if (QFileInfo::exists(cliPath)) {
+            return cliPath;
+        }
+    }
+    return configuredPath;
+#else
     return TEMPLATE_SOURCE_SCRIPT_EXPR;
+#endif
 }
 #define SOURCE_SCRIPT sourceScriptPath()
 const QString APP_UUID = "TEMPLATE_UUID";
@@ -102,3 +128,9 @@ const std::string INSTANCE_MODE = "TEMPLATE_INSTANCE_MODE";
 
 int active_lock_fd = -1;
 static QString g_themeColor = "dark";
+
+static inline void releaseMemory() {
+#ifndef Q_OS_WIN
+    malloc_trim(0);
+#endif
+}

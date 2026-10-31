@@ -158,7 +158,18 @@ static QString shellQuote(const QString& str) {
     return "'" + esc + "'";
 }
 
+static QString powershellQuote(const QString& str) {
+    QString escaped = str;
+    escaped.replace("'", "''");
+    return "'" + escaped + "'";
+}
+
 static void configureShellProcess(QProcess *proc, const QString &command, bool elevated) {
+#ifdef Q_OS_WIN
+    Q_UNUSED(elevated);
+    proc->setProgram("powershell.exe");
+    proc->setArguments(QStringList() << "-NoLogo" << "-NoProfile" << "-ExecutionPolicy" << "Bypass" << "-Command" << command);
+#else
     if (elevated) {
         proc->setProgram("pkexec");
         proc->setArguments(QStringList() << "bash" << "-c" << command);
@@ -166,9 +177,49 @@ static void configureShellProcess(QProcess *proc, const QString &command, bool e
         proc->setProgram("bash");
         proc->setArguments(QStringList() << "-c" << command);
     }
+#endif
 }
 
-static bool configureTerminalProcess(QProcess *proc, const QString &command, bool elevated) {
+static void configureActionProcess(QProcess *proc, const QString &command, bool elevated,
+                                  const QString &sourceType, const QString &scriptPath,
+                                  const QString &functionName, const QStringList &args) {
+#ifdef Q_OS_WIN
+    if (sourceType == "go" || sourceType == "rust" || sourceType == "binary") {
+        proc->setProgram(scriptPath);
+        QStringList processArgs;
+        processArgs << functionName;
+        processArgs.append(args);
+        proc->setArguments(processArgs);
+        Q_UNUSED(command);
+        Q_UNUSED(elevated);
+        return;
+    }
+#else
+    Q_UNUSED(sourceType);
+    Q_UNUSED(scriptPath);
+    Q_UNUSED(functionName);
+    Q_UNUSED(args);
+#endif
+    configureShellProcess(proc, command, elevated);
+}
+
+static bool configureTerminalProcess(QProcess *proc, const QString &command, bool elevated, bool keepOpen = true, bool forwardChannels = false) {
+#ifdef Q_OS_WIN
+    if (elevated) return false;
+    proc->setCreateProcessArgumentsModifier([](QProcess::CreateProcessArguments *args) {
+        args->flags &= ~(CREATE_NO_WINDOW | DETACHED_PROCESS);
+        args->flags |= CREATE_NEW_CONSOLE;
+    });
+    proc->setProgram("powershell.exe");
+    if (forwardChannels) proc->setProcessChannelMode(QProcess::ForwardedChannels);
+    QStringList terminalArgs = QStringList() << "-NoLogo" << "-NoProfile" << "-ExecutionPolicy" << "Bypass";
+    if (keepOpen) terminalArgs << "-NoExit";
+    terminalArgs << "-Command" << command;
+    proc->setArguments(terminalArgs);
+    return true;
+#else
+    Q_UNUSED(keepOpen);
+    Q_UNUSED(forwardChannels);
     QStringList childCommand;
     if (elevated) {
         childCommand << "pkexec" << "bash" << "-c" << command;
@@ -203,7 +254,19 @@ static bool configureTerminalProcess(QProcess *proc, const QString &command, boo
         return true;
     }
     return false;
+#endif
 }
+
+static QString createCommandOutputLogPath() {
+    QTemporaryFile logFile(QDir::tempPath() + QStringLiteral("/guify-command-XXXXXX"));
+    logFile.setAutoRemove(false);
+    if (!logFile.open()) return QString();
+    const QString path = logFile.fileName();
+    logFile.close();
+    return path;
+}
+
+static QStringList parseCsvValues(const QString& rawVal);
 
 static QString formatPythonArg(const QString& rawVal, const QString& dataType) {
     QString dt = dataType.toLower().trimmed();
@@ -225,14 +288,84 @@ static QString formatPythonArg(const QString& rawVal, const QString& dataType) {
         return "False";
     } else if (dt == "list" || dt == "array") {
         if (rawVal.startsWith("[") && rawVal.endsWith("]")) return rawVal;
-        QStringList parts = rawVal.split(",", Qt::SkipEmptyParts);
+        QStringList parts = parseCsvValues(rawVal);
         QStringList formatted;
         for (const QString& p : parts) {
-            formatted.append(escapePythonString(p.trimmed()));
+            formatted.append(escapePythonString(p));
         }
         return "[" + formatted.join(", ") + "]";
     }
     return escapePythonString(rawVal);
+}
+
+static QStringList parseCsvValues(const QString& rawVal) {
+    QStringList values;
+    if (rawVal.trimmed().isEmpty()) return values;
+
+    QString value;
+    bool inQuotes = false;
+    bool quotedField = false;
+    bool afterQuote = false;
+    bool fieldStarted = false;
+    for (int i = 0; i < rawVal.size(); ++i) {
+        const QChar ch = rawVal.at(i);
+        if (inQuotes) {
+            if (ch == QLatin1Char('"')) {
+                if (i + 1 < rawVal.size() && rawVal.at(i + 1) == QLatin1Char('"')) {
+                    value += QLatin1Char('"');
+                    ++i;
+                } else {
+                    inQuotes = false;
+                    afterQuote = true;
+                }
+            } else {
+                value += ch;
+            }
+        } else if (afterQuote && ch == QLatin1Char(',')) {
+            values.append(value);
+            value.clear();
+            quotedField = false;
+            afterQuote = false;
+            fieldStarted = false;
+        } else if (afterQuote && ch.isSpace()) {
+            continue;
+        } else if (ch == QLatin1Char('"') && value.trimmed().isEmpty()) {
+            value.clear();
+            inQuotes = true;
+            quotedField = true;
+            afterQuote = false;
+            fieldStarted = true;
+        } else if (ch == QLatin1Char(',')) {
+            values.append(quotedField ? value : value.trimmed());
+            value.clear();
+            quotedField = false;
+            fieldStarted = false;
+        } else {
+            afterQuote = false;
+            value += ch;
+            fieldStarted = true;
+        }
+    }
+
+    if (fieldStarted || !values.isEmpty() || rawVal.endsWith(QLatin1Char(','))) {
+        values.append(quotedField ? value : value.trimmed());
+    }
+    return values;
+}
+
+static QString joinCsvValues(const QStringList& values) {
+    QStringList encoded;
+    encoded.reserve(values.size());
+    for (QString value : values) {
+        value.replace(QLatin1Char('"'), QStringLiteral("\"\""));
+        QString field;
+        field.reserve(value.size() + 2);
+        field += QLatin1Char('"');
+        field += value;
+        field += QLatin1Char('"');
+        encoded.append(field);
+    }
+    return encoded.join(QLatin1Char(','));
 }
 
 static QString jsonEscapeString(const QString& str) {
@@ -250,7 +383,7 @@ static QString jsonEscapeString(const QString& str) {
             case '\t': escaped += "\\t";  break;
             default:
                 if (c.unicode() < 0x20) {
-                    escaped += QString("\\u%1").arg(c.unicode(), 4, 16, QChar('0'));
+                    escaped += QString("\\u%1").arg(static_cast<uint>(c.unicode()), 4, 16, QChar('0'));
                 } else {
                     escaped += c;
                 }
@@ -281,10 +414,10 @@ static QString formatJsonArg(const QString& rawVal, const QString& dataType) {
         if (rawVal.trimmed().startsWith("[") && rawVal.trimmed().endsWith("]")) {
             return rawVal.trimmed();
         }
-        QStringList parts = rawVal.split(",", Qt::SkipEmptyParts);
+        QStringList parts = parseCsvValues(rawVal);
         QStringList formatted;
         for (const QString& p : parts) {
-            formatted.append(jsonEscapeString(p.trimmed()));
+            formatted.append(jsonEscapeString(p));
         }
         return "[" + formatted.join(",") + "]";
     } else if (dt == "dict" || dt == "object") {

@@ -15,7 +15,8 @@
           "script_alias": "${3:script_name}",
           "source_script_linux_amd64": "${4:/path/to/script_linux_amd64}",
           "source_script_linux_aarch64": "${5:/path/to/script_linux_aarch64}",
-          "source_type": "${6|go,bash,python,javascript,powershell,rust|}",
+          "source_script_windows_amd64": "${6:/path/to/script_windows_amd64.exe}",
+          "source_type": "${7|go,bash,python,javascript,powershell,rust|}",
           "startup": "tray",
           "tray_on_minimize": true,
           "instance_mode": "replace",
@@ -93,7 +94,8 @@
             "script_alias": "${3:script_name}",
             "source_script_linux_amd64": "${4:/path/to/script_linux_amd64}",
             "source_script_linux_aarch64": "${5:/path/to/script_linux_aarch64}",
-            "source_type": "${6|go,bash,python,javascript,powershell,rust|}",
+            "source_script_windows_amd64": "${6:/path/to/script_windows_amd64.exe}",
+            "source_type": "${7|go,bash,python,javascript,powershell,rust|}",
             "startup": "tray",
             "tray_on_minimize": true,
             "instance_mode": "replace",
@@ -134,6 +136,11 @@
             "source_script_amd64",
             "source_script_arm64"
           ]
+        },
+        {
+          "required": [
+            "source_script_windows_amd64"
+          ]
         }
       ],
       "properties": {
@@ -160,6 +167,14 @@
         "source_script_linux_aarch64": {
           "type": "string",
           "description": "Path to the source script for Linux ARM64/aarch64 architecture. Used in debug mode and bundled in production builds for linux_aarch64."
+        },
+        "source_script_windows_amd64": {
+          "type": "string",
+          "description": "Path to the Windows AMD64 executable or script. Compiled Go/Rust configurations should point to the _windows_amd64.exe output; interpreted scripts may use the same source path as Linux when their runtime is installed on Windows."
+        },
+        "source_script_windows_amd64": {
+          "type": "string",
+          "description": "Path to the Windows AMD64 executable or script. Compiled Go/Rust configurations should point to the _windows_amd64.exe output; interpreted scripts may use the same source path as Linux when their runtime is installed on Windows."
         },
         "source_script_amd64": {
           "type": "string",

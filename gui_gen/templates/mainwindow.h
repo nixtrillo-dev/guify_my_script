@@ -5,6 +5,7 @@ public:
 
     void toggleVisibility();
     Qt::Edges getResizeEdges(const QPoint &pos);
+    bool hasVisibleTrayIcon() const { return m_trayIcon && m_trayIcon->isVisible(); }
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
@@ -16,7 +17,7 @@ private:
     QIcon m_appIcon;
     QVBoxLayout *m_mainLayout;
     QTabWidget *m_tabs;
-    QSystemTrayIcon *m_trayIcon;
+    QSystemTrayIcon *m_trayIcon = nullptr;
     QMenu *m_trayMenu;
     QPushButton *m_maxBtn;
 

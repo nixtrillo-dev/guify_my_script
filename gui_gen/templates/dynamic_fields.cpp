@@ -66,7 +66,7 @@ QString MainWindow::resolveDynamicPath(QString rawPath, const QString& actionLab
         QString refVal = "";
         if (m_uiFields.contains(mapKey)) {
             QWidget *w = m_uiFields[mapKey];
-            if (w->property("isMCB").toBool()) refVal = static_cast<CheckableListWidget*>(w)->checkedItems().join(",");
+            if (w->property("isMCB").toBool()) refVal = joinCsvValues(static_cast<CheckableListWidget*>(w)->checkedItems());
             else if (QComboBox *cb = qobject_cast<QComboBox*>(w)) refVal = cb->currentText();
             else if (QCheckBox *ck = qobject_cast<QCheckBox*>(w)) refVal = (!ck->isEnabled()) ? "0" : (ck->isChecked() ? "1" : "0");
             else if (QLineEdit *le = qobject_cast<QLineEdit*>(w)) refVal = le->text();
@@ -85,7 +85,7 @@ QString MainWindow::resolveDynamicPath(QString rawPath, const QString& actionLab
 void MainWindow::applyWidgetValue(QWidget* targetWidget, const QString& newVal) {
     QSignalBlocker blocker(targetWidget);
     if (targetWidget->property("isMCB").toBool()) {
-        static_cast<CheckableListWidget*>(targetWidget)->setCheckedItems(newVal.split(",", Qt::SkipEmptyParts));
+        static_cast<CheckableListWidget*>(targetWidget)->setCheckedItems(parseCsvValues(newVal));
     } else if (QComboBox *cb = qobject_cast<QComboBox*>(targetWidget)) {
         if (cb->findText(newVal) == -1 && !newVal.isEmpty()) cb->addItem(newVal);
         cb->setCurrentText(newVal);
@@ -213,7 +213,7 @@ void MainWindow::updateWidgetDefaultValue(QWidget* targetWidget, const QJsonObje
                         else if (v.isDouble()) list.append(QString::number(v.toDouble()));
                         else if (v.isBool()) list.append(v.toBool() ? "1" : "0");
                     }
-                    newVal = list.join(",");
+                    newVal = joinCsvValues(list);
                 }
                 dynamicFound = true;
             }

@@ -604,6 +604,28 @@ func GoCompileRust(targetDir *C.char, absBridge *C.char, binaryName *C.char, log
 	return 1
 }
 
+//export GoWindowsQtGUIImage
+func GoWindowsQtGUIImage() C.int {
+
+	setup_utils.WindowsQtGUIImage()
+
+	return 1
+}
+
+//export GoSetupWindowsQtGUIContainer
+func GoSetupWindowsQtGUIContainer(logLevel C.int) C.int {
+
+	go_logLevel := logger.LogLevel(int(logLevel))
+
+	_, err := setup_utils.SetupWindowsQtGUIContainer(go_logLevel)
+	if err != nil {
+		fmt.Printf("Pipeline Error in SetupWindowsQtGUIContainer: %v\n", err)
+		return 0
+	}
+
+	return 1
+}
+
 //export GoSetupAndroidNDKForRust
 func GoSetupAndroidNDKForRust(logLevel C.int) C.int {
 
@@ -1587,6 +1609,36 @@ func main() {
 		cli_targetBuilds := os.Args[6]
 
 		err := rust_gen.CompileRust(cli_targetDir, cli_absBridge, cli_binaryName, cli_logLevelStr, cli_targetBuilds)
+		if err != nil {
+			fmt.Printf("Execution Failure: %v\n", err)
+			os.Exit(1)
+		}
+
+	case "windows_qt_gui_image":
+
+		setup_utils.WindowsQtGUIImage()
+
+	case "setup_windows_qt_gui_container":
+		if len(os.Args) < 3 {
+			fmt.Println("Error: setup_windows_qt_gui_container requires parameters")
+			os.Exit(1)
+		}
+
+		// Parse string command line metrics safely to real types
+
+		var cli_logLevel_raw int
+		raw_logLevel := os.Args[2]
+		if raw_logLevel != "" && raw_logLevel != "null" && raw_logLevel != "nil" {
+			parsed_logLevel, err_logLevel := strconv.Atoi(raw_logLevel)
+			if err_logLevel != nil {
+				fmt.Printf("Error: parameter 'logLevel' must be a valid integer: %v\n", err_logLevel)
+				os.Exit(1)
+			}
+			cli_logLevel_raw = parsed_logLevel
+		}
+		cli_logLevel := logger.LogLevel(cli_logLevel_raw)
+
+		_, err := setup_utils.SetupWindowsQtGUIContainer(cli_logLevel)
 		if err != nil {
 			fmt.Printf("Execution Failure: %v\n", err)
 			os.Exit(1)

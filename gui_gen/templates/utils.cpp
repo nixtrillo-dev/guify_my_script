@@ -22,8 +22,63 @@ static void showWindowControlMenu(QWidget *window, const QPoint &globalPos, QPus
     menu.exec(globalPos);
 }
 
+#ifdef Q_OS_WIN
+static QLockFile *active_instance_lock = nullptr;
+
+struct InstanceWindowCloseRequest {
+    DWORD processId;
+};
+
+static BOOL CALLBACK closeInstanceWindows(HWND window, LPARAM requestPtr) {
+    auto *request = reinterpret_cast<InstanceWindowCloseRequest *>(requestPtr);
+    DWORD windowProcessId = 0;
+    GetWindowThreadProcessId(window, &windowProcessId);
+    if (windowProcessId == request->processId) {
+        PostMessageW(window, WM_CLOSE, 0, 0);
+    }
+    return TRUE;
+}
+#endif
+
 void handle_instance_policy() {
     if (INSTANCE_MODE == "duplicate") return;
+
+#ifdef Q_OS_WIN
+    QString appKey = APP_UUID;
+    appKey.replace(QRegularExpression("[^A-Za-z0-9_.-]"), "_");
+    const QString lockPath = QDir::temp().filePath("guify_" + appKey + ".lock");
+    active_instance_lock = new QLockFile(lockPath);
+    if (active_instance_lock->tryLock(0)) return;
+
+    if (INSTANCE_MODE == "single") {
+        std::exit(0);
+    }
+
+    if (INSTANCE_MODE == "replace") {
+        qint64 previousPid = 0;
+        QString previousHost;
+        QString previousApp;
+        if (active_instance_lock->getLockInfo(&previousPid, &previousHost, &previousApp) &&
+            previousPid > 0 && previousHost.compare(QSysInfo::machineHostName(), Qt::CaseInsensitive) == 0) {
+            HANDLE previousProcess = OpenProcess(PROCESS_TERMINATE | SYNCHRONIZE, FALSE, static_cast<DWORD>(previousPid));
+            if (previousProcess) {
+                InstanceWindowCloseRequest request{static_cast<DWORD>(previousPid)};
+                EnumWindows(closeInstanceWindows, reinterpret_cast<LPARAM>(&request));
+                DWORD waitResult = WaitForSingleObject(previousProcess, 5000);
+                if (waitResult == WAIT_TIMEOUT) {
+                    TerminateProcess(previousProcess, 1);
+                    waitResult = WaitForSingleObject(previousProcess, 5000);
+                }
+                CloseHandle(previousProcess);
+                if (waitResult != WAIT_OBJECT_0) std::exit(1);
+            }
+        }
+
+        if (!active_instance_lock->tryLock(10000)) {
+            std::exit(1);
+        }
+    }
+#else
 
     active_lock_fd = open(LOCK_FILE.c_str(), O_RDWR | O_CREAT, 0666);
     if (active_lock_fd < 0) return;
@@ -59,4 +114,5 @@ void handle_instance_policy() {
         }
         exit(1);
     }
+#endif
 }

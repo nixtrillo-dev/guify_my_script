@@ -428,6 +428,8 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
 		`, mode, funcName))
 	}
 
+	cpp.WriteString(buildWindowsShellCommandCPP(sourceType, funcName, "targetScript", mode))
+
 	cpp.WriteString(`
         QProcess *proc = new QProcess(this);
         QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
@@ -445,8 +447,12 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         configureShellProcess(proc, shell_cmd, %[5]s);
 
         connect(stopBtn_%[2]s, &QPushButton::clicked, proc, [proc]() {
+#ifdef Q_OS_WIN
+            QProcess::execute("taskkill", QStringList() << "/PID" << QString::number(proc->processId()) << "/T" << "/F");
+#else
             proc->terminate();
             QTimer::singleShot(2000, proc, &QProcess::kill);
+#endif
         });
 
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), [proc, closeOnFinish, this, execBtn_%[2]s, stopBtn_%[2]s](int exitCode, QProcess::ExitStatus status) {
@@ -457,7 +463,7 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
 %[1]s
             }
             proc->deleteLater();
-            malloc_trim(0);
+            releaseMemory();
 
             if (closeOnFinish) { QTimer::singleShot(100, this, &MainWindow::cleanupAndExit); }
         });
@@ -488,8 +494,12 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         }
 
         connect(stopBtn_%[2]s, &QPushButton::clicked, proc, [proc]() {
+#ifdef Q_OS_WIN
+            QProcess::execute("taskkill", QStringList() << "/PID" << QString::number(proc->processId()) << "/T" << "/F");
+#else
             proc->terminate();
             QTimer::singleShot(2000, proc, &QProcess::kill);
+#endif
         });
 
         connect(proc, &QProcess::readyReadStandardOutput, [proc, logOutputWindow_%[2]s]() {
@@ -503,7 +513,7 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
             stopBtn_%[2]s->setEnabled(false);
 %[1]s
             proc->deleteLater();
-            malloc_trim(0);
+            releaseMemory();
 
             if (closeOnFinish) { QTimer::singleShot(100, this, &MainWindow::cleanupAndExit); }
         });
@@ -521,7 +531,7 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished), [proc, closeOnFinish, this](int exitCode, QProcess::ExitStatus status) {
 %[1]s
             proc->deleteLater();
-            malloc_trim(0);
+            releaseMemory();
 
             if (closeOnFinish) { QTimer::singleShot(100, this, &MainWindow::cleanupAndExit); }
         });
@@ -560,14 +570,11 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
                 if (mcb->maxChecked == 1) {
                     QStringList checked = mcb->checkedItems();
                     rawVal = checked.isEmpty() ? "" : checked.first();
-                } else {
-                    QStringList escaped;
-                    for (const QString& item : mcb->checkedItems()) {
-                        QString esc = item;
-                        esc.replace("\"", "\"\"");
-                        escaped.append("\"" + esc + "\"");
+                    if (!rawVal.isEmpty() && (dataType.toLower().trimmed() == "list" || dataType.toLower().trimmed() == "array")) {
+                        rawVal = "[" + jsonEscapeString(rawVal) + "]";
                     }
-                    rawVal = escaped.join(",");
+                } else {
+                    rawVal = joinCsvValues(mcb->checkedItems());
                 }
             } else if (fieldType == "CB") {
                 QComboBox* cb = static_cast<QComboBox*>(widget);

@@ -9,6 +9,7 @@
         "script_alias": "guify_my_script",
         "source_script_linux_amd64": "./guify_my_script_linux_amd64",
         "source_script_linux_aarch64": "./guify_my_script_linux_aarch64",
+        "source_script_windows_amd64": "./guify_my_script_windows_amd64.exe",
         "source_type": "go",
         "startup": "normal",
         "sudo": false,
@@ -572,7 +573,8 @@
                         ".rpm_linux_amd64",
                         ".pkg.tar.zst_linux_aarch64",
                         ".deb_linux_aarch64",
-                        ".rpm_linux_aarch64"
+                        ".rpm_linux_aarch64",
+                        ".exe_windows_amd64"
                     ],
                     "refresh_fields_on_change": [],
                     "field_type": "MCB",
@@ -584,7 +586,8 @@
                         ".rpm_linux_amd64",
                         ".pkg.tar.zst_linux_aarch64",
                         ".deb_linux_aarch64",
-                        ".rpm_linux_aarch64"
+                        ".rpm_linux_aarch64",
+                        ".exe_windows_amd64"
                     ],
                     "maximum": "0",
                     "minimum": "1",

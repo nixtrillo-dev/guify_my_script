@@ -872,9 +872,18 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string, t
 	// Windows is an additive CLI target. The generated bridge imports C, so
 	// Windows builds use cgo and require a MinGW-w64 compiler (or CC override).
 	if selected["windows_amd64"] {
+		logger.Info(lvl, "Building for architecture: windows_amd64...")
 		cc := os.Getenv("WINDOWS_AMD64_CC")
 		if cc == "" {
 			cc = "x86_64-w64-mingw32-gcc"
+		}
+		if _, err := exec.LookPath(cc); err != nil {
+			if home, homeErr := os.UserHomeDir(); homeErr == nil {
+				candidate := filepath.Join(home, ".local", "opt", "guify-windows-qt", "host-bin", "x86_64-w64-mingw32-gcc")
+				if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+					cc = candidate
+				}
+			}
 		}
 		if _, err := exec.LookPath(cc); err != nil {
 			logger.Warn(lvl, "Skipping windows_amd64 Go CLI build: C cross-compiler %q is unavailable (install MinGW-w64 or set WINDOWS_AMD64_CC).", cc)
@@ -889,7 +898,7 @@ func CompileLocal(targetDir, absBridge, binaryName string, logLevelStr string, t
 			if err := cmdWindows.Run(); err != nil {
 				return fmt.Errorf("CLI binary build failure for windows_amd64 (install MinGW-w64 or set WINDOWS_AMD64_CC):\n%s\ninternal error: %w", windowsErr.String(), err)
 			}
-			logger.Info(lvl, "  • Built: %s", windowsBin)
+			logger.Info(lvl, "  • Built: %s\n", windowsBin)
 		}
 	}
 

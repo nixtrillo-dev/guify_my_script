@@ -74,8 +74,18 @@ func getDefaultString(val interface{}) string {
 		for _, item := range v {
 			parts = append(parts, fmt.Sprintf("%v", item))
 		}
-		return strings.Join(parts, ",")
+		return joinCSVValues(parts)
+	case []string:
+		return joinCSVValues(v)
 	default:
 		return fmt.Sprintf("%v", v)
 	}
+}
+
+func joinCSVValues(values []string) string {
+	encoded := make([]string, len(values))
+	for i, value := range values {
+		encoded[i] = `"` + strings.ReplaceAll(value, `"`, `""`) + `"`
+	}
+	return strings.Join(encoded, ",")
 }

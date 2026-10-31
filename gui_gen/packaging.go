@@ -189,11 +189,13 @@ case "$(uname -m)" in
   aarch64|arm64) ARCH_IMAGE="menci/archlinuxarm:base-devel" ;;
 esac
 
-# Persist both the downloaded packages AND the repository metadata databases
+# Persist downloaded packages, repository metadata, and the yay-bin checkout.
+# Refresh repository data and the helper checkout at most once per 24 hours.
 $ENGINE run --rm \
   -v "$(pwd)/..:/workspace:Z" \
   -v arch_pacman_cache:/var/cache/pacman/pkg \
   -v arch_pacman_db:/var/lib/pacman/sync \
+  -v arch_yay_cache:/var/cache/guify \
   -w /workspace/arch \
   "$ARCH_IMAGE" \
   bash -c 'set -e && \
@@ -202,7 +204,12 @@ $ENGINE run --rm \
            if ! grep -Eq "^[[:space:]]*DisableSandbox([[:space:]]|$)" /etc/pacman.conf; then \
              sed -i "/^\\[options\\]/a DisableSandbox" /etc/pacman.conf; \
            fi && \
-           pacman -Sy --noconfirm && \
+           sync_dbs=$(find /var/lib/pacman/sync -maxdepth 1 -type f -name "*.db" -print -quit) && \
+           last_refresh=$(stat -c %Y /var/lib/pacman/sync/.guify-last-refresh 2>/dev/null || echo 0) && \
+           now=$(date +%s) && \
+           if [ -z "$sync_dbs" ] || [ "$now" -lt "$last_refresh" ] || [ $((now-last_refresh)) -ge 86400 ]; then \
+             pacman -Sy --noconfirm && touch /var/lib/pacman/sync/.guify-last-refresh; \
+           fi && \
            pacman -S --needed --noconfirm git && \
            useradd -mG wheel builduser && \
            echo "%wheel ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers && \
@@ -228,7 +235,18 @@ $ENGINE run --rm \
              printf "%s\\n" "${aur_deps[@]}" > /workspace/arch/dependencies.arch.aur.txt; \
              chown builduser:builduser /workspace/arch/dependencies.arch.aur.txt; \
              echo "Installing AUR dependencies: ${aur_deps[*]}"; \
-             su - builduser -c "git clone https://aur.archlinux.org/yay-bin.git /tmp/yay-bin && cd /tmp/yay-bin && makepkg -si --noconfirm --needed"; \
+             yay_repo=/var/cache/guify/yay-bin; \
+             if [ ! -d "$yay_repo/.git" ]; then \
+               git clone --depth 1 https://aur.archlinux.org/yay-bin.git "$yay_repo" && touch /var/cache/guify/.yay-last-refresh; \
+             else \
+               last_refresh=$(stat -c %Y /var/cache/guify/.yay-last-refresh 2>/dev/null || echo 0); \
+               now=$(date +%s); \
+               if [ "$now" -lt "$last_refresh" ] || [ $((now-last_refresh)) -ge 86400 ]; then \
+                 git -C "$yay_repo" pull --ff-only && touch /var/cache/guify/.yay-last-refresh; \
+               fi; \
+             fi && \
+             chown -R builduser:builduser "$yay_repo" && \
+             su - builduser -c "cd /var/cache/guify/yay-bin && makepkg -si --noconfirm --needed"; \
              su - builduser -c "xargs yay -S --needed --noconfirm < /workspace/arch/dependencies.arch.aur.txt"; \
            fi && \
            su - builduser -c "cd /workspace/arch && makepkg --config /tmp/makepkg.conf -cfsA --noconfirm" && \

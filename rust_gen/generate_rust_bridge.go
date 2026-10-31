@@ -813,12 +813,29 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string, ta
 	// GNU target can be cross-compiled from Linux when the Rust target and
 	// MinGW-w64 linker are installed. Override the linker when needed.
 	if selected["windows_amd64"] {
+		logger.Info(lvl, "\n\nBuilding for architecture: windows_amd64...")
 		const windowsTarget = "x86_64-pc-windows-gnu"
 		linker := os.Getenv("CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER")
 		if linker == "" {
 			linker = "x86_64-w64-mingw32-gcc"
 		}
-		targetLibDirOutput, targetLibErr := exec.Command("rustc", "--print", "target-libdir", "--target", windowsTarget).Output()
+		if _, err := exec.LookPath(linker); err != nil {
+			if home, homeErr := os.UserHomeDir(); homeErr == nil {
+				candidate := filepath.Join(home, ".local", "opt", "guify-windows-qt", "host-bin", "x86_64-w64-mingw32-gcc")
+				if info, statErr := os.Stat(candidate); statErr == nil && !info.IsDir() {
+					linker = candidate
+				}
+			}
+		}
+		// Use the same rustup-managed toolchain that rustCommand("cargo", ...)
+		// uses. Fedora may also install a system rustc whose target libraries do
+		// not include the Windows GNU target, even after setup_utils installed it
+		// into the invoking user's rustup toolchain.
+		targetCheck := rustCommand("rustc", "--print", "target-libdir", "--target", windowsTarget)
+		// Match Cargo's working directory so rustup applies the same
+		// rust-toolchain.toml or directory override during detection.
+		targetCheck.Dir = buildDir
+		targetLibDirOutput, targetLibErr := targetCheck.Output()
 		targetLibDir := strings.TrimSpace(string(targetLibDirOutput))
 		targetInstalled := false
 		if targetLibErr == nil {
@@ -827,7 +844,11 @@ func CompileRust(targetDir, absBridge, binaryName string, logLevelStr string, ta
 			}
 		}
 		if !targetInstalled {
-			logger.Warn(lvl, "Skipping windows_amd64 Rust build: Rust target %s is unavailable (install it with rustup target add %s).", windowsTarget, windowsTarget)
+			if targetLibErr != nil {
+				logger.Warn(lvl, "Skipping windows_amd64 Rust build: Rust target %s is unavailable to the project toolchain (rustc target-libdir check failed: %v; output: %q). Install it for the project's active toolchain with rustup target add %s.", windowsTarget, targetLibErr, targetLibDir, windowsTarget)
+			} else {
+				logger.Warn(lvl, "Skipping windows_amd64 Rust build: Rust target %s standard library directory is missing for the project toolchain: %q. Install it for the project's active toolchain with rustup target add %s.", windowsTarget, targetLibDir, windowsTarget)
+			}
 		} else if _, err := exec.LookPath(linker); err != nil {
 			logger.Warn(lvl, "Skipping windows_amd64 Rust build: linker %q is unavailable (install MinGW-w64 or set CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER).", linker)
 		} else {
@@ -1873,6 +1894,10 @@ func rustCommand(name string, args ...string) *exec.Cmd {
 		if usr, err := user.Lookup(sudoUser); err == nil {
 			home = usr.HomeDir
 		}
+	} else if pkexecUID := os.Getenv("PKEXEC_UID"); pkexecUID != "" {
+		if usr, err := user.LookupId(pkexecUID); err == nil {
+			home = usr.HomeDir
+		}
 	}
 	cargoBin := filepath.Join(home, ".cargo", "bin")
 	executable := name
@@ -1884,6 +1909,8 @@ func rustCommand(name string, args ...string) *exec.Cmd {
 	command := exec.Command(executable, args...)
 	if home != "" {
 		command.Env = replaceEnv(os.Environ(), "HOME", home)
+		command.Env = replaceEnv(command.Env, "CARGO_HOME", filepath.Join(home, ".cargo"))
+		command.Env = replaceEnv(command.Env, "RUSTUP_HOME", filepath.Join(home, ".rustup"))
 		command.Env = replaceEnv(command.Env, "PATH", cargoBin+string(os.PathListSeparator)+os.Getenv("PATH"))
 	}
 	return command

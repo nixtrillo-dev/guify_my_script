@@ -15,10 +15,18 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+#ifdef Q_OS_WIN
+    // Let Qt select the native Windows platform theme. Forcing a generic or
+    // inherited platform theme can crash qwindows.dll during window startup.
+    qunsetenv("QT_QPA_PLATFORMTHEME");
+#else
     qputenv("QT_QPA_PLATFORMTHEME", "generic");
+#endif
     qputenv("QT_STYLE_OVERRIDE", "Fusion");
 
+#ifndef Q_OS_WIN
     setpgid(0, 0);
+#endif
     handle_instance_policy();
 
     QApplication app(argc, argv);
@@ -37,6 +45,16 @@ int main(int argc, char *argv[]) {
 
     QIcon appIcon;
     QString iconPath = "TEMPLATE_ICON_RAW_PATH";
+#ifdef Q_OS_WIN
+    const QString windowsAppDir = QCoreApplication::applicationDirPath();
+    for (const QString &suffix : {QStringLiteral("png"), QStringLiteral("ico"), QStringLiteral("svg"), QStringLiteral("jpg"), QStringLiteral("jpeg")}) {
+        const QString bundledWindowsIcon = windowsAppDir + "/app_icon." + suffix;
+        if (QFile::exists(bundledWindowsIcon)) {
+            iconPath = bundledWindowsIcon;
+            break;
+        }
+    }
+#endif
     if (QFile::exists(iconPath)) {
         appIcon = QIcon(iconPath);
     } else {
@@ -45,14 +63,18 @@ int main(int argc, char *argv[]) {
 
     MainWindow win(appIcon);
 
-    if (!STARTUP_TO_TRAY || !QSystemTrayIcon::isSystemTrayAvailable()) {
+    bool canStartHiddenInTray = QSystemTrayIcon::isSystemTrayAvailable();
+#ifdef Q_OS_WIN
+    canStartHiddenInTray = win.hasVisibleTrayIcon();
+#endif
+    if (!STARTUP_TO_TRAY || !canStartHiddenInTray) {
         win.show();
     } else {
         win.show();
         win.hide();
     }
 
-    QTimer::singleShot(500, []() { malloc_trim(0); });
+    QTimer::singleShot(500, []() { releaseMemory(); });
 
     return app.exec();
 }

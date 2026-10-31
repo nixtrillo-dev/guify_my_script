@@ -145,7 +145,7 @@ void MainWindow::openSettingsEditor() {
 
                 for (int i = 0; i < fOptions.size(); ++i) {
                     QString optStr = fOptions[i].isArray() ? fOptions[i].toArray().first().toString() : fOptions[i].toString();
-                    mcb->addItem(optStr, val.split(",", Qt::SkipEmptyParts).contains(optStr));
+                    mcb->addItem(optStr, parseCsvValues(val).contains(optStr));
                 }
 
                 if (!jsonEndpointArr.isEmpty()) {
@@ -154,7 +154,7 @@ void MainWindow::openSettingsEditor() {
                         QJsonArray items = getNestedArray(doc, jsonEndpointPath);
                         for (const QJsonValue& v : items) {
                             QString dynOpt = v.isArray() ? v.toArray().first().toString() : v.toString();
-                            mcb->addItem(dynOpt, val.split(",", Qt::SkipEmptyParts).contains(dynOpt));
+                            mcb->addItem(dynOpt, parseCsvValues(val).contains(dynOpt));
                         }
                     }
                 }
@@ -255,7 +255,7 @@ void MainWindow::openSettingsEditor() {
                 } else {
                     connect(btn, &QPushButton::clicked, [this, le]() {
                         QStringList fs = QFileDialog::getOpenFileNames(this, "Select Files", le->text());
-                        if(!fs.isEmpty()) le->setText(fs.join(","));
+                        if(!fs.isEmpty()) le->setText(joinCsvValues(fs));
                     });
                 }
                 hl->addWidget(le);
@@ -298,10 +298,11 @@ void MainWindow::openSettingsEditor() {
                 QString fieldName = fieldItem->text(0);
 
                 QWidget *w = tree->itemWidget(fieldItem, 1);
+                if (!w) continue;
                 QString newVal;
 
                 if (w->property("isMCB").toBool()) {
-                    newVal = static_cast<CheckableListWidget*>(w)->checkedItems().join(",");
+                    newVal = joinCsvValues(static_cast<CheckableListWidget*>(w)->checkedItems());
                 } else if (QCheckBox *ck = qobject_cast<QCheckBox*>(w)) {
                     newVal = ck->isChecked() ? "1" : "0";
                 } else if (QComboBox *cb = qobject_cast<QComboBox*>(w)) {
@@ -327,8 +328,9 @@ void MainWindow::openSettingsEditor() {
 
                 QString mapKey = actionLabel + "::" + fieldName;
                 if (m_uiFields.contains(mapKey)) {
-                    QWidget *targetW = m_uiFields[mapKey];
-                    if (targetW->property("isMCB").toBool()) static_cast<CheckableListWidget*>(targetW)->setCheckedItems(newVal.split(",", Qt::SkipEmptyParts));
+                    QWidget *targetW = m_uiFields.value(mapKey, nullptr);
+                    if (!targetW) continue;
+                    if (targetW->property("isMCB").toBool()) static_cast<CheckableListWidget*>(targetW)->setCheckedItems(parseCsvValues(newVal));
                     else if (QLineEdit *le = qobject_cast<QLineEdit*>(targetW)) le->setText(newVal);
                     else if (QComboBox *cb = qobject_cast<QComboBox*>(targetW)) cb->setCurrentText(newVal);
                     else if (QCheckBox *ck = qobject_cast<QCheckBox*>(targetW)) ck->setChecked(newVal == "1");
@@ -342,9 +344,13 @@ void MainWindow::openSettingsEditor() {
             rootObj[actionLabel] = fieldsObj;
         }
 
-        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            file.write(QJsonDocument(rootObj).toJson(QJsonDocument::Indented));
-            file.close();
+        QSaveFile outputFile(configPath);
+        const QByteArray serializedDefaults = QJsonDocument(rootObj).toJson(QJsonDocument::Indented);
+        if (!outputFile.open(QIODevice::WriteOnly) || outputFile.write(serializedDefaults) != serializedDefaults.size() || !outputFile.commit()) {
+            outputFile.cancelWriting();
+            QMessageBox::warning(m_settingsDialog, "Save Failed",
+                QString("Could not save runtime defaults to %1:\n%2").arg(configPath, outputFile.errorString()));
+            return;
         }
         applyThemeStyle();
         m_settingsDialog->accept();

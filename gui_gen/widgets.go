@@ -178,18 +178,18 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 			cpp.WriteString("                QJsonArray arr = v.toArray();\n")
 			cpp.WriteString("                if (arr.size() >= 2) {\n")
 			// Full 3-parameter support for dynamic alias options
-			cpp.WriteString(fmt.Sprintf("                    mcb_%s->addItem(arr[0].toString(), arr[1].toString(), def_%[1]s.split(\",\", Qt::SkipEmptyParts).contains(arr[1].toString()));\n", varSuffix))
+			cpp.WriteString(fmt.Sprintf("                    mcb_%s->addItem(arr[0].toString(), arr[1].toString(), parseCsvValues(def_%[1]s).contains(arr[1].toString()));\n", varSuffix))
 			cpp.WriteString("                } else if (arr.size() == 1) {\n")
-			cpp.WriteString(fmt.Sprintf("                    mcb_%s->addItem(arr[0].toString(), arr[0].toString(), def_%[1]s.split(\",\", Qt::SkipEmptyParts).contains(arr[0].toString()));\n", varSuffix))
+			cpp.WriteString(fmt.Sprintf("                    mcb_%s->addItem(arr[0].toString(), arr[0].toString(), parseCsvValues(def_%[1]s).contains(arr[0].toString()));\n", varSuffix))
 			cpp.WriteString("                }\n")
 			cpp.WriteString("            } else {\n")
-			cpp.WriteString(fmt.Sprintf("                mcb_%s->addItem(v.toString(), v.toString(), def_%[1]s.split(\",\", Qt::SkipEmptyParts).contains(v.toString()));\n", varSuffix))
+			cpp.WriteString(fmt.Sprintf("                mcb_%s->addItem(v.toString(), v.toString(), parseCsvValues(def_%[1]s).contains(v.toString()));\n", varSuffix))
 			cpp.WriteString("            }\n")
 			cpp.WriteString("        }\n")
 			cpp.WriteString("    }\n")
 		} else {
 			for _, opt := range opts {
-				cpp.WriteString(fmt.Sprintf("    mcb_%s->addItem(\"%s\", \"%s\", def_%s.split(\",\", Qt::SkipEmptyParts).contains(\"%s\"));\n",
+				cpp.WriteString(fmt.Sprintf("    mcb_%s->addItem(\"%s\", \"%s\", parseCsvValues(def_%s).contains(\"%s\"));\n",
 					varSuffix, cppStringLiteral(opt.Display), cppStringLiteral(opt.Value), varSuffix, cppStringLiteral(opt.Value)))
 			}
 		}
@@ -295,13 +295,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 			cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, fl_%s]() {\n", cppFlBtn, varSuffix))
 			cpp.WriteString(fmt.Sprintf("        QStringList fs = QFileDialog::getOpenFileNames(this, \"Select Files\", fl_%s->text(), %s);\n", varSuffix, filterArg))
 			cpp.WriteString(fmt.Sprintf("        if(!fs.isEmpty()) {\n"))
-			cpp.WriteString("            QStringList escaped;\n")
-			cpp.WriteString("            for (const QString& item : fs) {\n")
-			cpp.WriteString("                QString esc = item;\n")
-			cpp.WriteString("                esc.replace(\"\\\"\", \"\\\"\\\"\");\n")
-			cpp.WriteString("                escaped.append(\"\\\"\" + esc + \"\\\"\");\n")
-			cpp.WriteString("            }\n")
-			cpp.WriteString(fmt.Sprintf("            fl_%s->setText(escaped.join(\",\"));\n", varSuffix))
+			cpp.WriteString(fmt.Sprintf("            fl_%s->setText(joinCsvValues(fs));\n", varSuffix))
 			cpp.WriteString(fmt.Sprintf("            emit fl_%s->editingFinished();\n", varSuffix))
 			cpp.WriteString(fmt.Sprintf("        }\n"))
 			cpp.WriteString("    });\n")
@@ -512,11 +506,25 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		}
 
 		if targetVar != "" {
-			cpp.WriteString(fmt.Sprintf("    connect(%s, &%s, this, [this]() {\n", targetVar, signalType))
-			for _, target := range field.RefreshFieldsOnChange {
-				cpp.WriteString(fmt.Sprintf("        refreshField(\"%s\", \"%s\");\n", label, target))
+			if field.GetFieldType() == "CK" {
+				cpp.WriteString("#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)\n")
+				cpp.WriteString(fmt.Sprintf("    connect(%s, &QCheckBox::checkStateChanged, this, [this]() {\n", targetVar))
+				for _, target := range field.RefreshFieldsOnChange {
+					cpp.WriteString(fmt.Sprintf("        refreshField(\"%s\", \"%s\");\n", label, target))
+				}
+				cpp.WriteString("    });\n#else\n")
+				cpp.WriteString(fmt.Sprintf("    connect(%s, &QCheckBox::stateChanged, this, [this]() {\n", targetVar))
+				for _, target := range field.RefreshFieldsOnChange {
+					cpp.WriteString(fmt.Sprintf("        refreshField(\"%s\", \"%s\");\n", label, target))
+				}
+				cpp.WriteString("    });\n#endif\n")
+			} else {
+				cpp.WriteString(fmt.Sprintf("    connect(%s, &%s, this, [this]() {\n", targetVar, signalType))
+				for _, target := range field.RefreshFieldsOnChange {
+					cpp.WriteString(fmt.Sprintf("        refreshField(\"%s\", \"%s\");\n", label, target))
+				}
+				cpp.WriteString("    });\n")
 			}
-			cpp.WriteString("    });\n")
 		}
 	}
 

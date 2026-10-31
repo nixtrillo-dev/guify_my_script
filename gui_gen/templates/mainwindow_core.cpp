@@ -101,7 +101,7 @@ void MainWindow::toggleVisibility() {
     } else if (isVisible()) {
         if (QSystemTrayIcon::isSystemTrayAvailable()) {
             hide();
-            QTimer::singleShot(100, []() { malloc_trim(0); });
+            QTimer::singleShot(100, []() { releaseMemory(); });
         } else {
             showMinimized();
         }
@@ -228,6 +228,7 @@ void MainWindow::closeEvent(QCloseEvent *event) {
 }
 
 void MainWindow::cleanupAndExit() {
+#ifndef Q_OS_WIN
     try { killpg(0, SIGTERM); } catch(...) {}
     if (active_lock_fd > 0) {
         flock(active_lock_fd, LOCK_UN);
@@ -235,5 +236,6 @@ void MainWindow::cleanupAndExit() {
         unlink(LOCK_FILE.c_str());
         active_lock_fd = -1;
     }
+#endif
     QApplication::quit();
 }
