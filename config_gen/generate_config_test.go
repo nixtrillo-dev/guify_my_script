@@ -157,7 +157,7 @@ function my_action() {
 		t.Fatalf("Failed unmarshaling config JSON: %v", err)
 	}
 
-	expectedPath, _ := filepath.Abs(shFile)
+	expectedPath := "./script.sh"
 	expectedAlias := "script.sh"
 
 	if root.Config.ScriptAlias != expectedAlias {
@@ -211,7 +211,7 @@ def greet_user(name: str, message: str) -> None:
 		t.Fatalf("Failed unmarshaling config JSON: %v", err)
 	}
 
-	expectedPath, _ := filepath.Abs(pyFile)
+	expectedPath := "./test_pyscript.py"
 	expectedAlias := "test_pyscript.py"
 
 	if root.Config.ScriptAlias != expectedAlias {

@@ -17,9 +17,9 @@
           "source_script_linux_aarch64": "${5:/path/to/script_linux_aarch64}",
           "source_script_windows_amd64": "${6:/path/to/script_windows_amd64.exe}",
           "source_type": "${7|go,bash,python,javascript,powershell,rust|}",
-          "startup": "tray",
-          "tray_on_minimize": true,
-          "instance_mode": "replace",
+          "startup": "window",
+          "tray_on_minimize": false,
+          "instance_mode": "single",
           "action_on_startup": null,
           "default_tab_on_startup": null,
           "close_after_startup_action": false,
@@ -46,11 +46,8 @@
           "dependencies": [
             {
               "pacman": [],
-              "arch": [],
               "apt": [],
-              "debian": [],
-              "dnf": [],
-              "fedora": []
+              "dnf": []
             }
           ]
         },
@@ -96,9 +93,9 @@
             "source_script_linux_aarch64": "${5:/path/to/script_linux_aarch64}",
             "source_script_windows_amd64": "${6:/path/to/script_windows_amd64.exe}",
             "source_type": "${7|go,bash,python,javascript,powershell,rust|}",
-            "startup": "tray",
-            "tray_on_minimize": true,
-            "instance_mode": "replace",
+            "startup": "window",
+            "tray_on_minimize": false,
+            "instance_mode": "single",
             "action_on_startup": null,
             "default_tab_on_startup": null,
             "close_after_startup_action": false,
@@ -282,11 +279,8 @@
             "dependencies": [
               {
                 "pacman": [],
-                "arch": [],
                 "apt": [],
-                "debian": [],
-                "dnf": [],
-                "fedora": []
+                "dnf": []
               }
             ]
           }
@@ -342,36 +336,41 @@
     "deployDependency": {
       "type": "object",
       "description": "Package dependencies for different Linux distribution package managers. Each property is an array of package names to install.",
+      "allOf": [
+        { "not": { "required": ["pacman", "arch"] } },
+        { "not": { "required": ["apt", "debian"] } },
+        { "not": { "required": ["dnf", "fedora"] } }
+      ],
       "properties": {
         "pacman": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Arch Linux dependencies to install via pacman (official repositories)."
+          "description": "Arch Linux package dependencies. gui_gen includes these in the generated Arch package dependency list; that list can include official repository packages and AUR packages (AUR packages use an AUR helper such as yay to build). Do not use together with 'arch'."
         },
         "arch": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Arch Linux AUR dependencies to install via yay or other AUR helpers."
+          "description": "Alias for 'pacman' for Arch Linux package dependencies, including AUR packages (AUR packages use an AUR helper such as yay to build). Do not use together with 'pacman'."
         },
         "apt": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Debian/Ubuntu dependencies to install via apt."
+          "description": "Debian/Ubuntu package dependencies to include in generated packages. Do not use together with 'debian'."
         },
         "debian": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Additional Debian-specific dependencies. Merged with apt dependencies."
+          "description": "Alias for 'apt' for Debian/Ubuntu package dependencies. Do not use together with 'apt'."
         },
         "dnf": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Fedora/RHEL dependencies to install via dnf."
+          "description": "Fedora/RHEL package dependencies to include in generated packages. Do not use together with 'fedora'."
         },
         "fedora": {
           "type": "array",
           "items": { "type": "string" },
-          "description": "Additional Fedora-specific dependencies. Merged with dnf dependencies."
+          "description": "Alias for 'dnf' for Fedora/RHEL package dependencies. Do not use together with 'dnf'."
         }
       }
     },

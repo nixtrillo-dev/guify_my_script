@@ -45,6 +45,23 @@ func stringJSON(value string) *json.RawMessage {
 	return &raw
 }
 
+// configAssetPath keeps paths portable when the referenced asset sits beside
+// the config, and uses an absolute path when it lives elsewhere.
+func configAssetPath(assetPath, configPath string) string {
+	absAsset, err := filepath.Abs(assetPath)
+	if err != nil {
+		return assetPath
+	}
+	absConfig, err := filepath.Abs(configPath)
+	if err != nil {
+		return absAsset
+	}
+	if filepath.Clean(filepath.Dir(absAsset)) == filepath.Clean(filepath.Dir(absConfig)) {
+		return "./" + filepath.Base(absAsset)
+	}
+	return absAsset
+}
+
 // JsonEndpoints maps to the new nested endpoint structure
 type JsonEndpoints struct {
 	ArrayEndpoint       *json.RawMessage `json:"array_endpoint"`
@@ -176,11 +193,11 @@ type MainMenuConfig struct {
 // DeployDependency exposes all supported package-manager dependency lists.
 type DeployDependency struct {
 	Pacman []string `json:"pacman"`
-	Arch   []string `json:"arch"`
+	Arch   []string `json:"arch,omitempty"`
 	Apt    []string `json:"apt"`
-	Debian []string `json:"debian"`
+	Debian []string `json:"debian,omitempty"`
 	Dnf    []string `json:"dnf"`
-	Fedora []string `json:"fedora"`
+	Fedora []string `json:"fedora,omitempty"`
 }
 
 // DeployConfig holds metadata for packaging and deployment
@@ -306,9 +323,9 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		}
 		sourceScriptBase := strings.TrimSuffix(sourceScript, inputExt)
 		scriptAlias = filepath.Base(sourceScriptBase)
-		sourceScriptLinuxAMD64 = sourceScriptBase + "_linux_amd64"
-		sourceScriptLinuxAArch64 = sourceScriptBase + "_linux_aarch64"
-		sourceScriptWindowsAMD64 = sourceScriptBase + "_windows_amd64.exe"
+		sourceScriptLinuxAMD64 = configAssetPath(sourceScriptBase+"_linux_amd64", outputPath)
+		sourceScriptLinuxAArch64 = configAssetPath(sourceScriptBase+"_linux_aarch64", outputPath)
+		sourceScriptWindowsAMD64 = configAssetPath(sourceScriptBase+"_windows_amd64.exe", outputPath)
 	} else if ext == ".rs" {
 		actions, err = parseRustFile(absInput)
 		if err != nil {
@@ -317,9 +334,9 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		sourceType = "rust"
 		sourceScriptBase := strings.TrimSuffix(sourceScript, inputExt)
 		scriptAlias = filepath.Base(sourceScriptBase)
-		sourceScriptLinuxAMD64 = sourceScriptBase + "_linux_amd64"
-		sourceScriptLinuxAArch64 = sourceScriptBase + "_linux_aarch64"
-		sourceScriptWindowsAMD64 = sourceScriptBase + "_windows_amd64.exe"
+		sourceScriptLinuxAMD64 = configAssetPath(sourceScriptBase+"_linux_amd64", outputPath)
+		sourceScriptLinuxAArch64 = configAssetPath(sourceScriptBase+"_linux_aarch64", outputPath)
+		sourceScriptWindowsAMD64 = configAssetPath(sourceScriptBase+"_windows_amd64.exe", outputPath)
 	} else if ext == ".py" {
 		actions, err = parsePythonFile(absInput)
 		if err != nil {
@@ -329,9 +346,9 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		// Python modules are source files, even when binaryName customises the
 		// generated application's name.
 		scriptAlias = filepath.Base(absInput)
-		sourceScriptLinuxAMD64 = absInput
-		sourceScriptLinuxAArch64 = absInput
-		sourceScriptWindowsAMD64 = absInput
+		sourceScriptLinuxAMD64 = configAssetPath(absInput, outputPath)
+		sourceScriptLinuxAArch64 = configAssetPath(absInput, outputPath)
+		sourceScriptWindowsAMD64 = configAssetPath(absInput, outputPath)
 	} else if ext == ".js" || ext == ".mjs" {
 		actions, err = parseJavaScriptFile(absInput)
 		if err != nil {
@@ -339,9 +356,9 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		}
 		sourceType = "javascript"
 		scriptAlias = filepath.Base(absInput)
-		sourceScriptLinuxAMD64 = absInput
-		sourceScriptLinuxAArch64 = absInput
-		sourceScriptWindowsAMD64 = absInput
+		sourceScriptLinuxAMD64 = configAssetPath(absInput, outputPath)
+		sourceScriptLinuxAArch64 = configAssetPath(absInput, outputPath)
+		sourceScriptWindowsAMD64 = configAssetPath(absInput, outputPath)
 	} else if ext == ".psm1" {
 		actions, err = parsePowerShellFile(absInput)
 		if err != nil {
@@ -349,9 +366,9 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		}
 		sourceType = "powershell"
 		scriptAlias = filepath.Base(absInput)
-		sourceScriptLinuxAMD64 = absInput
-		sourceScriptLinuxAArch64 = absInput
-		sourceScriptWindowsAMD64 = absInput
+		sourceScriptLinuxAMD64 = configAssetPath(absInput, outputPath)
+		sourceScriptLinuxAArch64 = configAssetPath(absInput, outputPath)
+		sourceScriptWindowsAMD64 = configAssetPath(absInput, outputPath)
 	} else {
 		actions, err = parseBashFile(absInput)
 		if err != nil {
@@ -359,9 +376,9 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 		}
 		sourceType = "bash"
 		scriptAlias = filepath.Base(sourceScript)
-		sourceScriptLinuxAMD64 = sourceScript
-		sourceScriptLinuxAArch64 = sourceScript
-		sourceScriptWindowsAMD64 = sourceScript
+		sourceScriptLinuxAMD64 = configAssetPath(sourceScript, outputPath)
+		sourceScriptLinuxAArch64 = configAssetPath(sourceScript, outputPath)
+		sourceScriptWindowsAMD64 = configAssetPath(sourceScript, outputPath)
 	}
 
 	guiConfig := RootGUIConfig{}
@@ -378,9 +395,9 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	guiConfig.Config.SourceScriptLinuxAArch64 = sourceScriptLinuxAArch64
 	guiConfig.Config.SourceScriptWindowsAMD64 = sourceScriptWindowsAMD64
 	guiConfig.Config.SourceType = sourceType
-	guiConfig.Config.Startup = "tray"
-	guiConfig.Config.TrayOnMinimize = true
-	guiConfig.Config.InstanceMode = "replace"
+	guiConfig.Config.Startup = "window"
+	guiConfig.Config.TrayOnMinimize = false
+	guiConfig.Config.InstanceMode = "single"
 	guiConfig.Config.ActionOnStartup = nil
 	guiConfig.Config.DefaultTabOnStartup = nil
 	guiConfig.Config.CloseAfterStartupAction = false
@@ -404,11 +421,8 @@ func GenerateGUIConfig(inputPath, outputPath, binaryName string, overwrite bool,
 	guiConfig.Deploy.SupportEmail = "maintainer@example.invalid"
 	guiConfig.Deploy.Dependencies = []DeployDependency{{
 		Pacman: []string{},
-		Arch:   []string{},
 		Apt:    []string{},
-		Debian: []string{},
 		Dnf:    []string{},
-		Fedora: []string{},
 	}}
 
 	// Actions Section
