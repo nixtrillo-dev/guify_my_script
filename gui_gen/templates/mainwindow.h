@@ -28,6 +28,7 @@ private:
     AppDialog *m_advancedSettingsDialog = nullptr;
     void openSettingsEditor();
     void openAdvancedSettings();
+    void openAboutDialog();
     void openGlobalHotkeysMenu();
 
     QMap<QString, QString> m_runtimeDefaults;
@@ -67,5 +68,9 @@ private:
     void refreshThemedOverrides();
 
     // Cleanup
+    bool confirmExitIfActionsRunning();
+    void performApplicationExit();
     void cleanupAndExit();
+    bool m_exitInProgress = false;
+    bool m_exitPromptOpen = false;
 };

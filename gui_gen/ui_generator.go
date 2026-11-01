@@ -9,9 +9,13 @@ import (
 	_ "embed"
 	"encoding/csv"
 	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"guify_my_script/logger"
 )
@@ -54,6 +58,9 @@ var cppTemplateUiInit string
 
 //go:embed templates/dialogs.cpp
 var cppTemplateDialogs string
+
+//go:embed templates/about.cpp
+var cppTemplateAbout string
 
 //go:embed templates/settings_dialog.cpp
 var cppTemplateSettingsDialog string
@@ -238,6 +245,10 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	cpp.WriteString(cppTemplateDialogs)
 	cpp.WriteString("\n")
 
+	// Add application metadata and About/license dialogs.
+	cpp.WriteString(cppTemplateAbout)
+	cpp.WriteString("\n")
+
 	// Add settings dialog implementation
 	cpp.WriteString(cppTemplateSettingsDialog)
 	cpp.WriteString("\n")
@@ -275,6 +286,37 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_INSTANCE_MODE", ctx.root.Config.InstanceMode)
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_TITLE", ctx.root.Config.Title)
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_PACKAGE_NAME", ctx.packageName)
+
+	commitHash := ""
+	if output, err := exec.Command("git", "-C", ctx.baseDir, "rev-parse", "HEAD").Output(); err == nil {
+		commitHash = strings.TrimSpace(string(output))
+	}
+	licenseText, licenseErr := os.ReadFile(filepath.Join(ctx.baseDir, "LICENSE.txt"))
+	licenseAvailable := licenseErr == nil
+	licenseAvailableValue := "false"
+	if licenseAvailable {
+		licenseAvailableValue = "true"
+	}
+	version := ctx.root.Deploy.Version
+	if version == "" {
+		version = "Unknown"
+	}
+	release := ctx.root.Deploy.ReleaseNumber
+	if release == "" {
+		release = "Unknown"
+	}
+	maintainer := ctx.root.Deploy.Maintainer
+	if maintainer == "" {
+		maintainer = "Unknown"
+	}
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_VERSION", cppStringLiteral(version))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_RELEASE", cppStringLiteral(release))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_BUILD_DATE", cppStringLiteral(time.Now().UTC().Format("Jan 2, 2006 15:04:05 UTC")))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_MAINTAINER", cppStringLiteral(maintainer))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_COMMIT", cppStringLiteral(commitHash))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_SOURCE_TYPE", cppStringLiteral(ctx.root.Config.SourceType))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_LICENSE_TEXT", cppStringLiteral(string(licenseText)))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_LICENSE_AVAILABLE", licenseAvailableValue)
 
 	// Set a default theme color if one is not provided in the JSON
 	themeColor := strings.ToLower(strings.TrimSpace(ctx.root.Config.Theme.Color))

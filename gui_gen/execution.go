@@ -350,6 +350,7 @@ public static class GuifyActionRunner {
             }
 
             QProcess *pipeReader = new QProcess(this);
+            pipeReader->setProperty("actionOutputMonitor", true);
             pipeReader->setProgram("cat");
             pipeReader->setArguments(QStringList() << fifoPath);
             connect(pipeReader, &QProcess::readyReadStandardOutput, [pipeReader, logOutputWindow_%[1]s]() {

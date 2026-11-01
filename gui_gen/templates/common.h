@@ -17,6 +17,7 @@
 #include <QFileDialog>
 #include <QSystemTrayIcon>
 #include <QDialog>
+#include <QFormLayout>
 #include <QTreeWidget>
 #include <QTreeWidgetItem>
 #include <QHeaderView>

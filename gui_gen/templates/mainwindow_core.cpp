@@ -223,11 +223,58 @@ void MainWindow::mouseDoubleClickEvent(QMouseEvent *event) {
 }
 
 void MainWindow::closeEvent(QCloseEvent *event) {
-    cleanupAndExit();
+    if (m_exitInProgress) {
+        event->accept();
+        return;
+    }
+    if (!confirmExitIfActionsRunning()) {
+        event->ignore();
+        return;
+    }
+    performApplicationExit();
     event->accept();
 }
 
-void MainWindow::cleanupAndExit() {
+bool MainWindow::confirmExitIfActionsRunning() {
+    if (m_exitPromptOpen) {
+        return false;
+    }
+    int runningActions = 0;
+    const QList<QProcess*> processes = findChildren<QProcess*>();
+    for (QProcess *process : processes) {
+        if (process && !process->property("actionOutputMonitor").toBool() &&
+            process->state() != QProcess::NotRunning) {
+            ++runningActions;
+        }
+    }
+    if (runningActions == 0) {
+        return true;
+    }
+
+    const QString actionNoun = runningActions == 1 ? QStringLiteral("action") : QStringLiteral("actions");
+    const QString actionVerb = runningActions == 1 ? QStringLiteral("is") : QStringLiteral("are");
+    QMessageBox confirmation(this);
+    confirmation.setIcon(QMessageBox::Warning);
+    confirmation.setWindowTitle(QStringLiteral("Exit Application?"));
+    confirmation.setText(QStringLiteral("There %1 %2 currently running %3.").arg(actionVerb).arg(runningActions).arg(actionNoun));
+    confirmation.setInformativeText(runningActions == 1
+        ? QStringLiteral("Exiting will terminate this action. Do you want to close the application?")
+        : QStringLiteral("Exiting will terminate these actions. Do you want to close the application?"));
+    confirmation.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
+    confirmation.setDefaultButton(QMessageBox::No);
+    confirmation.button(QMessageBox::Yes)->setText(QStringLiteral("Exit Application"));
+    confirmation.button(QMessageBox::No)->setText(QStringLiteral("Keep Running"));
+    m_exitPromptOpen = true;
+    const bool shouldExit = confirmation.exec() == QMessageBox::Yes;
+    m_exitPromptOpen = false;
+    return shouldExit;
+}
+
+void MainWindow::performApplicationExit() {
+    if (m_exitInProgress) {
+        return;
+    }
+    m_exitInProgress = true;
 #ifndef Q_OS_WIN
     try { killpg(0, SIGTERM); } catch(...) {}
     if (active_lock_fd > 0) {
@@ -238,4 +285,11 @@ void MainWindow::cleanupAndExit() {
     }
 #endif
     QApplication::quit();
+}
+
+void MainWindow::cleanupAndExit() {
+    if (m_exitInProgress || !confirmExitIfActionsRunning()) {
+        return;
+    }
+    performApplicationExit();
 }

@@ -109,6 +109,11 @@ void MainWindow::initTray() {
     m_trayIcon->setToolTip(windowTitle());
 
     m_trayMenu->addSeparator();
+    const QString aboutAppName = windowTitle().isEmpty() ? QStringLiteral("Unknown") : windowTitle();
+    QAction *aboutAct = new QAction(QStringLiteral("About ") + aboutAppName, this);
+    connect(aboutAct, &QAction::triggered, this, &MainWindow::openAboutDialog);
+    m_trayMenu->addAction(aboutAct);
+
     QAction *quitAct = new QAction("Exit Application", this);
     connect(quitAct, &QAction::triggered, this, &MainWindow::cleanupAndExit);
     m_trayMenu->addAction(quitAct);
