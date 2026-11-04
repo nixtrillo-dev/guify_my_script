@@ -87,7 +87,7 @@ func openIdxOf(content string, hint int, open byte) int {
 func jsFieldsFromParams(params []string, docs map[string]jsDocParam) ([]UIField, bool) {
 	objectProps, isObject := jsObjectProperties(params, docs)
 	if isObject {
-		var fields []UIField
+		fields := []UIField{}
 		for _, prop := range objectProps {
 			hint, def := jsDocHintAndDefault(prop.Name, docs)
 			if prop.TypeHint != "" {
@@ -105,7 +105,7 @@ func jsFieldsFromParams(params []string, docs map[string]jsDocParam) ([]UIField,
 		return fields, true
 	}
 
-	var fields []UIField
+	fields := []UIField{}
 	for _, raw := range params {
 		p := parseJSPositionalParam(raw)
 		if p.Name == "" {

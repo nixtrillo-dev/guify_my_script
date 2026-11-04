@@ -315,6 +315,9 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_MAINTAINER", cppStringLiteral(maintainer))
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_COMMIT", cppStringLiteral(commitHash))
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_SOURCE_TYPE", cppStringLiteral(ctx.root.Config.SourceType))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_DYNAMIC_ENDPOINT_SOURCE_TYPE", cppStringLiteral(ctx.root.Config.SourceType))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_JAVASCRIPT_NODE_RUNNER", cppStringLiteral(javascriptNodeRunner))
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_PYTHON_ENDPOINT_RUNNER", cppStringLiteral(pythonEndpointRunner))
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_LICENSE_TEXT", cppStringLiteral(string(licenseText)))
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_LICENSE_AVAILABLE", licenseAvailableValue)
 

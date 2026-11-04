@@ -186,6 +186,24 @@ func loadAndPrepareConfig(configPath, compileMode string) (configContext, error)
 	if ctx.bundledSourceName == ctx.packageName {
 		ctx.bundledSourceName = ctx.packageName + "-source"
 	}
+	if ctx.compileMode == "production" && strings.EqualFold(ctx.root.Config.SourceType, "javascript") {
+		entrypoint := ctx.sourcePathLinuxAMD64
+		if entrypoint == "" {
+			entrypoint = ctx.sourcePathLinuxAArch64
+		}
+		if entrypoint != "" {
+			files, root, err := discoverJavaScriptBundle(entrypoint)
+			if err != nil {
+				return ctx, fmt.Errorf("failed discovering JavaScript production bundle: %w", err)
+			}
+			if len(files) > 1 {
+				ctx.bundledSourceName, err = filepath.Rel(root, entrypoint)
+				if err != nil {
+					return ctx, fmt.Errorf("failed determining bundled JavaScript entrypoint path: %w", err)
+				}
+			}
+		}
+	}
 
 	// --- AUTO-DETECT ARCHITECTURES ---
 	if ctx.compileMode == "production" {

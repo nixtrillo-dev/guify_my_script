@@ -438,10 +438,14 @@
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
-                        "get_enabled_endpoint": [],
+                        "get_enabled_endpoint": [
+                            "is_compilable",
+                            "{Input Script or Source Directory}",
+                            "99"
+                        ],
+                        "path_to_enabled": "is_compilable",
                         "path_to_array": null,
-                        "path_to_default": null,
-                        "path_to_enabled": null
+                        "path_to_default": null
                     }
                 },
                 {

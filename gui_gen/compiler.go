@@ -309,7 +309,11 @@ func runBuildLoop(ctx BuildContext) error {
 			if sourceMode&0111 == 0 {
 				sourceMode |= 0755
 			}
-			if err := copyFile(actualSourcePath, filepath.Join(archAppDir, ctx.BundledSourceName), sourceMode); err != nil {
+			if strings.EqualFold(ctx.RootConfig.Config.SourceType, "javascript") {
+				if _, err := copyJavaScriptBundle(actualSourcePath, archAppDir, ctx.BundledSourceName); err != nil {
+					return fmt.Errorf("failed bundling JavaScript source for %s: %w", targetArch, err)
+				}
+			} else if err := copyFile(actualSourcePath, filepath.Join(archAppDir, ctx.BundledSourceName), sourceMode); err != nil {
 				return fmt.Errorf("failed bundling source script for %s: %w", targetArch, err)
 			}
 			if err := os.WriteFile(filepath.Join(archAppDir, "runtime_defaults.json"), ctx.DefaultsJSON, 0644); err != nil {
@@ -454,7 +458,11 @@ func buildWindowsGUI(ctx BuildContext) error {
 			return fmt.Errorf("production Windows build has no source_script_windows_amd64 configured")
 		}
 		sourceBundleName = windowsBundledSourceName(ctx.BundledSourceName, ctx.RootConfig.Config.SourceType)
-		if err := copyFile(ctx.SourcePathWindowsAMD64, filepath.Join(outputDir, sourceBundleName), 0755); err != nil {
+		if strings.EqualFold(ctx.RootConfig.Config.SourceType, "javascript") {
+			if _, err := copyJavaScriptBundle(ctx.SourcePathWindowsAMD64, outputDir, sourceBundleName); err != nil {
+				return fmt.Errorf("stage Windows JavaScript source next to the GUI executable: %w", err)
+			}
+		} else if err := copyFile(ctx.SourcePathWindowsAMD64, filepath.Join(outputDir, sourceBundleName), 0755); err != nil {
 			return fmt.Errorf("stage Windows script executable next to the GUI executable: %w", err)
 		}
 		if err := os.WriteFile(filepath.Join(outputDir, "runtime_defaults.json"), ctx.DefaultsJSON, 0644); err != nil {

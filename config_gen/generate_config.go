@@ -717,7 +717,7 @@ func parsePythonFile(path string) ([]UIAction, error) {
 		}
 
 		params := splitPythonParams(paramsRaw)
-		var fields []UIField
+		fields := []UIField{}
 		for i, param := range params {
 			f := createPythonField(param, i)
 			if f.Name != "" {

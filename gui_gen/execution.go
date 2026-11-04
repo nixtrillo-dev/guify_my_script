@@ -666,6 +666,15 @@ if (result !== undefined) {
 }
 `
 
+const pythonEndpointRunner = `import importlib, json, os, pathlib, sys
+script = pathlib.Path(sys.argv[0]).resolve()
+sys.path.insert(0, str(script.parent))
+module = importlib.import_module(script.stem)
+result = getattr(module, sys.argv[1])(*sys.argv[2:])
+if result is not None:
+    print(result if isinstance(result, str) else json.dumps(result))
+`
+
 func buildJavaScriptShellCmdCPP(mode, funcName, sudoPrefix, scriptExpr string, includeGuiModes bool) string {
 	cleanMode := NormalizeExecutionMode(mode)
 	cond := fmt.Sprintf("\"%s\" == \"s\" || \"%s\" == \"d\"", cleanMode, cleanMode)

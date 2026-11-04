@@ -34,7 +34,64 @@ QJsonDocument MainWindow::fetchJsonEndpoint(const QStringList& endpointArgs, con
     }
 
     QProcess proc;
-    proc.start(targetScript, endpointArgs);
+    if (QStringLiteral("TEMPLATE_DYNAMIC_ENDPOINT_SOURCE_TYPE") == QStringLiteral("javascript")) {
+        // JavaScript source files are loaded through Node, just like regular
+        // actions. The endpoint's first argument is the exported function name;
+        // remaining arguments are passed to it as strings.
+        QStringList jsArgs;
+        jsArgs << QStringLiteral("--input-type=module") << QStringLiteral("-e")
+               << QString::fromUtf8("TEMPLATE_JAVASCRIPT_NODE_RUNNER")
+               << targetScript << endpointArgs.first();
+        for (int i = 1; i < endpointArgs.size(); ++i) {
+            QJsonArray encodedArgArray;
+            encodedArgArray.append(endpointArgs.at(i));
+            const QByteArray encodedArg = QJsonDocument(encodedArgArray).toJson(QJsonDocument::Compact);
+            jsArgs << QString::fromUtf8(encodedArg.mid(1, encodedArg.size() - 2));
+        }
+        proc.start(QStringLiteral("node"), jsArgs);
+    } else if (QStringLiteral("TEMPLATE_DYNAMIC_ENDPOINT_SOURCE_TYPE") == QStringLiteral("python")) {
+        QString python = QStandardPaths::findExecutable(QStringLiteral("python3"));
+#ifdef Q_OS_WIN
+        if (python.isEmpty()) python = QStandardPaths::findExecutable(QStringLiteral("python"));
+#endif
+        if (python.isEmpty()) python = QStringLiteral("python3");
+        QStringList pyArgs;
+        pyArgs << QStringLiteral("-u") << QStringLiteral("-c")
+               << QString::fromUtf8("TEMPLATE_PYTHON_ENDPOINT_RUNNER")
+               << targetScript << endpointArgs.first();
+        for (int i = 1; i < endpointArgs.size(); ++i) pyArgs << endpointArgs.at(i);
+        proc.start(python, pyArgs);
+    } else if (QStringLiteral("TEMPLATE_DYNAMIC_ENDPOINT_SOURCE_TYPE") == QStringLiteral("powershell")) {
+        QJsonObject payload;
+        QJsonArray callArgs;
+        for (int i = 1; i < endpointArgs.size(); ++i) callArgs.append(endpointArgs.at(i));
+        payload.insert(QStringLiteral("script"), targetScript);
+        payload.insert(QStringLiteral("function"), endpointArgs.first());
+        payload.insert(QStringLiteral("args"), callArgs);
+        const QByteArray encodedPayload = QJsonDocument(payload).toJson(QJsonDocument::Compact).toBase64();
+        const QString psRunner = QStringLiteral(
+            "$p=ConvertFrom-Json ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('%1'))); "
+            "Import-Module -Name $p.script -Force; $fn=$p.function; "
+            "$callArgs=@($p.args); $result=@(& $fn @callArgs); "
+            "ConvertTo-Json -InputObject $result -Compress -Depth 100")
+            .arg(QString::fromLatin1(encodedPayload));
+        QString pwsh = QStandardPaths::findExecutable(QStringLiteral("pwsh"));
+#ifdef Q_OS_WIN
+        if (pwsh.isEmpty()) pwsh = QStandardPaths::findExecutable(QStringLiteral("powershell.exe"));
+#endif
+        if (pwsh.isEmpty()) pwsh = QStringLiteral("pwsh");
+        proc.start(pwsh, QStringList() << QStringLiteral("-NoProfile")
+                   << QStringLiteral("-NonInteractive") << QStringLiteral("-Command") << psRunner);
+    } else if (QStringLiteral("TEMPLATE_DYNAMIC_ENDPOINT_SOURCE_TYPE") == QStringLiteral("bash")) {
+        QStringList bashArgs;
+        bashArgs << QStringLiteral("-c")
+                 << QStringLiteral("source \"$0\" || exit; fn=\"$1\"; shift; \"$fn\" \"$@\"")
+                 << targetScript << endpointArgs.first();
+        for (int i = 1; i < endpointArgs.size(); ++i) bashArgs << endpointArgs.at(i);
+        proc.start(QStringLiteral("bash"), bashArgs);
+    } else {
+        proc.start(targetScript, endpointArgs);
+    }
     if (proc.waitForFinished(3000)) {
         return QJsonDocument::fromJson(proc.readAllStandardOutput());
     }

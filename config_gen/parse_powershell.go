@@ -34,7 +34,7 @@ func parsePowerShellFile(path string) ([]UIAction, error) {
 		if !ok {
 			continue
 		}
-		var fields []UIField
+		fields := []UIField{}
 		for _, typeMatch := range powershellTypeRe.FindAllStringSubmatchIndex(paramsRaw, -1) {
 			param := paramsRaw[typeMatch[0]:]
 			if comma := strings.Index(param, ","); comma >= 0 {
