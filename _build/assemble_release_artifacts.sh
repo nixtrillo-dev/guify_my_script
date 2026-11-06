@@ -15,11 +15,26 @@ package_dirs=(
     "${DIST_DIR}/com.nixtrillo.guifymyscript_linux_amd64"
 )
 package_subdirs=(arch debian fedora)
+gui_source_architectures=(linux_aarch64 linux_amd64)
+
+VERSION="$(sed -n 's/^[[:space:]]*"version":[[:space:]]*"\([^"]*\)".*/\1/p' "${PROJECT_ROOT}/guify_my_script_config.json")"
+if [[ -z "${VERSION}" ]]; then
+    printf 'Could not read version from %s\n' "${PROJECT_ROOT}/guify_my_script_config.json" >&2
+    exit 1
+fi
 
 # Check all inputs before clearing the existing top-level release artifacts.
 for binary in "${cli_binaries[@]}"; do
     if [[ ! -f "${PROJECT_ROOT}/${binary}" ]]; then
         printf 'Missing CLI binary: %s\n' "${PROJECT_ROOT}/${binary}" >&2
+        exit 1
+    fi
+done
+
+for architecture in "${gui_source_architectures[@]}"; do
+    source="${DIST_DIR}/com.nixtrillo.guifymyscript_${architecture}/build/generated_app.cpp"
+    if [[ ! -f "${source}" ]]; then
+        printf 'Missing generated GUI source: %s\n' "${source}" >&2
         exit 1
     fi
 done
@@ -47,6 +62,11 @@ find "${DIST_DIR}" -maxdepth 1 -type l -delete
 
 for binary in "${cli_binaries[@]}"; do
     cp -- "${PROJECT_ROOT}/${binary}" "${DIST_DIR}/${binary}_cli"
+done
+
+for architecture in "${gui_source_architectures[@]}"; do
+    source="${DIST_DIR}/com.nixtrillo.guifymyscript_${architecture}/build/generated_app.cpp"
+    cp -- "${source}" "${DIST_DIR}/guify_my_script_${architecture}_${VERSION}_gui_source.cpp"
 done
 
 for package_dir in "${package_dirs[@]}"; do
