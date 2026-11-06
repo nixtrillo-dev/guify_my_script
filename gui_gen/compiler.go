@@ -534,7 +534,8 @@ func buildWindowsGUI(ctx BuildContext) error {
 	if engine == "podman" {
 		args = append(args, "--userns=keep-id")
 	}
-	args = append(args, "-v", workspaceDir+":/workspace:Z", "-w", "/workspace", setup_utils.WindowsQtGUIImage(), "sh", "-c", windowsQtContainerBuildScript, "sh", containerSourcePath, containerOutputPath, "qt-build-version.txt", qtBuildVersion)
+	iconExtension := strings.ToLower(filepath.Ext(ctx.IconPath))
+	args = append(args, "-v", workspaceDir+":/workspace:Z", "-w", "/workspace", setup_utils.WindowsQtGUIImage(), "sh", "-c", windowsQtContainerBuildScript, "sh", containerSourcePath, containerOutputPath, "qt-build-version.txt", qtBuildVersion, iconExtension)
 	compileCmd := exec.Command(engine, args...)
 	compileCmd.Stdout, compileCmd.Stderr = os.Stdout, os.Stderr
 	if err := compileCmd.Run(); err != nil {
@@ -580,16 +581,6 @@ else
     -static-libgcc -static-libstdc++ "$1" $flags -o "$2" -Wl,--gc-sections -mwindows
 fi
 rm -f app_icon.rc app_icon.o
-for file in "$prefix/bin"/*.dll; do
-  [ -f "$file" ] && cp "$file" "$output_dir/"
-done
-mkdir -p "$output_dir/platforms" "$output_dir/imageformats" "$output_dir/styles"
-cp "$prefix/lib/qt6/plugins/platforms/qwindows.dll" "$output_dir/platforms/"
-for group in imageformats styles; do
-  for file in "$prefix/lib/qt6/plugins/$group"/*.dll; do
-    [ -f "$file" ] && cp "$file" "$output_dir/$group/"
-  done
-done
 collect_runtime_license() {
   source_file=$1
   package=$(rpm -qf --qf '%{NAME}' "$source_file" 2>/dev/null || true)
@@ -609,16 +600,47 @@ collect_runtime_license() {
     esac
   done
 }
-for file in "$prefix/bin"/*.dll "$prefix/lib/qt6/plugins/platforms"/*.dll "$prefix/lib/qt6/plugins/imageformats"/*.dll "$prefix/lib/qt6/plugins/styles"/*.dll; do
-  [ -f "$file" ] && collect_runtime_license "$file"
-done
-for name in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do
-  file=$(find /usr -path '*mingw*' -name "$name" -print -quit)
-  if [ -n "$file" ]; then
-    cp "$file" "$output_dir/"
-    collect_runtime_license "$file"
-  fi
-done
+# Follow PE imports from the app and the plugins we explicitly deploy. This
+# keeps unrelated MinGW tools and Qt modules out of the user-facing payload.
+copy_runtime_dependencies() {
+  source_file=$1
+  x86_64-w64-mingw32-objdump -p "$source_file" | sed -n 's/.*DLL Name: //p' | while IFS= read -r dependency; do
+    dependency_file=$(find "$prefix/bin" -maxdepth 1 \( -type f -o -type l \) -iname "$dependency" -print -quit)
+    if [ -z "$dependency_file" ]; then
+      case "$(printf '%s' "$dependency" | tr '[:upper:]' '[:lower:]')" in
+        libgcc_s_seh-1.dll|libstdc++-6.dll|libwinpthread-1.dll)
+          for package in mingw64-libgcc mingw64-libstdc++ mingw64-winpthreads; do
+            dependency_file=$(rpm -ql "$package" 2>/dev/null | awk -F/ -v wanted="$dependency" 'tolower($NF) == tolower(wanted) { print; exit }')
+            if [ -n "$dependency_file" ]; then
+              break
+            fi
+          done
+          ;;
+      esac
+    fi
+    if [ -n "$dependency_file" ]; then
+      copy_runtime_dll "$dependency_file" "$output_dir"
+    fi
+  done
+}
+copy_runtime_dll() {
+  source_file=$1
+  destination_dir=$2
+  destination_file="$destination_dir/$(basename "$source_file")"
+  [ -f "$destination_file" ] && return 0
+  mkdir -p "$destination_dir"
+  cp "$source_file" "$destination_file"
+  collect_runtime_license "$source_file"
+  copy_runtime_dependencies "$destination_file"
+}
+copy_runtime_dependencies "$2"
+copy_runtime_dll "$prefix/lib/qt6/plugins/platforms/qwindows.dll" "$output_dir/platforms"
+# QtGui has built-in PNG support; only stage extra decoders for configured icons
+# that need them.
+case "$5" in
+  .ico) copy_runtime_dll "$prefix/lib/qt6/plugins/imageformats/qico.dll" "$output_dir/imageformats" ;;
+  .jpg|.jpeg) copy_runtime_dll "$prefix/lib/qt6/plugins/imageformats/qjpeg.dll" "$output_dir/imageformats" ;;
+esac
 `
 
 func copyWindowsContainerRuntime(sourceDir, destination string) error {

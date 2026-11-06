@@ -1,4 +1,5 @@
 This application uses Qt 6, developed by The Qt Company Ltd. and other contributors.
+The Qt Toolkit is Copyright (C) 2018 The Qt Company Ltd. and other contributors.
 
 This application uses Qt Core, Qt Gui, Qt Widgets, and Qt Network. The Qt libraries
 are distributed under the GNU Lesser General Public License version 3 (LGPLv3).
