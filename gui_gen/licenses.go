@@ -15,13 +15,22 @@ import (
 
 const guifyMyScriptUUID = "com.nixtrillo.guifymyscript"
 
-// stageLicenseBundle copies the shared third-party license catalog and, for
-// generated applications, the source project's own license into the runtime
+// stageLicenseBundle copies mandatory and platform-specific license files and,
+// for generated applications, the source project's own license into the runtime
 // LICENSES directory beside the application executable.
-func stageLicenseBundle(sourceDir, appDir, appUUID, appTitle, licenseType, sourceScriptPath string) error {
+func stageLicenseBundle(sourceDir, appDir, appUUID, appTitle, licenseType, sourceScriptPath, platform string) error {
+	platform = strings.TrimSpace(platform)
+	if platform != "Linux" && platform != "Windows" {
+		return fmt.Errorf("unsupported license platform %q", platform)
+	}
 	licenseDir := filepath.Join(appDir, "LICENSES")
 	if err := os.MkdirAll(licenseDir, 0755); err != nil {
 		return fmt.Errorf("create license directory: %w", err)
+	}
+	for _, category := range []string{"Mandatory", platform} {
+		if err := os.MkdirAll(filepath.Join(licenseDir, category), 0755); err != nil {
+			return fmt.Errorf("create %s license directory: %w", strings.ToLower(category), err)
+		}
 	}
 
 	isGuifyMyScript := strings.EqualFold(strings.TrimSpace(appUUID), guifyMyScriptUUID)
@@ -33,7 +42,14 @@ func stageLicenseBundle(sourceDir, appDir, appUUID, appTitle, licenseType, sourc
 			return nil
 		}
 		relativePath := strings.TrimPrefix(path, "assets/LICENSES/")
-		if isGuifyMyScript && strings.EqualFold(filepath.ToSlash(relativePath), "Guify My Script MIT.txt") {
+		category := strings.SplitN(filepath.ToSlash(relativePath), "/", 2)[0]
+		if category != "Mandatory" && category != platform {
+			return nil
+		}
+		if strings.HasPrefix(entry.Name(), ".") {
+			return nil
+		}
+		if isGuifyMyScript && strings.EqualFold(filepath.Base(relativePath), "Guify My Script MIT.txt") {
 			return nil
 		}
 		contents, err := bundledLicenseFiles.ReadFile(path)
@@ -72,7 +88,10 @@ func stageLicenseBundle(sourceDir, appDir, appUUID, appTitle, licenseType, sourc
 	}
 	appLabel = safeLicenseFilenamePart(appLabel)
 	licenseType = safeLicenseFilenamePart(strings.TrimSpace(licenseType))
-	destination := filepath.Join(licenseDir, appLabel+" "+licenseType+".txt")
+	destination := filepath.Join(licenseDir, "Mandatory", appLabel+" "+licenseType+".txt")
+	if err := os.MkdirAll(filepath.Dir(destination), 0755); err != nil {
+		return fmt.Errorf("create application license directory: %w", err)
+	}
 	if err := os.WriteFile(destination, licenseContents, 0644); err != nil {
 		return fmt.Errorf("stage application license from %q: %w", licensePath, err)
 	}

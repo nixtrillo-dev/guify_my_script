@@ -3,8 +3,8 @@ The Qt Toolkit is Copyright (C) 2018 The Qt Company Ltd. and other contributors.
 
 This application uses Qt Core, Qt Gui, Qt Widgets, and Qt Network. The Qt libraries
 are distributed under the GNU Lesser General Public License version 3 (LGPLv3).
-The full LGPLv3 and GPLv3 texts are included in this directory.
+The full LGPLv3 and GPLv3 texts are included in the Mandatory directory.
 
 Other bundled Qt components and third-party runtime libraries may have additional
 license terms. Their package license files and declared license identifiers are
-included under "Windows runtime components" when those components are bundled.
+included under "Windows/Runtime components" when those components are bundled.

@@ -206,13 +206,6 @@ void MainWindow::openAboutDialog() {
     addDetail(QStringLiteral("Qt"), QStringLiteral("Build ") + QStringLiteral("TEMPLATE_ABOUT_QT_BUILD_VERSION") +
               QStringLiteral("; runtime ") + QString::fromLatin1(qVersion()));
 
-    QLabel *qtLicenseNotice = new QLabel(
-        QStringLiteral("Qt 6 is licensed under LGPLv3. See Licenses and Notices for details."),
-        &aboutDialog);
-    qtLicenseNotice->setStyleSheet(QStringLiteral("QLabel { color: %1; background: transparent; }")
-        .arg(isLightTheme() ? QStringLiteral("#5f6b76") : QStringLiteral("#b0b5b9")));
-    layout->addWidget(qtLicenseNotice);
-
     if (ABOUT_SOURCE_TYPE == QStringLiteral("javascript")) {
         addDetail(QStringLiteral("Node.js"), queryAboutVersion(QStringLiteral("node"), {QStringLiteral("--version")}));
     } else if (ABOUT_SOURCE_TYPE == QStringLiteral("powershell")) {
@@ -235,6 +228,33 @@ void MainWindow::openAboutDialog() {
     }
 
     layout->addLayout(details);
+
+    QFrame *thirdPartyNotices = new QFrame(&aboutDialog);
+    thirdPartyNotices->setObjectName(QStringLiteral("thirdPartyNotices"));
+    thirdPartyNotices->setStyleSheet(QStringLiteral(
+        "QFrame#thirdPartyNotices { background: transparent; border: 1px solid %1; border-radius: 4px; }"
+        "QLabel { background: transparent; border: none; color: %2; }")
+        .arg(isLightTheme() ? QStringLiteral("#d0d7de") : QStringLiteral("#3a3f44"),
+             isLightTheme() ? QStringLiteral("#5f6b76") : QStringLiteral("#b0b5b9")));
+    QVBoxLayout *thirdPartyNoticesLayout = new QVBoxLayout(thirdPartyNotices);
+    thirdPartyNoticesLayout->setContentsMargins(10, 7, 10, 8);
+    thirdPartyNoticesLayout->setSpacing(3);
+    QLabel *thirdPartyNoticesTitle = new QLabel(QStringLiteral("Third Party Notices"), thirdPartyNotices);
+    QFont thirdPartyNoticesTitleFont = thirdPartyNoticesTitle->font();
+    thirdPartyNoticesTitleFont.setBold(true);
+    thirdPartyNoticesTitle->setFont(thirdPartyNoticesTitleFont);
+    thirdPartyNoticesLayout->addWidget(thirdPartyNoticesTitle);
+
+    QString thirdPartyNoticesText = QStringLiteral("Qt 6 is licensed under LGPLv3.");
+#ifdef Q_OS_WIN
+    thirdPartyNoticesText += QStringLiteral(
+        " This Windows build bundles GLib under LGPLv2.1-or-later and GNU gettext's libintl under LGPLv2.0-or-later.");
+#endif
+    thirdPartyNoticesText += QStringLiteral(" See Licenses and Notices for the full terms.");
+    QLabel *thirdPartyNoticesBody = new QLabel(thirdPartyNoticesText, thirdPartyNotices);
+    thirdPartyNoticesBody->setWordWrap(true);
+    thirdPartyNoticesLayout->addWidget(thirdPartyNoticesBody);
+    layout->addWidget(thirdPartyNotices);
 
     QHBoxLayout *buttons = new QHBoxLayout();
     QPushButton *licenseButton = new QPushButton(QStringLiteral("Licenses and Notices"), &aboutDialog);
@@ -274,6 +294,10 @@ void MainWindow::openAboutDialog() {
             for (const QString &path : licensePaths) {
                 const QString relativePath = QDir(licensePath).relativeFilePath(path);
                 QString displayName = relativePath;
+                const qsizetype categorySeparator = displayName.indexOf(QLatin1Char('/'));
+                if (categorySeparator >= 0) {
+                    displayName.remove(0, categorySeparator + 1);
+                }
                 if (displayName.endsWith(QStringLiteral(".txt"), Qt::CaseInsensitive) ||
                     displayName.endsWith(QStringLiteral(".md"), Qt::CaseInsensitive)) {
                     displayName.chop(displayName.endsWith(QStringLiteral(".txt"), Qt::CaseInsensitive) ? 4 : 3);

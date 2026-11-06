@@ -221,7 +221,7 @@ func runBuildLoop(ctx BuildContext) error {
 			licenseAppDir = archAppDir
 		}
 		if err := stageLicenseBundle(ctx.BaseDir, licenseAppDir, ctx.RootConfig.Config.UUID,
-			ctx.RootConfig.Config.Title, configuredLicenseType(ctx.RootConfig.Deploy), licenseScriptPath); err != nil {
+			ctx.RootConfig.Config.Title, configuredLicenseType(ctx.RootConfig.Deploy), licenseScriptPath, "Linux"); err != nil {
 			return fmt.Errorf("stage license files for %s: %w", targetArch, err)
 		}
 
@@ -484,7 +484,7 @@ func buildWindowsGUI(ctx BuildContext) error {
 		return fmt.Errorf("create Windows payload directory: %w", err)
 	}
 	if err := stageLicenseBundle(ctx.BaseDir, outputDir, ctx.RootConfig.Config.UUID,
-		ctx.RootConfig.Config.Title, configuredLicenseType(ctx.RootConfig.Deploy), ctx.SourcePathWindowsAMD64); err != nil {
+		ctx.RootConfig.Config.Title, configuredLicenseType(ctx.RootConfig.Deploy), ctx.SourcePathWindowsAMD64, "Windows"); err != nil {
 		return fmt.Errorf("stage Windows license files: %w", err)
 	}
 	qtVersionCmd := exec.Command(engine, "run", "--rm", "--platform", "linux/amd64",
@@ -585,19 +585,23 @@ collect_runtime_license() {
   source_file=$1
   package=$(rpm -qf --qf '%{NAME}' "$source_file" 2>/dev/null || true)
   [ -n "$package" ] || return 0
-  component_dir="$output_dir/LICENSES/Windows runtime components/$package"
+  component_dir="$output_dir/LICENSES/Windows/Runtime components/$package"
   [ -d "$component_dir" ] && return 0
   mkdir -p "$component_dir"
   rpm -q --qf 'Component: %{NAME}\nDeclared license: %{LICENSE}\n' "$package" > "$component_dir/Component notice.txt"
   rpm -ql "$package" 2>/dev/null | while IFS= read -r license_file; do
     case "$license_file" in
       /usr/share/licenses/*)
-        [ -f "$license_file" ] || continue
         relative_license=${license_file#/usr/share/licenses/}
-        mkdir -p "$output_dir/LICENSES/Windows runtime components/$(dirname "$relative_license")"
-        cp "$license_file" "$output_dir/LICENSES/Windows runtime components/$relative_license"
         ;;
+      /usr/share/doc/*/LICENSE|/usr/share/doc/*/LICENSE.*|/usr/share/doc/*/COPYING|/usr/share/doc/*/COPYING.*|/usr/share/doc/*/NOTICE|/usr/share/doc/*/NOTICE.*)
+        relative_license=${license_file#/usr/share/doc/}
+        ;;
+      *) continue ;;
     esac
+    [ -f "$license_file" ] || continue
+    mkdir -p "$output_dir/LICENSES/Windows/Runtime components/$(dirname "$relative_license")"
+    cp "$license_file" "$output_dir/LICENSES/Windows/Runtime components/$relative_license"
   done
 }
 # Follow PE imports from the app and the plugins we explicitly deploy. This
@@ -641,6 +645,15 @@ case "$5" in
   .ico) copy_runtime_dll "$prefix/lib/qt6/plugins/imageformats/qico.dll" "$output_dir/imageformats" ;;
   .jpg|.jpeg) copy_runtime_dll "$prefix/lib/qt6/plugins/imageformats/qjpeg.dll" "$output_dir/imageformats" ;;
 esac
+openssl_component_dir="$output_dir/LICENSES/Windows/Runtime components/mingw64-openssl"
+if [ -d "$openssl_component_dir" ]; then
+  openssl_license="$output_dir/LICENSES/Windows/OpenSSL Apache-2.0.txt"
+  if [ ! -f "$openssl_license" ]; then
+    echo "OpenSSL runtime DLLs were bundled, but the bundled OpenSSL Apache-2.0 license is missing" >&2
+    exit 1
+  fi
+  cp "$openssl_license" "$openssl_component_dir/LICENSE.txt"
+fi
 `
 
 func copyWindowsContainerRuntime(sourceDir, destination string) error {
