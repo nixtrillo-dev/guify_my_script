@@ -203,6 +203,9 @@ void MainWindow::openAboutDialog() {
 #else
     addDetail(QStringLiteral("Platform"), QSysInfo::kernelType());
 #endif
+    if (QStringLiteral("TEMPLATE_ABOUT_GUIFY_VERSION") != QStringLiteral("")) {
+        addDetail(QStringLiteral("Guify My Script version"), QStringLiteral("TEMPLATE_ABOUT_GUIFY_VERSION"));
+    }
     addDetail(QStringLiteral("Qt"), QStringLiteral("Build ") + QStringLiteral("TEMPLATE_ABOUT_QT_BUILD_VERSION") +
               QStringLiteral("; runtime ") + QString::fromLatin1(qVersion()));
 

@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"guify_my_script/internal_utils"
 	"guify_my_script/logger"
 )
 
@@ -305,6 +306,16 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 		maintainer = "Unknown"
 	}
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_VERSION", cppStringLiteral(version))
+	guifyVersion := ""
+	if ctx.root.Config.UUID != "com.nixtrillo.guifymyscript" {
+		versionFromConfig, versionErr := internal_utils.GetGuifyMyScriptVersion()
+		guifyVersion = versionFromConfig
+		if versionErr != nil {
+			logger.Warn(logLevel, "Unable to read Guify My Script version: %v", versionErr)
+			guifyVersion = "Unknown"
+		}
+	}
+	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_GUIFY_VERSION", cppStringLiteral(guifyVersion))
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_RELEASE", cppStringLiteral(release))
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_BUILD_DATE", cppStringLiteral(time.Now().UTC().Format("Jan 2, 2006 15:04:05 UTC")))
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_MAINTAINER", cppStringLiteral(maintainer))
