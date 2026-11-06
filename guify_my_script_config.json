@@ -193,7 +193,8 @@
                         "Binary Output",
                         "Exclude Packages",
                         "Include Func Params",
-                        "Compile?"
+                        "Compile?",
+                        "Target Builds"
                     ],
                     "field_type": "FD",
                     "advanced_menu": false,

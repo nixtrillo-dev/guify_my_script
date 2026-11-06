@@ -1,3 +1,40 @@
+static void prepareSettingsFileDialog(QFileDialog &dialog) {
+    prepareAppFileDialog(&dialog);
+}
+
+static QString chooseSettingsFile(QWidget *parent, const QString &caption,
+                                  const QString &startDirectory) {
+    QFileDialog dialog(parent, caption, startDirectory);
+    prepareSettingsFileDialog(dialog);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    if (dialog.exec() != QDialog::Accepted) return QString();
+    const QStringList files = dialog.selectedFiles();
+    return files.isEmpty() ? QString() : files.first();
+}
+
+static QStringList chooseSettingsFiles(QWidget *parent, const QString &caption,
+                                       const QString &startDirectory) {
+    QFileDialog dialog(parent, caption, startDirectory);
+    prepareSettingsFileDialog(dialog);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setFileMode(QFileDialog::ExistingFiles);
+    if (dialog.exec() != QDialog::Accepted) return {};
+    return dialog.selectedFiles();
+}
+
+static QString chooseSettingsDirectory(QWidget *parent, const QString &caption,
+                                       const QString &startDirectory) {
+    QFileDialog dialog(parent, caption, startDirectory);
+    prepareSettingsFileDialog(dialog);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setFileMode(QFileDialog::Directory);
+    dialog.setOption(QFileDialog::ShowDirsOnly, true);
+    if (dialog.exec() != QDialog::Accepted) return QString();
+    const QStringList directories = dialog.selectedFiles();
+    return directories.isEmpty() ? QString() : directories.first();
+}
+
 void MainWindow::openSettingsEditor() {
     if (m_settingsDialog) {
         m_settingsDialog->raise();
@@ -101,6 +138,7 @@ void MainWindow::openSettingsEditor() {
                 QListView *lv = new QListView(cb);
                 lv->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
                 cb->setView(lv);
+                applyItemViewSelectionStyle(lv);
 
 				cb->setStyleSheet(comboPopupStyle);
 				lv->setStyleSheet(comboPopupStyle);
@@ -217,13 +255,13 @@ void MainWindow::openSettingsEditor() {
 
                 QPushButton *btnFile = new QPushButton("📄 File");
                 connect(btnFile, &QPushButton::clicked, [this, le]() {
-                    QString f = QFileDialog::getOpenFileName(this, "Select File", le->text());
+                    QString f = chooseSettingsFile(this, "Select File", le->text());
                     if(!f.isEmpty()) le->setText(f);
                 });
 
                 QPushButton *btnDir = new QPushButton("📁 Folder");
                 connect(btnDir, &QPushButton::clicked, [this, le]() {
-                    QString d = QFileDialog::getExistingDirectory(this, "Select Folder", le->text());
+                    QString d = chooseSettingsDirectory(this, "Select Folder", le->text());
                     if(!d.isEmpty()) le->setText(d);
                 });
 
@@ -244,17 +282,17 @@ void MainWindow::openSettingsEditor() {
                 QPushButton *btn = new QPushButton("Browse");
                 if (fType == "DIR") {
                     connect(btn, &QPushButton::clicked, [this, le]() {
-                        QString d = QFileDialog::getExistingDirectory(this, "Select Folder", le->text());
+                        QString d = chooseSettingsDirectory(this, "Select Folder", le->text());
                         if(!d.isEmpty()) le->setText(d);
                     });
                 } else if (fType == "FL") {
                     connect(btn, &QPushButton::clicked, [this, le]() {
-                        QString f = QFileDialog::getOpenFileName(this, "Select File", le->text());
+                        QString f = chooseSettingsFile(this, "Select File", le->text());
                         if(!f.isEmpty()) le->setText(f);
                     });
                 } else {
                     connect(btn, &QPushButton::clicked, [this, le]() {
-                        QStringList fs = QFileDialog::getOpenFileNames(this, "Select Files", le->text());
+                        QStringList fs = chooseSettingsFiles(this, "Select Files", le->text());
                         if(!fs.isEmpty()) le->setText(joinCsvValues(fs));
                     });
                 }

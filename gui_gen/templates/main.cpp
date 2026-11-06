@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
     QIcon appIcon;
     QString iconPath = "TEMPLATE_ICON_RAW_PATH";
 #ifdef Q_OS_WIN
-    const QString windowsAppDir = QCoreApplication::applicationDirPath();
+    const QString windowsAppDir = applicationInstallDirectory();
     for (const QString &suffix : {QStringLiteral("png"), QStringLiteral("ico"), QStringLiteral("svg"), QStringLiteral("jpg"), QStringLiteral("jpeg")}) {
         const QString bundledWindowsIcon = windowsAppDir + "/app_icon." + suffix;
         if (QFile::exists(bundledWindowsIcon)) {

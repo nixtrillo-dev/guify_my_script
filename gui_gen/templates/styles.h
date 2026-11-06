@@ -86,7 +86,211 @@ static QString appComboPopupStyle() {
         "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; background: %6; border: none; }"
         "QScrollBar::up-arrow:vertical, QScrollBar::down-arrow:vertical { background: transparent; border: none; width: 0px; height: 0px; }"
         "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical { background: %7; border: none; }"
-    ).arg(themeVal("#23272a", "#ffffff"), themeVal("#3a3f44", "#c9d1d9"), themeVal("#ffffff", "#202124"), themeVal("#2a2e32", "#f6f8fa"), themeVal("#2c3135", "#cfe3ff"), themeVal("#1b1e20", "#f6f8fa"), themeVal("#2b2b2b", "#eaeef2"), themeVal("#ffffff", "#202124"));
+    ).arg(themeVal("#23272a", "#ffffff"), themeVal("#3a3f44", "#c9d1d9"), themeVal("#ffffff", "#202124"), themeVal("#2a2e32", "#f6f8fa"), themeVal("#3a3f44", "#cfe3ff"), themeVal("#1b1e20", "#f6f8fa"), themeVal("#2b2b2b", "#eaeef2"), themeVal("#ffffff", "#202124"));
+}
+
+static void drawAppComboArrow(QPainter *painter, const QRect &bounds, bool up, const QColor &color) {
+    if (!painter || bounds.isEmpty()) return;
+    const int width = 7;
+    const int height = 4;
+    const int left = bounds.center().x() - width / 2;
+    const int top = bounds.center().y() - height / 2;
+    QPolygon triangle;
+    if (up) {
+        triangle << QPoint(left, top + height) << QPoint(left + width, top + height)
+                 << QPoint(left + width / 2, top);
+    } else {
+        triangle << QPoint(left, top) << QPoint(left + width, top)
+                 << QPoint(left + width / 2, top + height);
+    }
+    painter->save();
+    painter->setPen(Qt::NoPen);
+    painter->setBrush(color);
+    painter->drawPolygon(triangle);
+    painter->restore();
+}
+
+class AppComboArrowOverlay final : public QWidget {
+public:
+    explicit AppComboArrowOverlay(QComboBox *comboBox) : QWidget(comboBox), m_comboBox(comboBox) {
+        setObjectName(QStringLiteral("AppComboArrowOverlay"));
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        setAttribute(Qt::WA_NoSystemBackground);
+        setAutoFillBackground(false);
+        if (m_comboBox) {
+            m_comboBox->installEventFilter(this);
+            m_view = m_comboBox->view();
+            if (m_view) {
+                m_view->installEventFilter(this);
+            }
+            m_popupOpen = m_view && m_view->isVisible();
+            updateGeometryFromCombo();
+        }
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override {
+        if (m_comboBox && watched == m_comboBox.data() &&
+            (event->type() == QEvent::Resize || event->type() == QEvent::Show ||
+             event->type() == QEvent::StyleChange)) {
+            updateGeometryFromCombo();
+        } else if (m_comboBox && watched == m_comboBox.data() &&
+                   (event->type() == QEvent::Enter || event->type() == QEvent::Leave ||
+                    event->type() == QEvent::FocusIn || event->type() == QEvent::FocusOut)) {
+            update();
+        } else if (m_view && watched == m_view.data()) {
+            if (event->type() == QEvent::Show || event->type() == QEvent::Hide) {
+                m_popupOpen = event->type() == QEvent::Show;
+                update();
+            }
+        }
+        return QWidget::eventFilter(watched, event);
+    }
+
+    void paintEvent(QPaintEvent *) override {
+        QPainter painter(this);
+        const QColor color(m_comboBox && !m_comboBox->isEnabled()
+            ? themeVal("#7f8c8d", "#8c959f")
+            : themeVal("#b0b5b9", "#5f6b76"));
+        drawAppComboArrow(&painter, rect(), m_popupOpen, color);
+    }
+
+private:
+    void updateGeometryFromCombo() {
+        if (!m_comboBox) return;
+        setGeometry(m_comboBox->width() - 24, 0, 24, m_comboBox->height());
+        raise();
+        update();
+    }
+
+    QPointer<QComboBox> m_comboBox;
+    QPointer<QAbstractItemView> m_view;
+    bool m_popupOpen = false;
+};
+
+static void installAppComboArrowOverlay(QComboBox *comboBox) {
+    if (!comboBox || comboBox->findChild<QWidget *>(QStringLiteral("AppComboArrowOverlay"))) return;
+    new AppComboArrowOverlay(comboBox);
+}
+
+class AppComboBoxItemDelegate final : public QStyledItemDelegate {
+public:
+    using QStyledItemDelegate::QStyledItemDelegate;
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override {
+        const bool highlighted = option.state.testFlag(QStyle::State_MouseOver) ||
+                                 option.state.testFlag(QStyle::State_Selected);
+        if (!highlighted) {
+            QStyledItemDelegate::paint(painter, option, index);
+            return;
+        }
+
+        painter->save();
+        painter->fillRect(option.rect, isLightTheme() ? QColor("#cfe3ff") : QColor("#3a3f44"));
+        painter->setFont(option.font);
+        painter->setPen(isLightTheme() ? QColor("#202124") : QColor("#ffffff"));
+        int contentLeft = option.rect.left() + 8;
+        const QIcon icon = qvariant_cast<QIcon>(index.data(Qt::DecorationRole));
+        if (!icon.isNull()) {
+            const QSize iconSize = option.decorationSize.isValid() ? option.decorationSize : QSize(16, 16);
+            const QRect iconRect(contentLeft, option.rect.center().y() - iconSize.height() / 2,
+                                 iconSize.width(), iconSize.height());
+            icon.paint(painter, iconRect);
+            contentLeft = iconRect.right() + 6;
+        }
+        painter->drawText(QRect(contentLeft, option.rect.top(), option.rect.right() - contentLeft - 4,
+                                option.rect.height()), Qt::AlignLeft | Qt::AlignVCenter,
+                          index.data(Qt::DisplayRole).toString());
+        painter->restore();
+    }
+};
+
+static void applyItemViewSelectionStyle(QAbstractItemView *view) {
+    if (!view) return;
+    view->setMouseTracking(true);
+    view->viewport()->setAttribute(Qt::WA_Hover, true);
+    if (!dynamic_cast<AppComboBoxItemDelegate *>(view->itemDelegate())) {
+        view->setItemDelegate(new AppComboBoxItemDelegate(view));
+    }
+}
+
+static void applyComboBoxPopupStyle(QComboBox *comboBox) {
+    if (!comboBox || !comboBox->view()) return;
+    comboBox->view()->setStyleSheet(appComboPopupStyle());
+    comboBox->view()->viewport()->setStyleSheet(appComboViewportStyle());
+    applyItemViewSelectionStyle(comboBox->view());
+    if (comboBox->view()->parentWidget()) {
+        comboBox->view()->parentWidget()->setStyleSheet(appComboPopupStyle());
+        comboBox->view()->parentWidget()->setAttribute(Qt::WA_StyledBackground, true);
+    }
+}
+
+static void prepareAppFileDialog(QFileDialog *dialog) {
+    if (!dialog) return;
+#ifdef Q_OS_LINUX
+    dialog->setOption(QFileDialog::DontUseNativeDialog, true);
+    dialog->setSizeGripEnabled(false);
+    dialog->setStyleSheet(QStringLiteral("QFileDialog { background-color: %1; color: %2; }")
+        .arg(themeVal("#1b1e20", "#f6f8fa"), themeVal("#ffffff", "#202124")));
+    for (QComboBox *combo : dialog->findChildren<QComboBox *>()) {
+        combo->setMouseTracking(true);
+        combo->setAttribute(Qt::WA_Hover, true);
+        installAppComboArrowOverlay(combo);
+        combo->setStyleSheet(QString(
+            "QComboBox { background-color: %1; color: %2; border: 1px solid %3; padding: 4px 24px 4px 5px; }"
+            "QComboBox:hover, QComboBox:focus { border: 1px solid #10a37f; }"
+            "QComboBox::drop-down { subcontrol-origin: padding; subcontrol-position: top right; width: 22px; border-left: 1px solid %3; background-color: %4; }"
+            "QComboBox::drop-down:hover { background-color: %3; }"
+        ).arg(themeVal("#23272a", "#ffffff"), themeVal("#ffffff", "#202124"),
+              themeVal("#3a3f44", "#c9d1d9"), themeVal("#2a2e32", "#f6f8fa")));
+        applyComboBoxPopupStyle(combo);
+    }
+    for (QLineEdit *lineEdit : dialog->findChildren<QLineEdit *>()) {
+        if (QCompleter *completer = lineEdit->completer()) {
+            if (QAbstractItemView *popup = completer->popup()) {
+                popup->setStyleSheet(appComboPopupStyle());
+                popup->viewport()->setStyleSheet(appComboViewportStyle());
+                applyItemViewSelectionStyle(popup);
+            }
+        }
+    }
+#endif
+}
+
+static QString chooseAppOpenFile(QWidget *parent, const QString &caption,
+                                 const QString &directory, const QString &filter = QString()) {
+    QFileDialog dialog(parent, caption, directory);
+    prepareAppFileDialog(&dialog);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setFileMode(QFileDialog::ExistingFile);
+    if (!filter.isEmpty()) dialog.setNameFilter(filter);
+    if (dialog.exec() != QDialog::Accepted) return QString();
+    const QStringList files = dialog.selectedFiles();
+    return files.isEmpty() ? QString() : files.first();
+}
+
+static QStringList chooseAppOpenFiles(QWidget *parent, const QString &caption,
+                                      const QString &directory, const QString &filter = QString()) {
+    QFileDialog dialog(parent, caption, directory);
+    prepareAppFileDialog(&dialog);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setFileMode(QFileDialog::ExistingFiles);
+    if (!filter.isEmpty()) dialog.setNameFilter(filter);
+    if (dialog.exec() != QDialog::Accepted) return {};
+    return dialog.selectedFiles();
+}
+
+static QString chooseAppDirectory(QWidget *parent, const QString &caption,
+                                  const QString &directory) {
+    QFileDialog dialog(parent, caption, directory);
+    prepareAppFileDialog(&dialog);
+    dialog.setAcceptMode(QFileDialog::AcceptOpen);
+    dialog.setFileMode(QFileDialog::Directory);
+    dialog.setOption(QFileDialog::ShowDirsOnly, true);
+    if (dialog.exec() != QDialog::Accepted) return QString();
+    const QStringList directories = dialog.selectedFiles();
+    return directories.isEmpty() ? QString() : directories.first();
 }
 
 static QString appMcbStyle() {

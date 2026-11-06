@@ -6,12 +6,10 @@
 package gui_gen
 
 import (
-	_ "embed"
+	"embed"
 	"encoding/csv"
 	"fmt"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -61,6 +59,9 @@ var cppTemplateDialogs string
 
 //go:embed templates/about.cpp
 var cppTemplateAbout string
+
+//go:embed all:assets/LICENSES
+var bundledLicenseFiles embed.FS
 
 //go:embed templates/settings_dialog.cpp
 var cppTemplateSettingsDialog string
@@ -186,9 +187,9 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	sourceScriptExpr := fmt.Sprintf("QStringLiteral(\"%s\")", cppStringLiteral(sourceScriptPath))
 	sourceScriptWindowsExpr := fmt.Sprintf("QStringLiteral(\"%s\")", cppStringLiteral(sourceScriptWindowsPath))
 	if ctx.compileMode == "production" {
-		sourceScriptExpr = fmt.Sprintf("QCoreApplication::applicationDirPath() + QStringLiteral(\"/%s\")", cppStringLiteral(ctx.bundledSourceName))
+		sourceScriptExpr = fmt.Sprintf("applicationInstallDirectory() + QStringLiteral(\"/%s\")", cppStringLiteral(ctx.bundledSourceName))
 		windowsBundleName := windowsBundledSourceName(ctx.bundledSourceName, ctx.root.Config.SourceType)
-		sourceScriptWindowsExpr = fmt.Sprintf("QCoreApplication::applicationDirPath() + QStringLiteral(\"/%s\")", cppStringLiteral(windowsBundleName))
+		sourceScriptWindowsExpr = fmt.Sprintf("applicationInstallDirectory() + QStringLiteral(\"/%s\")", cppStringLiteral(windowsBundleName))
 	}
 
 	var cpp strings.Builder
@@ -291,12 +292,6 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	if output, err := exec.Command("git", "-C", ctx.baseDir, "rev-parse", "HEAD").Output(); err == nil {
 		commitHash = strings.TrimSpace(string(output))
 	}
-	licenseText, licenseErr := os.ReadFile(filepath.Join(ctx.baseDir, "LICENSE.txt"))
-	licenseAvailable := licenseErr == nil
-	licenseAvailableValue := "false"
-	if licenseAvailable {
-		licenseAvailableValue = "true"
-	}
 	version := ctx.root.Deploy.Version
 	if version == "" {
 		version = "Unknown"
@@ -318,8 +313,6 @@ func GenerateUI(configPath, compileMode, logLevelStr string, clearCache bool, ta
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_DYNAMIC_ENDPOINT_SOURCE_TYPE", cppStringLiteral(ctx.root.Config.SourceType))
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_JAVASCRIPT_NODE_RUNNER", cppStringLiteral(javascriptNodeRunner))
 	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_PYTHON_ENDPOINT_RUNNER", cppStringLiteral(pythonEndpointRunner))
-	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_LICENSE_TEXT", cppStringLiteral(string(licenseText)))
-	finalSource = strings.ReplaceAll(finalSource, "TEMPLATE_ABOUT_LICENSE_AVAILABLE", licenseAvailableValue)
 
 	// Set a default theme color if one is not provided in the JSON
 	themeColor := strings.ToLower(strings.TrimSpace(ctx.root.Config.Theme.Color))

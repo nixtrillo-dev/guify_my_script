@@ -145,6 +145,7 @@ func buildExecutionLambda(action UIAction, label, actIdxStr, fieldsArrName, sour
         env.remove("QT_QPA_PLATFORMTHEME");
         env.remove("QT_STYLE_OVERRIDE");
         proc->setProcessEnvironment(env);
+        proc->setWorkingDirectory(appWorkingDirectoryFor(SOURCE_SCRIPT));
         `)
 
 	if isAttached {

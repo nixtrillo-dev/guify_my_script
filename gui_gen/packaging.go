@@ -26,6 +26,24 @@ func contains(slice []string, item string) bool {
 	return false
 }
 
+func writeLinuxQtBuildVersionFiles(stageDir, version string) error {
+	version = strings.TrimSpace(version)
+	if version == "" {
+		return fmt.Errorf("Qt build version cannot be empty")
+	}
+	contents := []byte(version + "\n")
+	for _, distro := range []string{"arch", "debian", "fedora"} {
+		distroDir := filepath.Join(stageDir, distro)
+		if err := os.MkdirAll(distroDir, 0755); err != nil {
+			return fmt.Errorf("create %s package directory: %w", distro, err)
+		}
+		if err := os.WriteFile(filepath.Join(distroDir, "qt-build-version.txt"), contents, 0644); err != nil {
+			return fmt.Errorf("write %s Qt build version: %w", distro, err)
+		}
+	}
+	return nil
+}
+
 // writeProductionPackageFiles generates the necessary staging files for Arch, Debian, and Fedora.
 func writeProductionPackageFiles(stageDir, packageName, title, iconName string, deploy DeployConfig, targetArch string, requiresPython bool, requiresJavascript bool, runtimeFlags ...bool) error {
 	debDir := filepath.Join(stageDir, "debian")

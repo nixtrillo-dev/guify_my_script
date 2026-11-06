@@ -1,6 +1,7 @@
 // Helper to centralize script execution for JSON endpoints
 QJsonDocument MainWindow::fetchJsonEndpoint(const QStringList& endpointArgs, const QString& targetScript) {
     if (endpointArgs.isEmpty()) return QJsonDocument();
+    const QString resolvedTargetScript = resolveAppRelativePath(targetScript);
 
     // ---> INTERCEPT INTERNAL ARRAYS <---
     bool isQuickLaunch = false;
@@ -15,7 +16,7 @@ QJsonDocument MainWindow::fetchJsonEndpoint(const QStringList& endpointArgs, con
         QJsonArray arr;
 
         // Get the application path exactly as done in buildQuickLaunchRows
-        QString triggerPath = QCoreApplication::applicationFilePath();
+        QString triggerPath = applicationExecutablePath();
         triggerPath.replace("\"", "\\\"");
 
         for (const QString& key : m_quickActions.keys()) {
@@ -34,6 +35,7 @@ QJsonDocument MainWindow::fetchJsonEndpoint(const QStringList& endpointArgs, con
     }
 
     QProcess proc;
+    proc.setWorkingDirectory(appWorkingDirectoryFor(resolvedTargetScript));
     if (QStringLiteral("TEMPLATE_DYNAMIC_ENDPOINT_SOURCE_TYPE") == QStringLiteral("javascript")) {
         // JavaScript source files are loaded through Node, just like regular
         // actions. The endpoint's first argument is the exported function name;
@@ -41,7 +43,7 @@ QJsonDocument MainWindow::fetchJsonEndpoint(const QStringList& endpointArgs, con
         QStringList jsArgs;
         jsArgs << QStringLiteral("--input-type=module") << QStringLiteral("-e")
                << QString::fromUtf8("TEMPLATE_JAVASCRIPT_NODE_RUNNER")
-               << targetScript << endpointArgs.first();
+               << resolvedTargetScript << endpointArgs.first();
         for (int i = 1; i < endpointArgs.size(); ++i) {
             QJsonArray encodedArgArray;
             encodedArgArray.append(endpointArgs.at(i));
@@ -58,14 +60,14 @@ QJsonDocument MainWindow::fetchJsonEndpoint(const QStringList& endpointArgs, con
         QStringList pyArgs;
         pyArgs << QStringLiteral("-u") << QStringLiteral("-c")
                << QString::fromUtf8("TEMPLATE_PYTHON_ENDPOINT_RUNNER")
-               << targetScript << endpointArgs.first();
+               << resolvedTargetScript << endpointArgs.first();
         for (int i = 1; i < endpointArgs.size(); ++i) pyArgs << endpointArgs.at(i);
         proc.start(python, pyArgs);
     } else if (QStringLiteral("TEMPLATE_DYNAMIC_ENDPOINT_SOURCE_TYPE") == QStringLiteral("powershell")) {
         QJsonObject payload;
         QJsonArray callArgs;
         for (int i = 1; i < endpointArgs.size(); ++i) callArgs.append(endpointArgs.at(i));
-        payload.insert(QStringLiteral("script"), targetScript);
+        payload.insert(QStringLiteral("script"), resolvedTargetScript);
         payload.insert(QStringLiteral("function"), endpointArgs.first());
         payload.insert(QStringLiteral("args"), callArgs);
         const QByteArray encodedPayload = QJsonDocument(payload).toJson(QJsonDocument::Compact).toBase64();
@@ -86,11 +88,11 @@ QJsonDocument MainWindow::fetchJsonEndpoint(const QStringList& endpointArgs, con
         QStringList bashArgs;
         bashArgs << QStringLiteral("-c")
                  << QStringLiteral("source \"$0\" || exit; fn=\"$1\"; shift; \"$fn\" \"$@\"")
-                 << targetScript << endpointArgs.first();
+                 << resolvedTargetScript << endpointArgs.first();
         for (int i = 1; i < endpointArgs.size(); ++i) bashArgs << endpointArgs.at(i);
         proc.start(QStringLiteral("bash"), bashArgs);
     } else {
-        proc.start(targetScript, endpointArgs);
+        proc.start(resolvedTargetScript, endpointArgs);
     }
     if (proc.waitForFinished(3000)) {
         return QJsonDocument::fromJson(proc.readAllStandardOutput());

@@ -106,6 +106,9 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    listView_%s->viewport()->setStyleSheet(appComboViewportStyle());\n", varSuffix))
 
 		cpp.WriteString(fmt.Sprintf("    cb_%s->setView(listView_%s);\n", varSuffix, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    cb_%s->setStyleSheet(appComboPopupStyle());\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("    listView_%s->setStyleSheet(appComboPopupStyle());\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("    applyItemViewSelectionStyle(listView_%s);\n", varSuffix))
 
 		cpp.WriteString(fmt.Sprintf("    if (cb_%s->view() && cb_%s->view()->parentWidget()) {\n", varSuffix, varSuffix))
 		cpp.WriteString(fmt.Sprintf("        cb_%s->view()->parentWidget()->setMaximumHeight(QGuiApplication::primaryScreen()->geometry().height() / 4);\n", varSuffix))
@@ -228,7 +231,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 
 		// Connect File Button
 		cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, fd_%s]() {\n", cppFileBtn, varSuffix))
-		cpp.WriteString(fmt.Sprintf("        QString f = QFileDialog::getOpenFileName(this, \"Select File\", fd_%s->text(), %s);\n", varSuffix, filterArg))
+		cpp.WriteString(fmt.Sprintf("        QString f = chooseAppOpenFile(this, \"Select File\", fd_%s->text(), %s);\n", varSuffix, filterArg))
 		cpp.WriteString(fmt.Sprintf("        if(!f.isEmpty()) {\n"))
 		cpp.WriteString(fmt.Sprintf("            fd_%s->setText(f);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("            emit fd_%s->editingFinished();\n", varSuffix))
@@ -237,7 +240,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 
 		// Connect Directory Button
 		cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, fd_%s]() {\n", cppDirBtn, varSuffix))
-		cpp.WriteString(fmt.Sprintf("        QString d = QFileDialog::getExistingDirectory(this, \"Select Folder\", fd_%s->text());\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("        QString d = chooseAppDirectory(this, \"Select Folder\", fd_%s->text());\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("        if(!d.isEmpty()) {\n"))
 		cpp.WriteString(fmt.Sprintf("            fd_%s->setText(d);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("            emit fd_%s->editingFinished();\n", varSuffix))
@@ -261,7 +264,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    %s.push_back({dir_%s, \"DIR\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = dir_%[3]s;\n", label, field.Name, varSuffix))
 		cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, dir_%s]() {\n", cppDirBtn, varSuffix))
-		cpp.WriteString(fmt.Sprintf("        QString d = QFileDialog::getExistingDirectory(this, \"Select Folder\", dir_%s->text());\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("        QString d = chooseAppDirectory(this, \"Select Folder\", dir_%s->text());\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("        if(!d.isEmpty()) {\n"))
 		cpp.WriteString(fmt.Sprintf("            dir_%s->setText(d);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("            emit dir_%s->editingFinished();\n", varSuffix))
@@ -285,7 +288,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = fl_%[3]s;\n", label, field.Name, varSuffix))
 		if field.GetFieldType() == "FL" {
 			cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, fl_%s]() {\n", cppFlBtn, varSuffix))
-			cpp.WriteString(fmt.Sprintf("        QString f = QFileDialog::getOpenFileName(this, \"Select File\", fl_%s->text(), %s);\n", varSuffix, filterArg))
+			cpp.WriteString(fmt.Sprintf("        QString f = chooseAppOpenFile(this, \"Select File\", fl_%s->text(), %s);\n", varSuffix, filterArg))
 			cpp.WriteString(fmt.Sprintf("        if(!f.isEmpty()) {\n"))
 			cpp.WriteString(fmt.Sprintf("            fl_%s->setText(f);\n", varSuffix))
 			cpp.WriteString(fmt.Sprintf("            emit fl_%s->editingFinished();\n", varSuffix))
@@ -293,7 +296,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 			cpp.WriteString("    });\n")
 		} else {
 			cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, fl_%s]() {\n", cppFlBtn, varSuffix))
-			cpp.WriteString(fmt.Sprintf("        QStringList fs = QFileDialog::getOpenFileNames(this, \"Select Files\", fl_%s->text(), %s);\n", varSuffix, filterArg))
+			cpp.WriteString(fmt.Sprintf("        QStringList fs = chooseAppOpenFiles(this, \"Select Files\", fl_%s->text(), %s);\n", varSuffix, filterArg))
 			cpp.WriteString(fmt.Sprintf("        if(!fs.isEmpty()) {\n"))
 			cpp.WriteString(fmt.Sprintf("            fl_%s->setText(joinCsvValues(fs));\n", varSuffix))
 			cpp.WriteString(fmt.Sprintf("            emit fl_%s->editingFinished();\n", varSuffix))
@@ -320,6 +323,7 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		// Connect the Save File Button
 		cpp.WriteString(fmt.Sprintf("    connect(%s, &QPushButton::clicked, [this, fs_%s]() {\n", cppFsBtn, varSuffix))
 		cpp.WriteString(fmt.Sprintf("        QFileDialog dialog(this, \"Save File\", fs_%s->text());\n", varSuffix))
+		cpp.WriteString("        prepareAppFileDialog(&dialog);\n")
 		cpp.WriteString("        dialog.setAcceptMode(QFileDialog::AcceptSave);\n")
 
 		if filterArg != `""` {

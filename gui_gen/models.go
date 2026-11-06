@@ -290,6 +290,7 @@ type DeployConfig struct {
 	ReleaseNumber string             `json:"release_number,omitempty"`
 	Summary       string             `json:"summary,omitempty"`
 	License       string             `json:"license,omitempty"`
+	Licence       string             `json:"licence,omitempty"`
 	Maintainer    string             `json:"maintainer,omitempty"`
 	SupportEmail  string             `json:"support_email,omitempty"`
 	Dependencies  []DeployDependency `json:"dependencies,omitempty"`

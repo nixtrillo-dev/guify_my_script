@@ -128,14 +128,7 @@ void MainWindow::refreshThemedOverrides() {
     }
 
     for (QComboBox *comboBox : findChildren<QComboBox*>()) {
-        if (comboBox->view()) {
-            comboBox->view()->setStyleSheet(appComboPopupStyle());
-            comboBox->view()->viewport()->setStyleSheet(appComboViewportStyle());
-            if (comboBox->view()->parentWidget()) {
-                comboBox->view()->parentWidget()->setStyleSheet(appComboPopupStyle());
-                comboBox->view()->parentWidget()->setAttribute(Qt::WA_StyledBackground, true);
-            }
-        }
+        applyComboBoxPopupStyle(comboBox);
     }
 
     for (QWidget *widget : findChildren<QWidget*>()) {

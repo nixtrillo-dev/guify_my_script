@@ -41,7 +41,7 @@ func buildQuickLaunchRows(actions []UIAction) string {
     triggerCommandLayout_%[1]d->setContentsMargins(0, 0, 0, 0);
     triggerCommandLayout_%[1]d->setSpacing(8);
 
-    QString triggerPath_%[1]d = QCoreApplication::applicationFilePath();
+    QString triggerPath_%[1]d = applicationExecutablePath();
     QString triggerName_%[1]d = "%[2]s";
     triggerPath_%[1]d.replace("\"", "\\\"");
     triggerName_%[1]d.replace("\"", "\\\"");

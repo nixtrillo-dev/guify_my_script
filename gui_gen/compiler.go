@@ -212,9 +212,17 @@ func runBuildLoop(ctx BuildContext) error {
 		} else {
 			_ = os.MkdirAll(archOutputDir, 0755)
 		}
-
-		if err := os.WriteFile(archCppFile, []byte(ctx.FinalSourceCode), 0644); err != nil {
-			return fmt.Errorf("failed creating source file for %s: %w", targetArch, err)
+		licenseAppDir := archOutputDir
+		licenseScriptPath := ctx.SourcePathLinuxAMD64
+		if targetArch == "linux_aarch64" || targetArch == "arm64" || targetArch == "aarch64" {
+			licenseScriptPath = ctx.SourcePathLinuxAArch64
+		}
+		if ctx.CompileMode == "production" {
+			licenseAppDir = archAppDir
+		}
+		if err := stageLicenseBundle(ctx.BaseDir, licenseAppDir, ctx.RootConfig.Config.UUID,
+			ctx.RootConfig.Config.Title, configuredLicenseType(ctx.RootConfig.Deploy), licenseScriptPath); err != nil {
+			return fmt.Errorf("stage license files for %s: %w", targetArch, err)
 		}
 
 		// --- CONTAINER SETUP & COMPILATION ---
@@ -271,6 +279,26 @@ func runBuildLoop(ctx BuildContext) error {
 			return fmt.Errorf("failed resolving pkg-config inside %s container: %w: %s", builderTag, err, strings.TrimSpace(string(pkgOut)))
 		}
 		pkgFlags := strings.TrimSpace(string(pkgOut))
+		qtPackage := "qt6-base-dev"
+		if strings.Contains(pkgConfigEnv, "aarch64-linux-gnu") {
+			qtPackage += ":arm64"
+		} else if strings.Contains(pkgConfigEnv, "x86_64-linux-gnu") {
+			qtPackage += ":amd64"
+		}
+		qtVersionCmd := exec.Command(containerEngine, "run", "--rm", "--platform", platform,
+			builderTag, "sh", "-c", "dpkg-query -W -f='${Version}' "+qtPackage)
+		qtVersionOut, err := qtVersionCmd.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("failed resolving Qt package version inside %s container: %w: %s", builderTag, err, strings.TrimSpace(string(qtVersionOut)))
+		}
+		qtBuildVersion := strings.TrimSpace(string(qtVersionOut))
+		if qtBuildVersion == "" {
+			return fmt.Errorf("Qt build version was empty for %s", targetArch)
+		}
+		generatedSource := strings.ReplaceAll(ctx.FinalSourceCode, "TEMPLATE_ABOUT_QT_BUILD_VERSION", cppStringLiteral(qtBuildVersion))
+		if err := os.WriteFile(archCppFile, []byte(generatedSource), 0644); err != nil {
+			return fmt.Errorf("failed creating source file for %s: %w", targetArch, err)
+		}
 
 		// 4. Compile binary inside the container
 		compileCmdStr := fmt.Sprintf(
@@ -289,6 +317,9 @@ func runBuildLoop(ctx BuildContext) error {
 		}
 
 		if ctx.CompileMode == "production" {
+			if err := os.WriteFile(filepath.Join(archAppDir, "qt-build-version.txt"), []byte(qtBuildVersion+"\n"), 0644); err != nil {
+				return fmt.Errorf("write Qt build version for %s: %w", targetArch, err)
+			}
 			// --- PRODUCTION ASSET BUNDLING ---
 			actualSourcePath := ""
 			if targetArch == "linux_amd64" || targetArch == "amd64" {
@@ -376,6 +407,9 @@ func runBuildLoop(ctx BuildContext) error {
 			if err := writeProductionPackageFiles(archStageDir, ctx.PackageName, ctx.RootConfig.Config.Title, ctx.IconName, ctx.RootConfig.Deploy, targetArch, ctx.RootConfig.Config.SourceType == "python", ctx.RootConfig.Config.SourceType == "javascript", ctx.RootConfig.Config.SourceType == "powershell"); err != nil {
 				return fmt.Errorf("failed writing package metadata for %s: %w", targetArch, err)
 			}
+			if err := writeLinuxQtBuildVersionFiles(archStageDir, qtBuildVersion); err != nil {
+				return fmt.Errorf("write Qt build version files for %s: %w", targetArch, err)
+			}
 
 			logger.Info(ctx.LogLevel, "Production %s package successfully staged at %s", targetArch, archStageDir)
 
@@ -449,6 +483,20 @@ func buildWindowsGUI(ctx BuildContext) error {
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
 		return fmt.Errorf("create Windows payload directory: %w", err)
 	}
+	if err := stageLicenseBundle(ctx.BaseDir, outputDir, ctx.RootConfig.Config.UUID,
+		ctx.RootConfig.Config.Title, configuredLicenseType(ctx.RootConfig.Deploy), ctx.SourcePathWindowsAMD64); err != nil {
+		return fmt.Errorf("stage Windows license files: %w", err)
+	}
+	qtVersionCmd := exec.Command(engine, "run", "--rm", "--platform", "linux/amd64",
+		setup_utils.WindowsQtGUIImage(), "rpm", "-q", "--qf", "%{VERSION}-%{RELEASE}", "mingw64-qt6-qtbase")
+	qtVersionOut, err := qtVersionCmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("query Windows Qt package version: %w: %s", err, strings.TrimSpace(string(qtVersionOut)))
+	}
+	qtBuildVersion := strings.TrimSpace(string(qtVersionOut))
+	if qtBuildVersion == "" {
+		return fmt.Errorf("Windows Qt package version was empty")
+	}
 	if err := copyWindowsIcon(ctx.IconPath, outputDir); err != nil {
 		return err
 	}
@@ -472,7 +520,8 @@ func buildWindowsGUI(ctx BuildContext) error {
 	if err := os.MkdirAll(filepath.Dir(sourcePath), 0755); err != nil {
 		return fmt.Errorf("create Windows source directory: %w", err)
 	}
-	if err := os.WriteFile(sourcePath, []byte(ctx.FinalSourceCode), 0644); err != nil {
+	generatedSource := strings.ReplaceAll(ctx.FinalSourceCode, "TEMPLATE_ABOUT_QT_BUILD_VERSION", cppStringLiteral(qtBuildVersion))
+	if err := os.WriteFile(sourcePath, []byte(generatedSource), 0644); err != nil {
 		return fmt.Errorf("write generated Windows C++ source: %w", err)
 	}
 
@@ -485,11 +534,20 @@ func buildWindowsGUI(ctx BuildContext) error {
 	if engine == "podman" {
 		args = append(args, "--userns=keep-id")
 	}
-	args = append(args, "-v", workspaceDir+":/workspace:Z", "-w", "/workspace", setup_utils.WindowsQtGUIImage(), "sh", "-c", windowsQtContainerBuildScript, "sh", containerSourcePath, containerOutputPath)
+	args = append(args, "-v", workspaceDir+":/workspace:Z", "-w", "/workspace", setup_utils.WindowsQtGUIImage(), "sh", "-c", windowsQtContainerBuildScript, "sh", containerSourcePath, containerOutputPath, "qt-build-version.txt", qtBuildVersion)
 	compileCmd := exec.Command(engine, args...)
 	compileCmd.Stdout, compileCmd.Stderr = os.Stdout, os.Stderr
 	if err := compileCmd.Run(); err != nil {
 		return fmt.Errorf("Windows Qt compilation in Fedora container failed: %w", err)
+	}
+	qtVersionBytes, err := os.ReadFile(filepath.Join(workspaceDir, "qt-build-version.txt"))
+	if err != nil {
+		return fmt.Errorf("read Windows Qt build version: %w", err)
+	}
+	if ctx.CompileMode == "production" {
+		if err := os.WriteFile(filepath.Join(outputDir, "qt-build-version.txt"), qtVersionBytes, 0644); err != nil {
+			return fmt.Errorf("stage Windows Qt build version with application: %w", err)
+		}
 	}
 
 	if err := copyWindowsContainerRuntime(outputDir, outputDir); err != nil {
@@ -505,6 +563,7 @@ output_dir=$(dirname "$2")
 mkdir -p "$output_dir"
 export PKG_CONFIG_PATH="$prefix/lib/pkgconfig"
 export PKG_CONFIG_LIBDIR="$prefix/lib/pkgconfig"
+printf '%s\n' "$4" > "$3"
 flags=$(pkg-config --cflags --libs Qt6Widgets Qt6Network)
 resource_object=
 if [ -f "$output_dir/app_icon.ico" ]; then
@@ -531,9 +590,34 @@ for group in imageformats styles; do
     [ -f "$file" ] && cp "$file" "$output_dir/$group/"
   done
 done
+collect_runtime_license() {
+  source_file=$1
+  package=$(rpm -qf --qf '%{NAME}' "$source_file" 2>/dev/null || true)
+  [ -n "$package" ] || return 0
+  component_dir="$output_dir/LICENSES/Windows runtime components/$package"
+  [ -d "$component_dir" ] && return 0
+  mkdir -p "$component_dir"
+  rpm -q --qf 'Component: %{NAME}\nDeclared license: %{LICENSE}\n' "$package" > "$component_dir/Component notice.txt"
+  rpm -ql "$package" 2>/dev/null | while IFS= read -r license_file; do
+    case "$license_file" in
+      /usr/share/licenses/*)
+        [ -f "$license_file" ] || continue
+        relative_license=${license_file#/usr/share/licenses/}
+        mkdir -p "$output_dir/LICENSES/Windows runtime components/$(dirname "$relative_license")"
+        cp "$license_file" "$output_dir/LICENSES/Windows runtime components/$relative_license"
+        ;;
+    esac
+  done
+}
+for file in "$prefix/bin"/*.dll "$prefix/lib/qt6/plugins/platforms"/*.dll "$prefix/lib/qt6/plugins/imageformats"/*.dll "$prefix/lib/qt6/plugins/styles"/*.dll; do
+  [ -f "$file" ] && collect_runtime_license "$file"
+done
 for name in libgcc_s_seh-1.dll libstdc++-6.dll libwinpthread-1.dll; do
   file=$(find /usr -path '*mingw*' -name "$name" -print -quit)
-  [ -z "$file" ] || cp "$file" "$output_dir/"
+  if [ -n "$file" ]; then
+    cp "$file" "$output_dir/"
+    collect_runtime_license "$file"
+  fi
 done
 `
 

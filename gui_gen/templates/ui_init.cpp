@@ -86,6 +86,18 @@ QString MainWindow::escapeArg(const QString &arg) {
 }
 
 void MainWindow::initTray() {
+    if (m_trayMenu) {
+        m_trayMenu->addSeparator();
+        const QString aboutAppName = windowTitle().isEmpty() ? QStringLiteral("Unknown") : windowTitle();
+        QAction *aboutAct = new QAction(QStringLiteral("About ") + aboutAppName, this);
+        connect(aboutAct, &QAction::triggered, this, &MainWindow::openAboutDialog);
+        m_trayMenu->addAction(aboutAct);
+
+        QAction *quitAct = new QAction("Exit Application", this);
+        connect(quitAct, &QAction::triggered, this, &MainWindow::cleanupAndExit);
+        m_trayMenu->addAction(quitAct);
+    }
+
     if (!QSystemTrayIcon::isSystemTrayAvailable()) return;
 
     m_trayIcon = new QSystemTrayIcon(this);
@@ -107,16 +119,6 @@ void MainWindow::initTray() {
 #endif
     m_trayIcon->setIcon(trayIcon);
     m_trayIcon->setToolTip(windowTitle());
-
-    m_trayMenu->addSeparator();
-    const QString aboutAppName = windowTitle().isEmpty() ? QStringLiteral("Unknown") : windowTitle();
-    QAction *aboutAct = new QAction(QStringLiteral("About ") + aboutAppName, this);
-    connect(aboutAct, &QAction::triggered, this, &MainWindow::openAboutDialog);
-    m_trayMenu->addAction(aboutAct);
-
-    QAction *quitAct = new QAction("Exit Application", this);
-    connect(quitAct, &QAction::triggered, this, &MainWindow::cleanupAndExit);
-    m_trayMenu->addAction(quitAct);
 
     m_trayIcon->setContextMenu(m_trayMenu);
 

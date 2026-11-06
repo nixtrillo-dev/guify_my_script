@@ -65,10 +65,10 @@ func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) str
 		cpp.WriteString("    {\n")
 
 		// 1. Runtime Eligibility Check
-		cpp.WriteString(fmt.Sprintf("        QString toolSourceScript = QStringLiteral(\"%s\");\n", cppStringLiteral(cfg.SourceScript)))
+		cpp.WriteString(fmt.Sprintf("        QString toolSourceScript = resolveAppRelativePath(QStringLiteral(\"%s\"));\n", cppStringLiteral(cfg.SourceScript)))
 		cpp.WriteString(fmt.Sprintf("        QString toolPkgUUID = QStringLiteral(\"%s\");\n", cppStringLiteral(cfg.PackageUUID)))
 		cpp.WriteString(fmt.Sprintf("        QString toolPkgVersion = QStringLiteral(\"%s\");\n", cppStringLiteral(cfg.PackageVersion)))
-		cpp.WriteString(fmt.Sprintf("        QString toolSourceGUI = QStringLiteral(\"%s\");\n", cppStringLiteral(cfg.SourceGUI)))
+		cpp.WriteString(fmt.Sprintf("        QString toolSourceGUI = resolveAppRelativePath(QStringLiteral(\"%s\"));\n", cppStringLiteral(cfg.SourceGUI)))
 
 		if cfg.UseMainSource {
 			cpp.WriteString("        if (true) {\n")
@@ -92,7 +92,7 @@ func buildAdvancedToolTabs(tools []AdvancedToolFile, mainPackageUUID string) str
 			cpp.WriteString("                QPushButton *launchGuiBtn = new QPushButton(\"🖥 Open Source GUI\");\n")
 			cpp.WriteString("                launchGuiBtn->setStyleSheet(\"QPushButton { background-color: #10a37f; color: #ffffff; font-weight: bold; padding: 4px 10px; border-radius: 3px; } QPushButton:hover { background-color: #14c79b; }\");\n")
 			cpp.WriteString("                connect(launchGuiBtn, &QPushButton::clicked, [toolSourceGUI]() {\n")
-			cpp.WriteString("                    QProcess::startDetached(toolSourceGUI, QStringList());\n")
+			cpp.WriteString("                    QProcess::startDetached(toolSourceGUI, QStringList(), QFileInfo(toolSourceGUI).absolutePath());\n")
 			cpp.WriteString("                });\n")
 			cpp.WriteString("                guiHeaderLayout->addWidget(guiInfoLabel, 1);\n")
 			cpp.WriteString("                guiHeaderLayout->addWidget(launchGuiBtn);\n")
@@ -436,6 +436,7 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
         env.remove("QT_QPA_PLATFORMTHEME");
         env.remove("QT_STYLE_OVERRIDE");
         proc->setProcessEnvironment(env);
+        proc->setWorkingDirectory(appWorkingDirectoryFor(targetScript));
     `)
 
 	if mode == "s" {

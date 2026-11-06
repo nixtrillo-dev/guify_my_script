@@ -15,6 +15,7 @@
 #include <QPushButton>
 #include <QCheckBox>
 #include <QFileDialog>
+#include <QCompleter>
 #include <QSystemTrayIcon>
 #include <QDialog>
 #include <QFormLayout>
@@ -37,8 +38,10 @@
 #include <QListWidgetItem>
 #include <QScrollBar>
 #include <QStyleFactory>
+#include <QStyleOptionComboBox>
 #include <QCoreApplication>
 #include <QDir>
+#include <QDirIterator>
 #include <QMap>
 #include <QMenu>
 #include <QAction>
@@ -59,6 +62,9 @@
 #include <QScrollArea>
 #include <QPalette>
 #include <QPainter>
+#include <QPointer>
+#include <QStyledItemDelegate>
+#include <QStyleOptionViewItem>
 #include <QPaintEvent>
 #include <QStandardPaths>
 #include <QSettings>
@@ -76,6 +82,7 @@
 #include <QLockFile>
 #include <QSysInfo>
 #include <cstdlib>
+#include <algorithm>
 #include <signal.h>
 #include <sys/types.h>
 #include <iostream>
@@ -101,9 +108,31 @@
 
 #define FALLBACK_CMD " || { echo -e \"\\n\\033[1;31m[Shell Error Handled] Press Enter to close...\\033[0m\"; read; }"
 
+static QString applicationExecutablePath() {
+    const QFileInfo executableInfo(QCoreApplication::applicationFilePath());
+    const QString canonicalPath = executableInfo.canonicalFilePath();
+    return canonicalPath.isEmpty() ? executableInfo.absoluteFilePath() : canonicalPath;
+}
+
+static QString applicationInstallDirectory() {
+    return QFileInfo(applicationExecutablePath()).absolutePath();
+}
+
+static QString resolveAppRelativePath(const QString &path) {
+    if (path.isEmpty()) return path;
+    const QFileInfo pathInfo(path);
+    if (pathInfo.isAbsolute()) return QDir::cleanPath(pathInfo.absoluteFilePath());
+    return QDir::cleanPath(QDir(applicationInstallDirectory()).absoluteFilePath(path));
+}
+
+static QString appWorkingDirectoryFor(const QString &scriptPath) {
+    if (scriptPath.isEmpty()) return applicationInstallDirectory();
+    return QFileInfo(resolveAppRelativePath(scriptPath)).absolutePath();
+}
+
 QString sourceScriptPath() {
 #ifdef Q_OS_WIN
-    QString configuredPath = TEMPLATE_SOURCE_SCRIPT_WINDOWS_EXPR;
+    QString configuredPath = resolveAppRelativePath(TEMPLATE_SOURCE_SCRIPT_WINDOWS_EXPR);
     if (!QFileInfo::exists(configuredPath) && configuredPath.endsWith(QStringLiteral(".exe"), Qt::CaseInsensitive)) {
         QString cliPath;
         if (configuredPath.endsWith(QStringLiteral("_windows_amd64.exe"), Qt::CaseInsensitive)) {
@@ -115,9 +144,9 @@ QString sourceScriptPath() {
             return cliPath;
         }
     }
-    return configuredPath;
+    return resolveAppRelativePath(configuredPath);
 #else
-    return TEMPLATE_SOURCE_SCRIPT_EXPR;
+    return resolveAppRelativePath(TEMPLATE_SOURCE_SCRIPT_EXPR);
 #endif
 }
 #define SOURCE_SCRIPT sourceScriptPath()

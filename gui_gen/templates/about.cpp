@@ -3,8 +3,44 @@ static const QString ABOUT_RELEASE = QStringLiteral("TEMPLATE_ABOUT_RELEASE");
 static const QString ABOUT_MAINTAINER = QStringLiteral("TEMPLATE_ABOUT_MAINTAINER");
 static const QString ABOUT_COMMIT = QStringLiteral("TEMPLATE_ABOUT_COMMIT");
 static const QString ABOUT_SOURCE_TYPE = QStringLiteral("TEMPLATE_ABOUT_SOURCE_TYPE");
-static const QString ABOUT_LICENSE_TEXT = QStringLiteral("TEMPLATE_ABOUT_LICENSE_TEXT");
-static const bool ABOUT_LICENSE_AVAILABLE = TEMPLATE_ABOUT_LICENSE_AVAILABLE;
+static const QString ABOUT_LICENSES_DIR = QStringLiteral("LICENSES");
+
+class AboutLicenseComboBox final : public QComboBox {
+public:
+    using QComboBox::QComboBox;
+
+protected:
+    void paintEvent(QPaintEvent *event) override {
+        QComboBox::paintEvent(event);
+
+        QStyleOptionComboBox comboOption;
+        initStyleOption(&comboOption);
+        const QRect arrowArea = style()->subControlRect(QStyle::CC_ComboBox, &comboOption,
+                                                        QStyle::SC_ComboBoxArrow, this);
+        if (arrowArea.isEmpty()) return;
+
+        QPainter painter(this);
+        const QColor arrowColor(isEnabled() ? themeVal("#b0b5b9", "#5f6b76")
+                                            : themeVal("#7f8c8d", "#8c959f"));
+        drawAppComboArrow(&painter, arrowArea, view() && view()->isVisible(), arrowColor);
+    }
+
+    void showPopup() override {
+        QComboBox::showPopup();
+        if (currentIndex() >= 0 && view() && view()->selectionModel()) {
+            const QModelIndex current = model()->index(currentIndex(), modelColumn());
+            view()->setCurrentIndex(current);
+            view()->selectionModel()->select(current,
+                QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+        }
+        update();
+    }
+
+    void hidePopup() override {
+        QComboBox::hidePopup();
+        update();
+    }
+};
 
 static QString queryAboutVersion(const QString &program, const QStringList &arguments) {
     QProcess process;
@@ -167,8 +203,15 @@ void MainWindow::openAboutDialog() {
 #else
     addDetail(QStringLiteral("Platform"), QSysInfo::kernelType());
 #endif
-    addDetail(QStringLiteral("Qt"), QStringLiteral("Build ") + QString::fromLatin1(QT_VERSION_STR) +
+    addDetail(QStringLiteral("Qt"), QStringLiteral("Build ") + QStringLiteral("TEMPLATE_ABOUT_QT_BUILD_VERSION") +
               QStringLiteral("; runtime ") + QString::fromLatin1(qVersion()));
+
+    QLabel *qtLicenseNotice = new QLabel(
+        QStringLiteral("Qt 6 is licensed under LGPLv3. See Licenses and Notices for details."),
+        &aboutDialog);
+    qtLicenseNotice->setStyleSheet(QStringLiteral("QLabel { color: %1; background: transparent; }")
+        .arg(isLightTheme() ? QStringLiteral("#5f6b76") : QStringLiteral("#b0b5b9")));
+    layout->addWidget(qtLicenseNotice);
 
     if (ABOUT_SOURCE_TYPE == QStringLiteral("javascript")) {
         addDetail(QStringLiteral("Node.js"), queryAboutVersion(QStringLiteral("node"), {QStringLiteral("--version")}));
@@ -194,33 +237,83 @@ void MainWindow::openAboutDialog() {
     layout->addLayout(details);
 
     QHBoxLayout *buttons = new QHBoxLayout();
-    if (ABOUT_LICENSE_AVAILABLE) {
-        QPushButton *licenseButton = new QPushButton(QStringLiteral("View License"), &aboutDialog);
-        licenseButton->setStyleSheet(QStringLiteral(
-            "QPushButton { color: #ffffff; background-color: #087f5b; border: 1px solid #10a37f; "
-            "border-radius: 5px; padding: 7px 13px; font-weight: 600; }"
-            "QPushButton:hover { color: #ffffff; background-color: #066b4e; }"
-            "QPushButton:pressed { color: #ffffff; background-color: #04563f; }"
-            "QPushButton:focus { border: 2px solid #8ee4ca; }"));
-        connect(licenseButton, &QPushButton::clicked, &aboutDialog, [&aboutDialog]() {
-            QDialog licenseDialog(&aboutDialog);
-            licenseDialog.setWindowTitle(QStringLiteral("License"));
-            licenseDialog.resize(720, 520);
-            QVBoxLayout licenseLayout(&licenseDialog);
-            QTextEdit licenseText(&licenseDialog);
-            licenseText.setReadOnly(true);
-            licenseText.setPlainText(ABOUT_LICENSE_TEXT);
-            licenseLayout.addWidget(&licenseText);
-            QHBoxLayout licenseButtons;
-            licenseButtons.addStretch();
-            QPushButton closeButton(QStringLiteral("Close"), &licenseDialog);
-            connect(&closeButton, &QPushButton::clicked, &licenseDialog, &QDialog::accept);
-            licenseButtons.addWidget(&closeButton);
-            licenseLayout.addLayout(&licenseButtons);
-            licenseDialog.exec();
+    QPushButton *licenseButton = new QPushButton(QStringLiteral("Licenses and Notices"), &aboutDialog);
+    licenseButton->setStyleSheet(QStringLiteral(
+        "QPushButton { color: #ffffff; background-color: #087f5b; border: 1px solid #10a37f; "
+        "border-radius: 5px; padding: 7px 13px; font-weight: 600; }"
+        "QPushButton:hover { color: #ffffff; background-color: #066b4e; }"
+        "QPushButton:pressed { color: #ffffff; background-color: #04563f; }"
+        "QPushButton:focus { border: 2px solid #8ee4ca; }"));
+    connect(licenseButton, &QPushButton::clicked, &aboutDialog, [&aboutDialog]() {
+        const QString licensePath = QDir(applicationInstallDirectory()).filePath(ABOUT_LICENSES_DIR);
+        QDirIterator licenseIterator(licensePath, QDir::Files, QDirIterator::Subdirectories);
+        QStringList licensePaths;
+        while (licenseIterator.hasNext()) {
+            licensePaths.append(licenseIterator.next());
+        }
+        std::sort(licensePaths.begin(), licensePaths.end(), [](const QString &left, const QString &right) {
+            return left.compare(right, Qt::CaseInsensitive) < 0;
         });
-        buttons->addWidget(licenseButton);
-    }
+
+        QDialog licenseDialog(&aboutDialog);
+        licenseDialog.setWindowTitle(QStringLiteral("Licenses and Notices"));
+        licenseDialog.resize(760, 560);
+        QVBoxLayout licenseLayout(&licenseDialog);
+        QLabel instruction(QStringLiteral("Choose a license or notice to read its full text."), &licenseDialog);
+        licenseLayout.addWidget(&instruction);
+
+        AboutLicenseComboBox licenseSelector(&licenseDialog);
+        applyComboBoxPopupStyle(&licenseSelector);
+        QTextEdit licenseText(&licenseDialog);
+        licenseText.setReadOnly(true);
+        if (licensePaths.isEmpty()) {
+            instruction.setText(QStringLiteral("No license files were bundled with this application."));
+            licenseSelector.setEnabled(false);
+            licenseText.setEnabled(false);
+        } else {
+            for (const QString &path : licensePaths) {
+                const QString relativePath = QDir(licensePath).relativeFilePath(path);
+                QString displayName = relativePath;
+                if (displayName.endsWith(QStringLiteral(".txt"), Qt::CaseInsensitive) ||
+                    displayName.endsWith(QStringLiteral(".md"), Qt::CaseInsensitive)) {
+                    displayName.chop(displayName.endsWith(QStringLiteral(".txt"), Qt::CaseInsensitive) ? 4 : 3);
+                }
+                displayName.replace(QLatin1Char('/'), QStringLiteral(" / "));
+                licenseSelector.addItem(displayName, path);
+            }
+            if (licenseSelector.currentIndex() >= 0) {
+                QAbstractItemView *licenseView = licenseSelector.view();
+                licenseView->setSelectionMode(QAbstractItemView::SingleSelection);
+                applyItemViewSelectionStyle(licenseView);
+                const QModelIndex currentLicense = licenseSelector.model()->index(
+                    licenseSelector.currentIndex(), licenseSelector.modelColumn());
+                licenseView->setCurrentIndex(currentLicense);
+                licenseView->selectionModel()->select(currentLicense,
+                    QItemSelectionModel::ClearAndSelect | QItemSelectionModel::Rows);
+            }
+            auto showSelectedLicense = [&licenseSelector, &licenseText]() {
+                QFile file(licenseSelector.currentData().toString());
+                if (file.open(QIODevice::ReadOnly)) {
+                    licenseText.setPlainText(QString::fromUtf8(file.readAll()));
+                } else {
+                    licenseText.setPlainText(QStringLiteral("Unable to read this license file."));
+                }
+            };
+            QObject::connect(&licenseSelector, qOverload<int>(&QComboBox::currentIndexChanged),
+                             &licenseDialog, [&showSelectedLicense](int) { showSelectedLicense(); });
+            showSelectedLicense();
+        }
+        licenseLayout.addWidget(&licenseSelector);
+        licenseLayout.addWidget(&licenseText, 1);
+        QHBoxLayout licenseButtons;
+        licenseButtons.addStretch();
+        QPushButton closeButton(QStringLiteral("Close"), &licenseDialog);
+        QObject::connect(&closeButton, &QPushButton::clicked, &licenseDialog, &QDialog::accept);
+        licenseButtons.addWidget(&closeButton);
+        licenseLayout.addLayout(&licenseButtons);
+        licenseDialog.exec();
+    });
+    buttons->addWidget(licenseButton);
     buttons->addStretch();
     QPushButton *closeButton = new QPushButton(QStringLiteral("Close"), &aboutDialog);
     connect(closeButton, &QPushButton::clicked, &aboutDialog, &QDialog::accept);

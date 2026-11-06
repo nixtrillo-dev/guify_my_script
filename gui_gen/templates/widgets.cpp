@@ -15,9 +15,9 @@ void AppComboBox::paintEvent(QPaintEvent *event) {
     QComboBox::paintEvent(event);
 
     QPainter painter(this);
-    painter.setPen(QColor(!isEnabled() ? themeVal("#7f8c8d", "#8c959f") : themeVal("#ffffff", "#202124")));
-    painter.drawText(QRect(width() - 25, 1, 24, height() - 2), Qt::AlignCenter,
-                     m_popupOpen ? QString::fromUtf8("▲") : QString::fromUtf8("▼"));
+    const QColor arrowColor(!isEnabled() ? themeVal("#7f8c8d", "#8c959f")
+                                         : themeVal("#b0b5b9", "#5f6b76"));
+    drawAppComboArrow(&painter, QRect(width() - 25, 1, 24, height() - 2), m_popupOpen, arrowColor);
 }
 
 // AppDialog implementation
