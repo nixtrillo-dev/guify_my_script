@@ -29,7 +29,7 @@ import (
 // ArgMetaData tracks individual parameter identity alongside its parsed Rust type layout
 type ArgMetaData struct {
 	Name     string
-	Type     string // "string", "bool", "int", "float", "*bool"
+	Type     string // "string", "*string", "bool", "int", "float", "*bool"
 	RawType  string // original Rust type layout (e.g. "&str", "String", "i32", "u8")
 	CastType string
 }
@@ -70,16 +70,20 @@ const bridgeTemplate = `// Auto-generated and maintained by guify_my_script. DO 
 // =====================================================================
 {{range .Functions}}
 #[no_mangle]
-pub extern "C" fn Rust{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}: {{if eq $arg.Type "string"}}*const std::os::raw::c_char{{else if eq $arg.Type "bool"}}std::os::raw::c_int{{else if eq $arg.Type "*bool"}}*const std::os::raw::c_int{{else}}{{$arg.RawType}}{{end}}{{end}}) -> std::os::raw::c_int {
+pub extern "C" fn Rust{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}: {{if or (eq $arg.Type "string") (eq $arg.Type "*string")}}*const std::os::raw::c_char{{else if eq $arg.Type "bool"}}std::os::raw::c_int{{else if eq $arg.Type "*bool"}}*const std::os::raw::c_int{{else}}{{$arg.RawType}}{{end}}{{end}}) -> std::os::raw::c_int {
 {{range .Args}}
 {{if eq .Type "string"}}    let rust_{{.Name}} = if {{.Name}}.is_null() { "" } else { unsafe { std::ffi::CStr::from_ptr({{.Name}}) }.to_str().unwrap_or("") };
+{{else if eq .Type "*string"}}    let rust_{{.Name}}: Option<String> = if {{.Name}}.is_null() { None } else {
+        let value = unsafe { std::ffi::CStr::from_ptr({{.Name}}) }.to_string_lossy();
+        if value.is_empty() { None } else { Some(value.into_owned()) }
+    };
 {{else if eq .Type "bool"}}    let rust_{{.Name}} = {{.Name}} != 0;
 {{else if eq .Type "int"}}    let rust_{{.Name}} = {{.Name}};
 {{else if eq .Type "float"}}    let rust_{{.Name}} = {{.Name}};
 {{else if eq .Type "*bool"}}    let rust_{{.Name}} = if {{.Name}}.is_null() { None } else { Some(unsafe { *{{.Name}} } != 0) };
 {{end}}{{end}}
 {{if .HasErrorReturn}}
-    let result = {{.CallPrefix}}{{.RustName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{if eq $arg.RawType "String"}}rust_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "&String"}}&rust_{{$arg.Name}}.to_string(){{else}}rust_{{$arg.Name}}{{end}}{{end}});
+    let result = {{.CallPrefix}}{{.RustName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{if eq $arg.RawType "String"}}rust_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "&String"}}&rust_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "Option<&str>"}}rust_{{$arg.Name}}.as_deref(){{else}}rust_{{$arg.Name}}{{end}}{{end}});
     match result {
         Ok(_) => 1,
         Err(err) => {
@@ -88,13 +92,13 @@ pub extern "C" fn Rust{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{
         }
     }
 {{else}}
-    {{.CallPrefix}}{{.RustName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{if eq $arg.RawType "String"}}rust_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "&String"}}&rust_{{$arg.Name}}.to_string(){{else}}rust_{{$arg.Name}}{{end}}{{end}});
+    {{.CallPrefix}}{{.RustName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{if eq $arg.RawType "String"}}rust_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "&String"}}&rust_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "Option<&str>"}}rust_{{$arg.Name}}.as_deref(){{else}}rust_{{$arg.Name}}{{end}}{{end}});
     1
 {{end}}
 }
 
 #[no_mangle]
-pub extern "C" fn rust_{{.BashName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}: {{if eq $arg.Type "string"}}*const std::os::raw::c_char{{else if eq $arg.Type "bool"}}std::os::raw::c_int{{else if eq $arg.Type "*bool"}}*const std::os::raw::c_int{{else}}{{$arg.RawType}}{{end}}{{end}}) -> std::os::raw::c_int {
+pub extern "C" fn rust_{{.BashName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}: {{if or (eq $arg.Type "string") (eq $arg.Type "*string")}}*const std::os::raw::c_char{{else if eq $arg.Type "bool"}}std::os::raw::c_int{{else if eq $arg.Type "*bool"}}*const std::os::raw::c_int{{else}}{{$arg.RawType}}{{end}}{{end}}) -> std::os::raw::c_int {
     Rust{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}{{end}})
 }
 {{end}}
@@ -120,6 +124,13 @@ fn main() {
 {{range $idx, $arg := .Args}}
 {{if eq $arg.Type "string"}}
         let cli_{{$arg.Name}} = &args[{{add $idx 2}}];
+{{else if eq $arg.Type "*string"}}
+        let raw_{{$arg.Name}} = &args[{{add $idx 2}}];
+        let cli_{{$arg.Name}}: Option<String> = if raw_{{$arg.Name}}.is_empty() || raw_{{$arg.Name}} == "nil" || raw_{{$arg.Name}} == "null" || raw_{{$arg.Name}} == "none" {
+            None
+        } else {
+            Some(raw_{{$arg.Name}}.to_string())
+        };
 {{else if eq $arg.Type "bool"}}
         let cli_{{$arg.Name}}: bool = match args[{{add $idx 2}}].to_lowercase().as_str() {
             "true" | "1" => true,
@@ -163,12 +174,12 @@ fn main() {
         };
 {{end}}{{end}}
 {{if .HasErrorReturn}}
-        if let Err(err) = {{.CallPrefix}}{{.RustName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{if eq $arg.RawType "String"}}cli_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "&String"}}&cli_{{$arg.Name}}.to_string(){{else}}cli_{{$arg.Name}}{{end}}{{end}}) {
+        if let Err(err) = {{.CallPrefix}}{{.RustName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{if eq $arg.RawType "String"}}cli_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "&String"}}&cli_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "Option<&str>"}}cli_{{$arg.Name}}.as_deref(){{else}}cli_{{$arg.Name}}{{end}}{{end}}) {
             eprintln!("Execution Failure: {err}");
             std::process::exit(1);
         }
 {{else}}
-        {{.CallPrefix}}{{.RustName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{if eq $arg.RawType "String"}}cli_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "&String"}}&cli_{{$arg.Name}}.to_string(){{else}}cli_{{$arg.Name}}{{end}}{{end}});
+        {{.CallPrefix}}{{.RustName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{if eq $arg.RawType "String"}}cli_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "&String"}}&cli_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "Option<&str>"}}cli_{{$arg.Name}}.as_deref(){{else}}cli_{{$arg.Name}}{{end}}{{end}});
 {{end}}
 {{else}}
 {{if .HasErrorReturn}}
@@ -1667,6 +1678,12 @@ func classifyRustType(typeStr string) (category string, rawType string, ok bool)
 	if clean == "Option<bool>" || clean == "Option < bool >" {
 		return "*bool", "Option<bool>", true
 	}
+	if clean == "Option<String>" || clean == "Option < String >" {
+		return "*string", "Option<String>", true
+	}
+	if clean == "Option<&str>" || clean == "Option < &str >" {
+		return "*string", "Option<&str>", true
+	}
 
 	// Integer types
 	switch clean {
@@ -1680,13 +1697,12 @@ func classifyRustType(typeStr string) (category string, rawType string, ok bool)
 		return "float", clean, true
 	}
 
-	// Optional strings/integers
+	// Preserve the established spelling tolerance for optional booleans.
 	if strings.HasPrefix(clean, "Option<") && strings.HasSuffix(clean, ">") {
 		inner := strings.TrimSpace(clean[len("Option<") : len(clean)-1])
 		if inner == "bool" {
 			return "*bool", clean, true
 		}
-		return "string", clean, true
 	}
 
 	// Unrecognized / complex type
@@ -2189,6 +2205,13 @@ func buildRustBridgeLibrary(projectDir, bridgePath string, crateDirs []string, t
 	args := []string{"--edition", "2021", "--crate-type", "cdylib", "--target", target, "-C", "linker=" + linker}
 	args = append(args, bridgePath, "-o", destination)
 	depsDir := filepath.Join(projectDir, "target", target, "release", "deps")
+	hostDepsDir := filepath.Join(projectDir, "target", "release", "deps")
+	// Cargo makes both target-specific dependencies and host-built dependencies
+	// (such as procedural macros) visible when compiling a cross-target crate.
+	// The manual rustc invocation needs the same search paths to load metadata
+	// for path dependencies built by Cargo.
+	args = append(args, "-L", "dependency="+depsDir, "-L", "dependency="+hostDepsDir)
+	var crateArtifacts []string
 	for _, crateDir := range crateDirs {
 		crateName := getCrateName(crateDir)
 		if crateName == "" {
@@ -2196,17 +2219,32 @@ func buildRustBridgeLibrary(projectDir, bridgePath string, crateDirs []string, t
 		}
 		rlib := findRlibInDir(depsDir, strings.ReplaceAll(crateName, "-", "_"))
 		if rlib != "" {
-			args = append(args, "-L", depsDir, "--extern", fmt.Sprintf("%s=%s", crateName, rlib))
+			args = append(args, "--extern", fmt.Sprintf("%s=%s", crateName, rlib))
+			crateArtifacts = append(crateArtifacts, fmt.Sprintf("%s: %s", crateName, rlib))
+		} else {
+			crateArtifacts = append(crateArtifacts, fmt.Sprintf("%s: no rlib found in %s", crateName, depsDir))
 		}
 	}
 	cmd := rustCommand("rustc", args...)
 	cmd.Dir = projectDir
 	cmd.Env = append(cmd.Env, "CARGO_TARGET_"+strings.ToUpper(strings.ReplaceAll(target, "-", "_"))+"_LINKER="+linker)
-	var output strings.Builder
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = &output
+	var stdout, stderr strings.Builder
+	cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("rustc failed: %s\n%w", output.String(), err)
+		return fmt.Errorf(
+			"rustc failed for target %s: %w\nworking directory: %s\ncommand: %q %q\nlinker: %s\ndependency directory: %s\ncrate artifacts: %s\nstdout:\n%s\nstderr:\n%s",
+			target,
+			err,
+			cmd.Dir,
+			cmd.Path,
+			args,
+			linker,
+			depsDir,
+			strings.Join(crateArtifacts, "; "),
+			stdout.String(),
+			stderr.String(),
+		)
 	}
 	return nil
 }
