@@ -82,6 +82,7 @@
                     "data_type": "string",
                     "default": "4 - INFO",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 },
                 {
@@ -92,6 +93,7 @@
                     "data_type": "bool",
                     "default": "1",
                     "enabled": true,
+                    "tooltip": "",
                     "refresh_fields_on_change": [],
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 },
@@ -103,6 +105,7 @@
                     "data_type": "bool",
                     "default": "0",
                     "enabled": true,
+                    "tooltip": "",
                     "refresh_fields_on_change": [],
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 }
@@ -133,6 +136,7 @@
                     "data_type": "string",
                     "default": "4 - INFO",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 },
                 {
@@ -143,6 +147,7 @@
                     "data_type": "bool",
                     "default": "1",
                     "enabled": true,
+                    "tooltip": "",
                     "refresh_fields_on_change": [],
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 },
@@ -154,6 +159,7 @@
                     "data_type": "bool",
                     "default": "1",
                     "enabled": true,
+                    "tooltip": "",
                     "refresh_fields_on_change": [],
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 },
@@ -165,6 +171,7 @@
                     "data_type": "bool",
                     "default": "0",
                     "enabled": true,
+                    "tooltip": "",
                     "refresh_fields_on_change": [],
                     "json_endpoints": {"array_endpoint": [], "get_defaults_endpoint": [], "get_enabled_endpoint": [], "path_to_array": null, "path_to_default": null, "path_to_enabled": null}
                 }
@@ -210,6 +217,7 @@
                         "rs",
                         "go"
                     ],
+                    "tooltip": "",
                     "json_endpoints": {
                         "get_defaults_endpoint": [],
                         "get_enabled_endpoint": [],
@@ -232,6 +240,7 @@
                     "data_type": "string",
                     "default": "GO",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [
@@ -258,6 +267,7 @@
                     "data_type": "string",
                     "default": "",
                     "enabled": true,
+                    "tooltip": "",
                     "file_types": [
                         "json"
                     ],
@@ -287,6 +297,7 @@
                     "maximum": "0",
                     "minimum": "0",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [
                             "get_non_main_packages_json",
@@ -315,6 +326,7 @@
                     "data_type": "string",
                     "default": "",
                     "enabled": true,
+                    "tooltip": "",
                     "file_types": [],
                     "json_endpoints": {
                         "get_defaults_endpoint": [
@@ -341,6 +353,7 @@
                     "data_type": "string",
                     "default": "",
                     "enabled": true,
+                    "tooltip": "",
                     "file_types": [],
                     "json_endpoints": {
                         "get_defaults_endpoint": [
@@ -369,6 +382,7 @@
                     "data_type": "string",
                     "default": "1",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "get_defaults_endpoint": null,
                         "get_enabled_endpoint": [
@@ -392,6 +406,7 @@
                         "path_to_enabled": null
                     },
                     "name": "Overwrite JSON? (if exists)",
+                    "tooltip": "",
                     "parameter_position": 800,
                     "refresh_fields_on_change": [],
                     "field_type": "CK"
@@ -405,6 +420,7 @@
                     "data_type": "string",
                     "default": "1",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
@@ -436,6 +452,7 @@
                     "maximum": "0",
                     "minimum": "1",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
@@ -458,6 +475,7 @@
                     "data_type": "string",
                     "default": "0",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "get_defaults_endpoint": [],
                         "get_enabled_endpoint": [
@@ -486,6 +504,7 @@
                     "data_type": "string",
                     "default": "INFO",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
@@ -522,6 +541,7 @@
                     "file_types": [
                         "json"
                     ],
+                    "tooltip": "",
                     "json_endpoints": {
                         "get_defaults_endpoint": [],
                         "get_enabled_endpoint": [],
@@ -542,6 +562,7 @@
                     "data_type": "string",
                     "default": "production",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
@@ -560,6 +581,7 @@
                     "data_type": "string",
                     "default": "0",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
@@ -597,6 +619,7 @@
                     "maximum": "0",
                     "minimum": "1",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
@@ -623,6 +646,7 @@
                     "data_type": "string",
                     "default": "INFO",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
@@ -665,6 +689,7 @@
                         "rpm",
                         "apk"
                     ],
+                    "tooltip": "",
                     "json_endpoints": {
                         "get_defaults_endpoint": [],
                         "get_enabled_endpoint": [],
@@ -681,6 +706,7 @@
                     "data_type": "string",
                     "default": "1",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
@@ -699,6 +725,7 @@
                     "data_type": "string",
                     "default": "1",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],
@@ -743,6 +770,7 @@
                     "data_type": "string",
                     "default": "4 - INFO",
                     "enabled": true,
+                    "tooltip": "",
                     "json_endpoints": {
                         "array_endpoint": [],
                         "get_defaults_endpoint": [],

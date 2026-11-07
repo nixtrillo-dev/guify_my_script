@@ -523,6 +523,7 @@
           "label": "New TXT (Text) Field",
           "description": "Scaffolds a standard text input field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Text Input}",
             "parameter_position": null,
             "field_type": "TXT",
@@ -542,9 +543,33 @@
           }
         },
         {
+          "label": "New STXT (Secret Text) Field",
+          "description": "Scaffolds a password-style single-line text field with a visibility toggle.",
+          "body": {
+            "tooltip": "",
+            "name": "${1:Secret Text}",
+            "parameter_position": null,
+            "field_type": "STXT",
+            "data_type": "string",
+            "default": "",
+            "enabled": true,
+            "advanced_menu": false,
+            "json_endpoints": {
+              "array_endpoint": [],
+              "path_to_array": null,
+              "get_defaults_endpoint": [],
+              "path_to_default": null,
+              "get_enabled_endpoint": [],
+              "path_to_enabled": null
+            },
+            "refresh_fields_on_change": []
+          }
+        },
+        {
           "label": "New DIR (Directory) Field",
           "description": "Scaffolds a directory picker field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Directory Picker}",
             "parameter_position": null,
             "field_type": "DIR",
@@ -567,6 +592,7 @@
           "label": "New FL (File) Picker Field",
           "description": "Scaffolds a single file picker field.",
           "body": {
+            "tooltip": "",
             "name": "${1:File Picker}",
             "parameter_position": null,
             "field_type": "FL",
@@ -590,6 +616,7 @@
           "label": "New MFL (Multi-File) Picker Field",
           "description": "Scaffolds a multi-file picker field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Multi-File Picker}",
             "parameter_position": null,
             "field_type": "MFL",
@@ -615,6 +642,7 @@
           "label": "New FS (File Save) Picker Field",
           "description": "Scaffolds a save file picker field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Save File Picker}",
             "parameter_position": null,
             "field_type": "FS",
@@ -638,6 +666,7 @@
           "label": "New CB (Combo Box) Field",
           "description": "Scaffolds a single-select dropdown field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Combo Box}",
             "parameter_position": null,
             "field_type": "CB",
@@ -661,6 +690,7 @@
           "label": "New CK (Checkbox) Field",
           "description": "Scaffolds a boolean checkbox field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Checkbox}",
             "parameter_position": null,
             "field_type": "CK",
@@ -683,6 +713,7 @@
           "label": "New FD (File/Directory) Picker Field",
           "description": "Scaffolds a hybrid file or directory picker.",
           "body": {
+            "tooltip": "",
             "name": "${1:File or Directory Picker}",
             "parameter_position": null,
             "field_type": "FD",
@@ -706,6 +737,7 @@
           "label": "New MCB (Multi-Combo Box) Field",
           "description": "Scaffolds a multi-select dropdown field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Multi-Combo Box}",
             "parameter_position": null,
             "field_type": "MCB",
@@ -731,6 +763,7 @@
           "label": "New LTXT (Long Text) Field",
           "description": "Scaffolds a multi-line text area field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Long Text}",
             "parameter_position": null,
             "field_type": "LTXT",
@@ -755,6 +788,7 @@
           "label": "New TIME Field",
           "description": "Scaffolds a time picker field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Time Picker}",
             "parameter_position": null,
             "field_type": "TIME",
@@ -779,6 +813,7 @@
           "label": "New DATE Field",
           "description": "Scaffolds a date picker field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Date Picker}",
             "parameter_position": null,
             "field_type": "DATE",
@@ -803,6 +838,7 @@
           "label": "New NUM (Number) Field",
           "description": "Scaffolds a numeric input field.",
           "body": {
+            "tooltip": "",
             "name": "${1:Number Input}",
             "parameter_position": null,
             "field_type": "NUM",
@@ -826,6 +862,7 @@
         }
       ],
       "required": [
+        "tooltip",
         "name",
         "data_type",
         "enabled",
@@ -1062,7 +1099,7 @@
                 "required": ["field_type"],
                 "properties": {
                   "field_type": {
-                    "enum": ["CB", "TXT", "DIR", "FL", "MFL", "FS", "FD", "LTXT"]
+                    "enum": ["CB", "TXT", "STXT", "DIR", "FL", "MFL", "FS", "FD", "LTXT"]
                   }
                 }
               },
@@ -1070,7 +1107,7 @@
                 "required": ["type"],
                 "properties": {
                   "type": {
-                    "enum": ["CB", "TXT", "DIR", "FL", "MFL", "FS", "FD", "LTXT"]
+                    "enum": ["CB", "TXT", "STXT", "DIR", "FL", "MFL", "FS", "FD", "LTXT"]
                   }
                 }
               }
@@ -1120,6 +1157,11 @@
         }
       ],
       "properties": {
+        "tooltip": {
+          "type": ["string", "null"],
+          "default": "",
+          "description": "Optional text shown when hovering over this field or its label."
+        },
         "name": {
           "type": "string",
           "description": "Display label for this field in the UI. Used as the field identifier and in the argument passing to the function."
@@ -1134,12 +1176,13 @@
         },
         "field_type": {
           "type": "string",
-          "description": "UI field widget type. Accepted values: TXT (Single-line text input), DIR (Directory picker), FL (Single file picker), MFL (Multi-file picker), FS (Save file picker), CB (Combo box / dropdown), CK (Checkbox boolean toggle), FD (File or directory hybrid picker), MCB (Multi-select combo box), LTXT (Multi-line text area), TIME (Time picker), DATE (Date picker), NUM (Numeric input).",
+          "description": "UI field widget type. Accepted values: TXT (Single-line text input), STXT (Secret/password text input), DIR (Directory picker), FL (Single file picker), MFL (Multi-file picker), FS (Save file picker), CB (Combo box / dropdown), CK (Checkbox boolean toggle), FD (File or directory hybrid picker), MCB (Multi-select combo box), LTXT (Multi-line text area), TIME (Time picker), DATE (Date picker), NUM (Numeric input).",
           "enum": [
-            "TXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"
+            "TXT", "STXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"
           ],
           "enumDescriptions": [
             "TXT: Single-line text input field",
+            "STXT: Secret/password single-line text input field with visibility toggle",
             "DIR: Directory picker dialog",
             "FL: Single file picker dialog",
             "MFL: Multi-file picker dialog",
@@ -1158,10 +1201,11 @@
           "type": "string",
           "description": "Deprecated alias for field_type. Do not define both type and field_type on the same field.",
           "enum": [
-            "TXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"
+            "TXT", "STXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"
           ],
           "enumDescriptions": [
             "TXT: Single-line text input field",
+            "STXT: Secret/password single-line text input field with visibility toggle",
             "DIR: Directory picker dialog",
             "FL: Single file picker dialog",
             "MFL: Multi-file picker dialog",

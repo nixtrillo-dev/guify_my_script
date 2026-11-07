@@ -471,12 +471,12 @@ func TestSchemaContainsRequiredProperties(t *testing.T) {
 			t.Errorf("Expected 'field_type' to have a non-empty description")
 		}
 		enums, hasEnums := fieldTypeProp["enum"].([]interface{})
-		if !hasEnums || len(enums) != 13 {
-			t.Errorf("Expected 'field_type' enum to contain 13 types, got %v", enums)
+		if !hasEnums || len(enums) != 14 {
+			t.Errorf("Expected 'field_type' enum to contain 14 types, got %v", enums)
 		}
 		enumDescs, hasEnumDescs := fieldTypeProp["enumDescriptions"].([]interface{})
-		if !hasEnumDescs || len(enumDescs) != 13 {
-			t.Errorf("Expected 'field_type' enumDescriptions to contain 13 items, got %v", enumDescs)
+		if !hasEnumDescs || len(enumDescs) != 14 {
+			t.Errorf("Expected 'field_type' enumDescriptions to contain 14 items, got %v", enumDescs)
 		}
 	}
 

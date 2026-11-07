@@ -77,6 +77,7 @@ type UIField struct {
 	ParameterPosition     *int          `json:"parameter_position"`
 	Options               []interface{} `json:"options,omitempty"`
 	Default               interface{}   `json:"default"`
+	Tooltip               string        `json:"tooltip"`
 	Minimum               string        `json:"minimum,omitempty"`
 	Maximum               string        `json:"maximum,omitempty"`
 	DecimalPlaces         string        `json:"decimal_places,omitempty"`

@@ -433,7 +433,7 @@ func TestLoadAndPrepareConfig_RealGuifyMyScriptConfig(t *testing.T) {
 
 func TestUIField_FieldTypeAndLegacyType(t *testing.T) {
 	fieldTypes := []string{
-		"TXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM",
+		"TXT", "STXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM",
 	}
 
 	for _, ft := range fieldTypes {

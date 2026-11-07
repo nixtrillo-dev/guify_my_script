@@ -81,6 +81,7 @@ type UIField struct {
 	ParameterPosition int           `json:"parameter_position"`
 	Options           []interface{} `json:"options,omitempty"`
 	Default           any           `json:"default"`
+	Tooltip           string        `json:"tooltip"`
 	// Bounds are meaningful only for MCB, MFL, TIME, DATE, and NUM fields.
 	// Omitting nil values prevents unrelated field types from receiving null bounds.
 	Minimum               *json.RawMessage `json:"minimum,omitempty"`
@@ -221,9 +222,10 @@ type RootGUIConfig struct {
 	Actions  []UIAction     `json:"actions"`
 }
 
-var uiFieldTypes = []string{"TXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"}
+var uiFieldTypes = []string{"TXT", "STXT", "DIR", "FL", "MFL", "FS", "CB", "CK", "FD", "MCB", "LTXT", "TIME", "DATE", "NUM"}
 var exampleFieldNames = []string{
 	"Text Input Example",
+	"Secret Text Example",
 	"Directory Picker Example",
 	"File Picker Example",
 	"Multi-File Picker Example",
@@ -604,6 +606,8 @@ func createField(displayName string, index int) UIField {
 		field.Default = "/home"
 	case "TXT":
 		field.Default = "Initial Value"
+	case "STXT":
+		field.Default = ""
 	case "CK":
 		field.Default = "0"
 	case "FD", "FL", "FS":

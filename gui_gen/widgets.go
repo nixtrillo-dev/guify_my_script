@@ -68,7 +68,11 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 
 	isDouble := false
 
-	cpp.WriteString(fmt.Sprintf("\n    %s->addWidget(new QLabel(\"%s:\"));\n", targetLayout, field.Name))
+	cpp.WriteString(fmt.Sprintf("\n    QLabel *label_%s = new QLabel(\"%s:\");\n", varSuffix, cppStringLiteral(field.Name)))
+	if strings.TrimSpace(field.Tooltip) != "" {
+		cpp.WriteString(fmt.Sprintf("    label_%s->setToolTip(\"%s\");\n", varSuffix, cppStringLiteral(field.Tooltip)))
+	}
+	cpp.WriteString(fmt.Sprintf("    %s->addWidget(label_%s);\n", targetLayout, varSuffix))
 
 	// Generate the default string C++ variable once for all field types
 	cpp.WriteString(fmt.Sprintf("    QString def_%[1]s = getRuntimeDefault(\"%[2]s\", \"%[3]s\", \"%[4]s\");\n", varSuffix, label, field.Name, cppStringLiteral(getDefaultString(field.Default))))
@@ -93,6 +97,24 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    %s->addWidget(txt_%s);\n", targetLayout, varSuffix))
 		cpp.WriteString(fmt.Sprintf("    %s.push_back({txt_%s, \"TXT\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = txt_%[3]s;\n", label, field.Name, varSuffix))
+
+	case "STXT":
+		cpp.WriteString("    fieldFrame = new QWidget();\n")
+		cpp.WriteString("    fieldHorizontal = new QHBoxLayout(fieldFrame);\n")
+		cpp.WriteString("    fieldHorizontal->setContentsMargins(0,0,0,0);\n")
+		cpp.WriteString(fmt.Sprintf("    QLineEdit *stxt_%s = new QLineEdit(def_%s);\n", varSuffix, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    stxt_%s->setEchoMode(QLineEdit::Password);\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("    QPushButton *stxtToggle_%s = new QPushButton(\"Show\");\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(stxt_%s);\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("    fieldHorizontal->addWidget(stxtToggle_%s);\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("    %s->addWidget(fieldFrame);\n", targetLayout))
+		cpp.WriteString(fmt.Sprintf("    %s.push_back({stxt_%s, \"STXT\", \"%s\"});\n", fieldsArrName, varSuffix, dataType))
+		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = stxt_%[3]s;\n", label, field.Name, varSuffix))
+		cpp.WriteString(fmt.Sprintf("    connect(stxtToggle_%s, &QPushButton::clicked, [stxt_%s, stxtToggle_%s]() {\n", varSuffix, varSuffix, varSuffix))
+		cpp.WriteString(fmt.Sprintf("        bool showText = stxt_%s->echoMode() == QLineEdit::Password;\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("        stxt_%s->setEchoMode(showText ? QLineEdit::Normal : QLineEdit::Password);\n", varSuffix))
+		cpp.WriteString(fmt.Sprintf("        stxtToggle_%s->setText(showText ? \"Hide\" : \"Show\");\n", varSuffix))
+		cpp.WriteString("    });\n")
 
 	case "CB":
 		cpp.WriteString(fmt.Sprintf("    AppComboBox *cb_%s = new AppComboBox();\n", varSuffix))
@@ -462,6 +484,19 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    m_uiFields[\"%[1]s::%[2]s\"] = time_%[3]s;\n", label, field.Name, varSuffix))
 	}
 
+	// Apply the tooltip to the primary control for every widget type.
+	if strings.TrimSpace(field.Tooltip) != "" {
+		cpp.WriteString(fmt.Sprintf("    if (m_uiFields.contains(\"%s::%s\")) m_uiFields[\"%s::%s\"]->setToolTip(\"%s\");\n",
+			cppStringLiteral(label), cppStringLiteral(field.Name), cppStringLiteral(label), cppStringLiteral(field.Name), cppStringLiteral(field.Tooltip)))
+		switch field.GetFieldType() {
+		case "FD", "DIR", "FL", "MFL", "FS", "STXT":
+			key := cppStringLiteral(label + "::" + field.Name)
+			cpp.WriteString(fmt.Sprintf("    if (m_uiFields.contains(\"%s\") && m_uiFields[\"%s\"]->parentWidget()) {\n", key, key))
+			cpp.WriteString(fmt.Sprintf("        for (QWidget *child : m_uiFields[\"%s\"]->parentWidget()->findChildren<QWidget*>()) child->setToolTip(\"%s\");\n", key, cppStringLiteral(field.Tooltip)))
+			cpp.WriteString("    }\n")
+		}
+	}
+
 	// --- DYNAMIC REFRESH SIGNAL REGISTRATION ---
 	if len(field.RefreshFieldsOnChange) > 0 {
 		var targetVar, signalType string
@@ -474,6 +509,9 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 			signalType = "QListWidget::itemChanged"
 		case "TXT":
 			targetVar = fmt.Sprintf("txt_%s", varSuffix)
+			signalType = "QLineEdit::editingFinished"
+		case "STXT":
+			targetVar = fmt.Sprintf("stxt_%s", varSuffix)
 			signalType = "QLineEdit::editingFinished"
 		case "FD":
 			targetVar = fmt.Sprintf("fd_%s", varSuffix)
