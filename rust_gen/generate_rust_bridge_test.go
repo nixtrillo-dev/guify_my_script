@@ -253,6 +253,28 @@ func TestDiscoverLibCrates_AutoScaffolding(t *testing.T) {
 	}
 }
 
+func TestGenerateLibRS_HyphenatedSourceName(t *testing.T) {
+	tempDir := t.TempDir()
+	srcDir := filepath.Join(tempDir, "src")
+	if err := os.MkdirAll(srcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(srcDir, "snapshot-management.rs"), []byte("pub fn recover() {}\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	generateLibRS(srcDir, tempDir, 0)
+	content, err := os.ReadFile(filepath.Join(srcDir, "lib.rs"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{`#[path = "snapshot-management.rs"]`, "pub mod snapshot_management;", "pub use snapshot_management::*;"} {
+		if !strings.Contains(string(content), want) {
+			t.Errorf("generated lib.rs missing %q: %s", want, content)
+		}
+	}
+}
+
 func TestFindAndroidAArch64Linker_EnvOverride(t *testing.T) {
 	tempDir := t.TempDir()
 	fakeLinker := filepath.Join(tempDir, "my-custom-clang")

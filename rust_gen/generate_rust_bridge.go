@@ -348,7 +348,7 @@ func GetRustNonMainPackagesJSON(inputPath string, logLevel string, noUpdateMode 
 				if !e.IsDir() && strings.HasSuffix(e.Name(), ".rs") {
 					base := strings.TrimSuffix(e.Name(), ".rs")
 					if base != "lib" && base != "main" {
-						addMod(fmt.Sprintf("%s::%s", crateName, base))
+						addMod(fmt.Sprintf("%s::%s", crateName, rustModuleIdent(base)))
 					}
 				}
 			}
@@ -547,7 +547,7 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 			if relF == "src/lib.rs" || relF == "src/main.rs" {
 				continue
 			}
-			stem := strings.TrimSuffix(filepath.Base(f), ".rs")
+			stem := rustModuleIdent(strings.TrimSuffix(filepath.Base(f), ".rs"))
 			if stem != "" {
 				modSet[stem] = true
 			}
@@ -1423,14 +1423,19 @@ func generateLibRS(srcDir, crateDir string, lvl logger.LogLevel) {
 
 	// Module declarations.
 	for _, m := range modules {
-		sb.WriteString(fmt.Sprintf("pub mod %s;\n", m))
+		fileName := m + ".rs"
+		if rustModuleIdent(m) != m {
+			sb.WriteString(fmt.Sprintf("#[path = %q]\npub mod %s;\n", fileName, rustModuleIdent(m)))
+		} else {
+			sb.WriteString(fmt.Sprintf("pub mod %s;\n", rustModuleIdent(m)))
+		}
 	}
 
 	sb.WriteString("\n")
 
 	// Re-exports for flat access.
 	for _, m := range modules {
-		sb.WriteString(fmt.Sprintf("pub use %s::*;\n", m))
+		sb.WriteString(fmt.Sprintf("pub use %s::*;\n", rustModuleIdent(m)))
 	}
 
 	alreadyExisted := false
@@ -1447,6 +1452,12 @@ func generateLibRS(srcDir, crateDir string, lvl logger.LogLevel) {
 	} else {
 		logger.Info(lvl, "  • Warning: could not generate lib.rs for %s: %v", crateDir, writeErr)
 	}
+}
+
+// rustModuleIdent maps a Rust source filename stem to the identifier used to
+// declare that module. Hyphens are valid in filenames but not Rust identifiers.
+func rustModuleIdent(stem string) string {
+	return strings.ReplaceAll(stem, "-", "_")
 }
 
 // hasBinaryTarget returns true if the Cargo.toml in dir declares a [[bin]] section
@@ -1500,7 +1511,7 @@ func extractRustMetadata(targetDir, crateName string, targetFiles []string, excl
 		relPath, _ := filepath.Rel(targetDir, fileToParse)
 		modulePath := crateName
 		if relPath != "src/lib.rs" && relPath != "src/main.rs" && !strings.HasPrefix(relPath, "..") {
-			cleanMod := strings.TrimSuffix(filepath.Base(relPath), ".rs")
+			cleanMod := rustModuleIdent(strings.TrimSuffix(filepath.Base(relPath), ".rs"))
 			modulePath = fmt.Sprintf("%s::%s", crateName, cleanMod)
 		}
 
