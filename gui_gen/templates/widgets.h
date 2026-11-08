@@ -52,6 +52,7 @@ public:
     int minChecked = 0;
     int maxChecked = 0; // 0 implies no limit
     bool isUpdating = false;
+    bool radioMode = false;
 
     CheckableListWidget(QWidget *parent = nullptr);
     void updateHeader();

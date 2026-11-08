@@ -172,6 +172,10 @@ void MainWindow::openSettingsEditor() {
             else if (fType == "MCB") {
                 CheckableListWidget *mcb = new CheckableListWidget();
                 mcb->setProperty("isMCB", true);
+                if (fMin == "1" && fMax == "1") {
+                    mcb->radioMode = true;
+                    mcb->listWidget->setProperty("radioMode", true);
+                }
                 mcb->listWidget->setFocusPolicy(Qt::StrongFocus);
                 mcb->setMaximumHeight(180);
                 mcb->listWidget->setSpacing(2);

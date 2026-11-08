@@ -276,6 +276,21 @@ CheckableListWidget::CheckableListWidget(QWidget *parent) : QWidget(parent) {
         // Limit Enforcement
         if (!isTopItem && checked && maxChecked > 0) {
             int checkedCount = sepRow;
+            if (radioMode && checkedCount > 0) {
+                // A radio selection replaces the existing selection in one action.
+                for (int i = sepRow - 1; i >= 0; --i) {
+                    QListWidgetItem *clone = listWidget->takeItem(i);
+                    for (int j = listWidget->row(separatorItem) + 1; j < listWidget->count(); ++j) {
+                        if (listWidget->item(j)->text() == clone->text()) {
+                            listWidget->item(j)->setCheckState(Qt::Unchecked);
+                            break;
+                        }
+                    }
+                    delete clone;
+                }
+                sepRow = listWidget->row(separatorItem);
+                checkedCount = sepRow;
+            }
             if (checkedCount >= maxChecked) {
                 item->setCheckState(Qt::Unchecked);
                 checked = false; // Revert locally

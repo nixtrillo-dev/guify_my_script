@@ -180,6 +180,10 @@ func buildWidgetCPP(field UIField, label, actIdxStr, varSuffix, targetLayout, fi
 		cpp.WriteString(fmt.Sprintf("    CheckableListWidget *mcb_%s = new CheckableListWidget();\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    mcb_%s->setProperty(\"isMCB\", true);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    mcb_%s->setProperty(\"fieldName\", \"%s\");\n", varSuffix, cppStringLiteral(field.Name)))
+		if field.Minimum == "1" && field.Maximum == "1" {
+			cpp.WriteString(fmt.Sprintf("    mcb_%s->radioMode = true;\n", varSuffix))
+			cpp.WriteString(fmt.Sprintf("    mcb_%s->listWidget->setProperty(\"radioMode\", true);\n", varSuffix))
+		}
 		cpp.WriteString(fmt.Sprintf("    mcb_%s->listWidget->setFocusPolicy(Qt::StrongFocus);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    mcb_%s->setMaximumHeight(180);\n", varSuffix))
 		cpp.WriteString(fmt.Sprintf("    mcb_%s->listWidget->setSpacing(2);\n", varSuffix))
