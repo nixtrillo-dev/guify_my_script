@@ -28,10 +28,12 @@ import (
 
 // ArgMetaData tracks individual parameter identity alongside its parsed Rust type layout
 type ArgMetaData struct {
-	Name     string
-	Type     string // "string", "*string", "bool", "int", "float", "*bool"
-	RawType  string // original Rust type layout (e.g. "&str", "String", "i32", "u8")
-	CastType string
+	Name         string
+	Type         string // "string", "*string", "bool", "int", "float", "*bool", "enum"
+	RawType      string // original Rust type layout (e.g. "&str", "String", "i32", "u8")
+	CastType     string
+	EnumPath     string
+	EnumVariants []string
 }
 
 // FuncMetaData tracks discovered Rust function metadata
@@ -44,6 +46,11 @@ type FuncMetaData struct {
 	ReturnCount    int
 	Args           []ArgMetaData
 	CallPrefix     string // e.g. "core_utils::"
+}
+
+type RustEnumMeta struct {
+	Path     string
+	Variants []string
 }
 
 // TemplateWrapper packages data for rendering the Rust bridge
@@ -70,8 +77,8 @@ const bridgeTemplate = `// Auto-generated and maintained by guify_my_script. DO 
 // =====================================================================
 {{range .Functions}}
 #[no_mangle]
-pub extern "C" fn Rust{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}: {{if or (eq $arg.Type "string") (eq $arg.Type "*string")}}*const std::os::raw::c_char{{else if eq $arg.Type "bool"}}std::os::raw::c_int{{else if eq $arg.Type "*bool"}}*const std::os::raw::c_int{{else}}{{$arg.RawType}}{{end}}{{end}}) -> std::os::raw::c_int {
-{{range .Args}}
+pub extern "C" fn Rust{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}: {{if or (eq $arg.Type "string") (eq $arg.Type "*string") (eq $arg.Type "enum")}}*const std::os::raw::c_char{{else if eq $arg.Type "bool"}}std::os::raw::c_int{{else if eq $arg.Type "*bool"}}*const std::os::raw::c_int{{else}}{{$arg.RawType}}{{end}}{{end}}) -> std::os::raw::c_int {
+{{range .Args}}{{$arg := .}}
 {{if eq .Type "string"}}    let rust_{{.Name}} = if {{.Name}}.is_null() { "" } else { unsafe { std::ffi::CStr::from_ptr({{.Name}}) }.to_str().unwrap_or("") };
 {{else if eq .Type "*string"}}    let rust_{{.Name}}: Option<String> = if {{.Name}}.is_null() { None } else {
         let value = unsafe { std::ffi::CStr::from_ptr({{.Name}}) }.to_string_lossy();
@@ -81,6 +88,14 @@ pub extern "C" fn Rust{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{
 {{else if eq .Type "int"}}    let rust_{{.Name}} = {{.Name}};
 {{else if eq .Type "float"}}    let rust_{{.Name}} = {{.Name}};
 {{else if eq .Type "*bool"}}    let rust_{{.Name}} = if {{.Name}}.is_null() { None } else { Some(unsafe { *{{.Name}} } != 0) };
+{{else if eq .Type "enum"}}    let enum_name_{{.Name}} = if {{.Name}}.is_null() { "" } else { unsafe { std::ffi::CStr::from_ptr({{.Name}}) }.to_str().unwrap_or("") };
+    let rust_{{.Name}} = match enum_name_{{.Name}}.to_ascii_lowercase().as_str() {
+{{range $variant := $arg.EnumVariants}}        "{{lower $variant}}" => {{$arg.EnumPath}}::{{$variant}},
+{{end}}        _ => match enum_name_{{.Name}}.parse::<usize>() {
+{{range $idx, $variant := $arg.EnumVariants}}            Ok({{$idx}}) => {{$arg.EnumPath}}::{{$variant}},
+{{end}}            _ => { eprintln!("Invalid enum name or index for {{.Name}}: {}", enum_name_{{.Name}}); return 0; }
+        }
+    };
 {{end}}{{end}}
 {{if .HasErrorReturn}}
     let result = {{.CallPrefix}}{{.RustName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{if eq $arg.RawType "String"}}rust_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "&String"}}&rust_{{$arg.Name}}.to_string(){{else if eq $arg.RawType "Option<&str>"}}rust_{{$arg.Name}}.as_deref(){{else}}rust_{{$arg.Name}}{{end}}{{end}});
@@ -98,7 +113,7 @@ pub extern "C" fn Rust{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{
 }
 
 #[no_mangle]
-pub extern "C" fn rust_{{.BashName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}: {{if or (eq $arg.Type "string") (eq $arg.Type "*string")}}*const std::os::raw::c_char{{else if eq $arg.Type "bool"}}std::os::raw::c_int{{else if eq $arg.Type "*bool"}}*const std::os::raw::c_int{{else}}{{$arg.RawType}}{{end}}{{end}}) -> std::os::raw::c_int {
+pub extern "C" fn rust_{{.BashName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}: {{if or (eq $arg.Type "string") (eq $arg.Type "*string") (eq $arg.Type "enum")}}*const std::os::raw::c_char{{else if eq $arg.Type "bool"}}std::os::raw::c_int{{else if eq $arg.Type "*bool"}}*const std::os::raw::c_int{{else}}{{$arg.RawType}}{{end}}{{end}}) -> std::os::raw::c_int {
     Rust{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}}{{end}})
 }
 {{end}}
@@ -170,6 +185,15 @@ fn main() {
             Err(err) => {
                 eprintln!("Error: parameter '{{$arg.Name}}' must be a valid float ({{$arg.RawType}}): {err}");
                 std::process::exit(1);
+            }
+        };
+{{else if eq $arg.Type "enum"}}
+        let raw_{{$arg.Name}} = &args[{{add $idx 2}}];
+        let cli_{{$arg.Name}} = match raw_{{$arg.Name}}.to_ascii_lowercase().as_str() {
+{{range $variant := $arg.EnumVariants}}            "{{lower $variant}}" => {{$arg.EnumPath}}::{{$variant}},
+{{end}}            _ => match raw_{{$arg.Name}}.parse::<usize>() {
+{{range $idx, $variant := $arg.EnumVariants}}                Ok({{$idx}}) => {{$arg.EnumPath}}::{{$variant}},
+{{end}}                _ => { eprintln!("Error: invalid enum name or index for '{{$arg.Name}}': {}", raw_{{$arg.Name}}); std::process::exit(1); }
             }
         };
 {{end}}{{end}}
@@ -488,6 +512,31 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 		allNeedsStrconv   bool
 	)
 	importSet := make(map[string]bool)
+	allEnums := make(map[string]RustEnumMeta)
+	for _, f := range targetFiles {
+		owner := ""
+		for _, dir := range allLibCrateDirs {
+			if strings.HasPrefix(f, filepath.Join(dir, "src")+string(filepath.Separator)) {
+				owner = dir
+				break
+			}
+		}
+		if owner == "" {
+			continue
+		}
+		cName := getCrateName(owner)
+		rel, _ := filepath.Rel(filepath.Join(owner, "src"), f)
+		modulePath := cName
+		if rel != "lib.rs" && rel != "main.rs" {
+			modulePath += "::" + rustModuleIdent(strings.TrimSuffix(filepath.Base(rel), ".rs"))
+		}
+		bytes, readErr := os.ReadFile(f)
+		if readErr == nil {
+			for n, e := range collectRustEnumsFromSource(string(bytes), modulePath) {
+				allEnums[n] = e
+			}
+		}
+	}
 
 	for _, crateDir := range allLibCrateDirs {
 		cName := getCrateName(crateDir)
@@ -509,7 +558,7 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 			continue
 		}
 
-		imports, fns, ns, err := extractRustMetadata(crateDir, cName, crateFiles, excludeMap, lvl, includeFuncParams)
+		imports, fns, ns, err := extractRustMetadata(crateDir, cName, crateFiles, excludeMap, lvl, includeFuncParams, allEnums)
 		if err != nil {
 			return "", "", err
 		}
@@ -580,6 +629,9 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 				functions[i].PackageName = strings.TrimPrefix(functions[i].PackageName, prefix)
 				functions[i].CallPrefix = functions[i].PackageName + "::"
 			}
+			for j := range functions[i].Args {
+				functions[i].Args[j].EnumPath = strings.TrimPrefix(functions[i].Args[j].EnumPath, "::"+crateName+"::")
+			}
 		}
 	} else {
 		// Disambiguate external crates with leading :: to prevent collisions with local glob imports
@@ -600,7 +652,8 @@ func GenerateRustBridge(inputPath, outputPath, excludePackages string, logLevelS
 	}
 
 	funcMap := template.FuncMap{
-		"add": func(a, b int) int { return a + b },
+		"add":   func(a, b int) int { return a + b },
+		"lower": strings.ToLower,
 	}
 
 	tmpl, err := template.New("rust_bridge").Funcs(funcMap).Parse(bridgeTemplate)
@@ -1492,7 +1545,7 @@ func getCrateName(targetDir string) string {
 }
 
 // extractRustMetadata scans Rust source files to extract functions, types, and parameters
-func extractRustMetadata(targetDir, crateName string, targetFiles []string, excludeMap map[string]bool, lvl logger.LogLevel, includeFuncParams bool) ([]string, []FuncMetaData, bool, error) {
+func extractRustMetadata(targetDir, crateName string, targetFiles []string, excludeMap map[string]bool, lvl logger.LogLevel, includeFuncParams bool, externalEnums ...map[string]RustEnumMeta) ([]string, []FuncMetaData, bool, error) {
 	var functions []FuncMetaData
 	importMap := make(map[string]bool)
 	needsStrconv := false
@@ -1500,6 +1553,26 @@ func extractRustMetadata(targetDir, crateName string, targetFiles []string, excl
 
 	if crateName != "" {
 		importMap[crateName] = true
+	}
+	enums := make(map[string]RustEnumMeta)
+	if len(externalEnums) > 0 {
+		for n, e := range externalEnums[0] {
+			enums[n] = e
+		}
+	}
+	for _, fileToParse := range targetFiles {
+		contentBytes, err := os.ReadFile(fileToParse)
+		if err != nil {
+			continue
+		}
+		relPath, _ := filepath.Rel(targetDir, fileToParse)
+		modulePath := crateName
+		if relPath != "src/lib.rs" && relPath != "src/main.rs" && !strings.HasPrefix(relPath, "..") {
+			modulePath = fmt.Sprintf("%s::%s", crateName, rustModuleIdent(strings.TrimSuffix(filepath.Base(relPath), ".rs")))
+		}
+		for name, meta := range collectRustEnumsFromSource(string(contentBytes), modulePath) {
+			enums[name] = meta
+		}
 	}
 
 	for _, fileToParse := range targetFiles {
@@ -1520,7 +1593,7 @@ func extractRustMetadata(targetDir, crateName string, targetFiles []string, excl
 			continue
 		}
 
-		parsedFns := parseRustFunctions(string(contentBytes), modulePath, includeFuncParams)
+		parsedFns := parseRustFunctionsWithEnums(string(contentBytes), modulePath, includeFuncParams, enums)
 		for _, fn := range parsedFns {
 			// Duplicate endpoint name guard: two public functions that share the same
 			// bash_name would produce colliding extern "C" and CLI match entries.
@@ -1553,8 +1626,39 @@ func extractRustMetadata(targetDir, crateName string, targetFiles []string, excl
 	return dynamicImports, functions, needsStrconv, nil
 }
 
+func collectRustEnumsFromSource(code, modulePath string) map[string]RustEnumMeta {
+	cleaned := removeComments(code)
+	re := regexp.MustCompile(`(?s)\b(?:pub\s+)?enum\s+([A-Za-z_][A-Za-z0-9_]*)\s*\{([^}]*)\}`)
+	out := make(map[string]RustEnumMeta)
+	for _, match := range re.FindAllStringSubmatch(cleaned, -1) {
+		var variants []string
+		valid := true
+		for _, part := range splitBalanced(match[2], ',') {
+			part = strings.TrimSpace(part)
+			if part == "" {
+				continue
+			}
+			part = regexp.MustCompile(`(?m)^\s*#\[[^]]*\]\s*`).ReplaceAllString(part, "")
+			variant := strings.TrimSpace(strings.SplitN(part, "=", 2)[0])
+			if !regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`).MatchString(variant) {
+				valid = false
+				break
+			}
+			variants = append(variants, variant)
+		}
+		if valid && len(variants) > 0 {
+			out[match[1]] = RustEnumMeta{Path: "::" + modulePath + "::" + match[1], Variants: variants}
+		}
+	}
+	return out
+}
+
 // parseRustFunctions extracts public functions from Rust code text
 func parseRustFunctions(code, packageName string, includeFuncParams bool) []FuncMetaData {
+	return parseRustFunctionsWithEnums(code, packageName, includeFuncParams, collectRustEnumsFromSource(code, packageName))
+}
+
+func parseRustFunctionsWithEnums(code, packageName string, includeFuncParams bool, enums map[string]RustEnumMeta) []FuncMetaData {
 	var results []FuncMetaData
 
 	// Pre-process code: remove line & block comments while ignoring inside strings
@@ -1587,6 +1691,20 @@ func parseRustFunctions(code, packageName string, includeFuncParams bool) []Func
 		}
 
 		args, hasUnsupported, hasFunc := parseRustParameters(rawParams)
+		hasUnsupported = false
+		for i := range args {
+			if args[i].Type == "string" {
+				if enumMeta, ok := enums[args[i].RawType]; ok {
+					args[i].Type = "enum"
+					args[i].EnumPath = enumMeta.Path
+					args[i].EnumVariants = enumMeta.Variants
+					continue
+				}
+			}
+			if _, _, ok := classifyRustType(args[i].RawType); !ok {
+				hasUnsupported = true
+			}
+		}
 		if hasUnsupported || (hasFunc && !includeFuncParams) {
 			continue
 		}

@@ -11,7 +11,8 @@ import (
 
 func TestTemplateParse(t *testing.T) {
 	funcMap := template.FuncMap{
-		"add": func(a, b int) int { return a + b },
+		"add":   func(a, b int) int { return a + b },
+		"lower": strings.ToLower,
 	}
 	_, err := template.New("rust_bridge").Funcs(funcMap).Parse(bridgeTemplate)
 	if err != nil {

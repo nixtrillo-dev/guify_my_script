@@ -60,6 +60,7 @@ public:
     void addItem(const QString &text, const QString &userData, bool checked = false);
     void clear();
     QStringList checkedItems() const;
+    QStringList checkedItemIndexes() const;
     void setCheckedItems(const QStringList &items);
     bool isValid() const;
 };

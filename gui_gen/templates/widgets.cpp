@@ -427,6 +427,17 @@ QStringList CheckableListWidget::checkedItems() const {
     return list;
 }
 
+QStringList CheckableListWidget::checkedItemIndexes() const {
+    QStringList indexes;
+    const int sepRow = listWidget->row(separatorItem);
+    for (int i = sepRow + 1; i < listWidget->count(); ++i) {
+        if (listWidget->item(i)->checkState() == Qt::Checked) {
+            indexes << QString::number(i - sepRow - 1);
+        }
+    }
+    return indexes;
+}
+
 void CheckableListWidget::setCheckedItems(const QStringList &items) {
     isUpdating = true;
 

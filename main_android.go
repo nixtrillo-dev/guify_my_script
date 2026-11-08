@@ -17,6 +17,7 @@ import (
 	"guify_my_script/setup_utils"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // =====================================================================
@@ -661,17 +662,49 @@ func main() {
 
 		// Parse string command line metrics safely to real types
 
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+		raw_lvl := strings.ToLower(os.Args[2])
+		var cli_lvl logger.LogLevel
+		switch raw_lvl {
+		case "levelnone", "logger.levelnone":
+			cli_lvl = logger.LogLevel(logger.LevelNone)
+		case "levelfatal", "logger.levelfatal":
+			cli_lvl = logger.LogLevel(logger.LevelFatal)
+		case "levelerror", "logger.levelerror":
+			cli_lvl = logger.LogLevel(logger.LevelError)
+		case "levelwarn", "logger.levelwarn":
+			cli_lvl = logger.LogLevel(logger.LevelWarn)
+		case "levelinfo", "logger.levelinfo":
+			cli_lvl = logger.LogLevel(logger.LevelInfo)
+		case "leveldebug", "logger.leveldebug":
+			cli_lvl = logger.LogLevel(logger.LevelDebug)
+		case "leveldata", "logger.leveldata":
+			cli_lvl = logger.LogLevel(logger.LevelData)
+		default:
+			index, err := strconv.Atoi(raw_lvl)
+			if err != nil {
+				fmt.Printf("Error: invalid enum name or index for 'lvl': %s\n", raw_lvl)
 				os.Exit(1)
 			}
-			cli_lvl_raw = parsed_lvl
+			switch index {
+			case 0:
+				cli_lvl = logger.LogLevel(logger.LevelNone)
+			case 1:
+				cli_lvl = logger.LogLevel(logger.LevelFatal)
+			case 2:
+				cli_lvl = logger.LogLevel(logger.LevelError)
+			case 3:
+				cli_lvl = logger.LogLevel(logger.LevelWarn)
+			case 4:
+				cli_lvl = logger.LogLevel(logger.LevelInfo)
+			case 5:
+				cli_lvl = logger.LogLevel(logger.LevelDebug)
+			case 6:
+				cli_lvl = logger.LogLevel(logger.LevelData)
+			default:
+				fmt.Printf("Error: enum index out of range for 'lvl': %d\n", index)
+				os.Exit(1)
+			}
 		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
 
 		cli_format := os.Args[3]
 
@@ -687,17 +720,49 @@ func main() {
 
 		// Parse string command line metrics safely to real types
 
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+		raw_lvl := strings.ToLower(os.Args[2])
+		var cli_lvl logger.LogLevel
+		switch raw_lvl {
+		case "levelnone", "logger.levelnone":
+			cli_lvl = logger.LogLevel(logger.LevelNone)
+		case "levelfatal", "logger.levelfatal":
+			cli_lvl = logger.LogLevel(logger.LevelFatal)
+		case "levelerror", "logger.levelerror":
+			cli_lvl = logger.LogLevel(logger.LevelError)
+		case "levelwarn", "logger.levelwarn":
+			cli_lvl = logger.LogLevel(logger.LevelWarn)
+		case "levelinfo", "logger.levelinfo":
+			cli_lvl = logger.LogLevel(logger.LevelInfo)
+		case "leveldebug", "logger.leveldebug":
+			cli_lvl = logger.LogLevel(logger.LevelDebug)
+		case "leveldata", "logger.leveldata":
+			cli_lvl = logger.LogLevel(logger.LevelData)
+		default:
+			index, err := strconv.Atoi(raw_lvl)
+			if err != nil {
+				fmt.Printf("Error: invalid enum name or index for 'lvl': %s\n", raw_lvl)
 				os.Exit(1)
 			}
-			cli_lvl_raw = parsed_lvl
+			switch index {
+			case 0:
+				cli_lvl = logger.LogLevel(logger.LevelNone)
+			case 1:
+				cli_lvl = logger.LogLevel(logger.LevelFatal)
+			case 2:
+				cli_lvl = logger.LogLevel(logger.LevelError)
+			case 3:
+				cli_lvl = logger.LogLevel(logger.LevelWarn)
+			case 4:
+				cli_lvl = logger.LogLevel(logger.LevelInfo)
+			case 5:
+				cli_lvl = logger.LogLevel(logger.LevelDebug)
+			case 6:
+				cli_lvl = logger.LogLevel(logger.LevelData)
+			default:
+				fmt.Printf("Error: enum index out of range for 'lvl': %d\n", index)
+				os.Exit(1)
+			}
 		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
 
 		cli_format := os.Args[3]
 
@@ -713,17 +778,49 @@ func main() {
 
 		// Parse string command line metrics safely to real types
 
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+		raw_lvl := strings.ToLower(os.Args[2])
+		var cli_lvl logger.LogLevel
+		switch raw_lvl {
+		case "levelnone", "logger.levelnone":
+			cli_lvl = logger.LogLevel(logger.LevelNone)
+		case "levelfatal", "logger.levelfatal":
+			cli_lvl = logger.LogLevel(logger.LevelFatal)
+		case "levelerror", "logger.levelerror":
+			cli_lvl = logger.LogLevel(logger.LevelError)
+		case "levelwarn", "logger.levelwarn":
+			cli_lvl = logger.LogLevel(logger.LevelWarn)
+		case "levelinfo", "logger.levelinfo":
+			cli_lvl = logger.LogLevel(logger.LevelInfo)
+		case "leveldebug", "logger.leveldebug":
+			cli_lvl = logger.LogLevel(logger.LevelDebug)
+		case "leveldata", "logger.leveldata":
+			cli_lvl = logger.LogLevel(logger.LevelData)
+		default:
+			index, err := strconv.Atoi(raw_lvl)
+			if err != nil {
+				fmt.Printf("Error: invalid enum name or index for 'lvl': %s\n", raw_lvl)
 				os.Exit(1)
 			}
-			cli_lvl_raw = parsed_lvl
+			switch index {
+			case 0:
+				cli_lvl = logger.LogLevel(logger.LevelNone)
+			case 1:
+				cli_lvl = logger.LogLevel(logger.LevelFatal)
+			case 2:
+				cli_lvl = logger.LogLevel(logger.LevelError)
+			case 3:
+				cli_lvl = logger.LogLevel(logger.LevelWarn)
+			case 4:
+				cli_lvl = logger.LogLevel(logger.LevelInfo)
+			case 5:
+				cli_lvl = logger.LogLevel(logger.LevelDebug)
+			case 6:
+				cli_lvl = logger.LogLevel(logger.LevelData)
+			default:
+				fmt.Printf("Error: enum index out of range for 'lvl': %d\n", index)
+				os.Exit(1)
+			}
 		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
 
 		cli_format := os.Args[3]
 
@@ -739,17 +836,49 @@ func main() {
 
 		// Parse string command line metrics safely to real types
 
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+		raw_lvl := strings.ToLower(os.Args[2])
+		var cli_lvl logger.LogLevel
+		switch raw_lvl {
+		case "levelnone", "logger.levelnone":
+			cli_lvl = logger.LogLevel(logger.LevelNone)
+		case "levelfatal", "logger.levelfatal":
+			cli_lvl = logger.LogLevel(logger.LevelFatal)
+		case "levelerror", "logger.levelerror":
+			cli_lvl = logger.LogLevel(logger.LevelError)
+		case "levelwarn", "logger.levelwarn":
+			cli_lvl = logger.LogLevel(logger.LevelWarn)
+		case "levelinfo", "logger.levelinfo":
+			cli_lvl = logger.LogLevel(logger.LevelInfo)
+		case "leveldebug", "logger.leveldebug":
+			cli_lvl = logger.LogLevel(logger.LevelDebug)
+		case "leveldata", "logger.leveldata":
+			cli_lvl = logger.LogLevel(logger.LevelData)
+		default:
+			index, err := strconv.Atoi(raw_lvl)
+			if err != nil {
+				fmt.Printf("Error: invalid enum name or index for 'lvl': %s\n", raw_lvl)
 				os.Exit(1)
 			}
-			cli_lvl_raw = parsed_lvl
+			switch index {
+			case 0:
+				cli_lvl = logger.LogLevel(logger.LevelNone)
+			case 1:
+				cli_lvl = logger.LogLevel(logger.LevelFatal)
+			case 2:
+				cli_lvl = logger.LogLevel(logger.LevelError)
+			case 3:
+				cli_lvl = logger.LogLevel(logger.LevelWarn)
+			case 4:
+				cli_lvl = logger.LogLevel(logger.LevelInfo)
+			case 5:
+				cli_lvl = logger.LogLevel(logger.LevelDebug)
+			case 6:
+				cli_lvl = logger.LogLevel(logger.LevelData)
+			default:
+				fmt.Printf("Error: enum index out of range for 'lvl': %d\n", index)
+				os.Exit(1)
+			}
 		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
 
 		cli_format := os.Args[3]
 
@@ -765,17 +894,49 @@ func main() {
 
 		// Parse string command line metrics safely to real types
 
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+		raw_lvl := strings.ToLower(os.Args[2])
+		var cli_lvl logger.LogLevel
+		switch raw_lvl {
+		case "levelnone", "logger.levelnone":
+			cli_lvl = logger.LogLevel(logger.LevelNone)
+		case "levelfatal", "logger.levelfatal":
+			cli_lvl = logger.LogLevel(logger.LevelFatal)
+		case "levelerror", "logger.levelerror":
+			cli_lvl = logger.LogLevel(logger.LevelError)
+		case "levelwarn", "logger.levelwarn":
+			cli_lvl = logger.LogLevel(logger.LevelWarn)
+		case "levelinfo", "logger.levelinfo":
+			cli_lvl = logger.LogLevel(logger.LevelInfo)
+		case "leveldebug", "logger.leveldebug":
+			cli_lvl = logger.LogLevel(logger.LevelDebug)
+		case "leveldata", "logger.leveldata":
+			cli_lvl = logger.LogLevel(logger.LevelData)
+		default:
+			index, err := strconv.Atoi(raw_lvl)
+			if err != nil {
+				fmt.Printf("Error: invalid enum name or index for 'lvl': %s\n", raw_lvl)
 				os.Exit(1)
 			}
-			cli_lvl_raw = parsed_lvl
+			switch index {
+			case 0:
+				cli_lvl = logger.LogLevel(logger.LevelNone)
+			case 1:
+				cli_lvl = logger.LogLevel(logger.LevelFatal)
+			case 2:
+				cli_lvl = logger.LogLevel(logger.LevelError)
+			case 3:
+				cli_lvl = logger.LogLevel(logger.LevelWarn)
+			case 4:
+				cli_lvl = logger.LogLevel(logger.LevelInfo)
+			case 5:
+				cli_lvl = logger.LogLevel(logger.LevelDebug)
+			case 6:
+				cli_lvl = logger.LogLevel(logger.LevelData)
+			default:
+				fmt.Printf("Error: enum index out of range for 'lvl': %d\n", index)
+				os.Exit(1)
+			}
 		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
 
 		cli_format := os.Args[3]
 
@@ -791,17 +952,49 @@ func main() {
 
 		// Parse string command line metrics safely to real types
 
-		var cli_lvl_raw int
-		raw_lvl := os.Args[2]
-		if raw_lvl != "" && raw_lvl != "null" && raw_lvl != "nil" {
-			parsed_lvl, err_lvl := strconv.Atoi(raw_lvl)
-			if err_lvl != nil {
-				fmt.Printf("Error: parameter 'lvl' must be a valid integer: %v\n", err_lvl)
+		raw_lvl := strings.ToLower(os.Args[2])
+		var cli_lvl logger.LogLevel
+		switch raw_lvl {
+		case "levelnone", "logger.levelnone":
+			cli_lvl = logger.LogLevel(logger.LevelNone)
+		case "levelfatal", "logger.levelfatal":
+			cli_lvl = logger.LogLevel(logger.LevelFatal)
+		case "levelerror", "logger.levelerror":
+			cli_lvl = logger.LogLevel(logger.LevelError)
+		case "levelwarn", "logger.levelwarn":
+			cli_lvl = logger.LogLevel(logger.LevelWarn)
+		case "levelinfo", "logger.levelinfo":
+			cli_lvl = logger.LogLevel(logger.LevelInfo)
+		case "leveldebug", "logger.leveldebug":
+			cli_lvl = logger.LogLevel(logger.LevelDebug)
+		case "leveldata", "logger.leveldata":
+			cli_lvl = logger.LogLevel(logger.LevelData)
+		default:
+			index, err := strconv.Atoi(raw_lvl)
+			if err != nil {
+				fmt.Printf("Error: invalid enum name or index for 'lvl': %s\n", raw_lvl)
 				os.Exit(1)
 			}
-			cli_lvl_raw = parsed_lvl
+			switch index {
+			case 0:
+				cli_lvl = logger.LogLevel(logger.LevelNone)
+			case 1:
+				cli_lvl = logger.LogLevel(logger.LevelFatal)
+			case 2:
+				cli_lvl = logger.LogLevel(logger.LevelError)
+			case 3:
+				cli_lvl = logger.LogLevel(logger.LevelWarn)
+			case 4:
+				cli_lvl = logger.LogLevel(logger.LevelInfo)
+			case 5:
+				cli_lvl = logger.LogLevel(logger.LevelDebug)
+			case 6:
+				cli_lvl = logger.LogLevel(logger.LevelData)
+			default:
+				fmt.Printf("Error: enum index out of range for 'lvl': %d\n", index)
+				os.Exit(1)
+			}
 		}
-		cli_lvl := logger.LogLevel(cli_lvl_raw)
 
 		cli_format := os.Args[3]
 

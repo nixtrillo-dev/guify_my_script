@@ -583,7 +583,21 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
                     return; // Abort execution immediately
                 }
 
-                if (mcb->maxChecked == 1) {
+                if (dataType.toLower().trimmed() == "enum") {
+                    if (QStringLiteral("%[3]s") == "go" || QStringLiteral("%[3]s") == "rust") {
+                        QStringList checked = mcb->checkedItems();
+                        rawVal = mcb->maxChecked == 1
+                            ? (checked.isEmpty() ? "" : checked.first())
+                            : joinCsvValues(checked);
+                    } else {
+                    QStringList indexes = mcb->checkedItemIndexes();
+                    const int enumOffset = QStringLiteral("%[3]s") == "python" ? 1 : 0;
+                    for (QString &index : indexes) index = QString::number(index.toInt() + enumOffset);
+                    rawVal = mcb->maxChecked == 1
+                        ? (indexes.isEmpty() ? "" : indexes.first())
+                        : ("[" + indexes.join(",") + "]");
+                    }
+                } else if (mcb->maxChecked == 1) {
                     QStringList checked = mcb->checkedItems();
                     rawVal = checked.isEmpty() ? "" : checked.first();
                     if (!rawVal.isEmpty() && (dataType.toLower().trimmed() == "list" || dataType.toLower().trimmed() == "array")) {
@@ -594,11 +608,20 @@ func buildAdvancedExecutionLambda(action UIAction, label, actIdxStr, fieldsArrNa
                 }
             } else if (fieldType == "CB") {
                 QComboBox* cb = static_cast<QComboBox*>(widget);
+                if (dataType.toLower().trimmed() == "enum") {
+                    if (QStringLiteral("%[3]s") == "go" || QStringLiteral("%[3]s") == "rust") {
+                        rawVal = cb->currentText();
+                    } else {
+                    const int enumOffset = QStringLiteral("%[3]s") == "python" ? 1 : 0;
+                    rawVal = cb->currentIndex() < 0 ? "" : QString::number(cb->currentIndex() + enumOffset);
+                    }
+                } else {
                 QVariant data = cb->currentData();
                 if (data.isValid() && !data.toString().isEmpty()) {
                     rawVal = data.toString();
                 } else {
                     rawVal = cb->currentText();
+                }
                 }
             } else if (fieldType == "CK") {
                 rawVal = static_cast<QCheckBox*>(widget)->isChecked() ? "1" : "0";

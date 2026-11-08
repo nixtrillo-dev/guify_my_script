@@ -28,9 +28,15 @@ import (
 
 // ArgMetaData tracks individual parameter identity alongside its parsed Go type layout
 type ArgMetaData struct {
-	Name     string
-	Type     string // "string", "bool", "int", "*bool"
-	CastType string // Stores fully qualified enum types for casting (e.g., "logger.LogLevel")
+	Name         string
+	Type         string // "string", "bool", "int", "*bool", "enum"
+	CastType     string // Stores fully qualified enum types for casting (e.g., "logger.LogLevel")
+	EnumVariants []EnumVariantMeta
+}
+
+type EnumVariantMeta struct {
+	Name  string
+	Label string
 }
 
 type FuncMetaData struct {
@@ -64,9 +70,21 @@ import (
 // =====================================================================
 {{range .Functions}}
 //export Go{{.GoName}}
-func Go{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}} {{if eq $arg.Type "string"}}*C.char{{else if eq $arg.Type "bool"}}C.int{{else if eq $arg.Type "int"}}C.int{{else if eq $arg.Type "*bool"}}*C.int{{end}}{{end}}) C.int {
-	{{range .Args}}
+func Go{{.GoName}}({{range $i, $arg := .Args}}{{if $i}}, {{end}}{{$arg.Name}} {{if or (eq $arg.Type "string") (eq $arg.Type "enum")}}*C.char{{else if eq $arg.Type "bool"}}C.int{{else if eq $arg.Type "int"}}C.int{{else if eq $arg.Type "*bool"}}*C.int{{end}}{{end}}) C.int {
+{{range .Args}}{{$arg := .}}
 	{{if eq .Type "string"}}go_{{.Name}} := C.GoString({{.Name}})
+	{{else if eq .Type "enum"}}raw_{{.Name}} := strings.ToLower(C.GoString({{.Name}}))
+	var go_{{.Name}} {{.CastType}}
+	switch raw_{{.Name}} {
+	{{range $arg.EnumVariants}}case "{{.Label}}"{{if ne .Label (lower .Name)}}, "{{lower .Name}}"{{end}}: go_{{$arg.Name}} = {{$arg.CastType}}({{.Name}})
+	{{end}}default:
+		index, err := strconv.Atoi(raw_{{$arg.Name}})
+		if err != nil { fmt.Printf("Pipeline Error: invalid enum name or index for {{$arg.Name}}: %s\n", raw_{{$arg.Name}}); return 0 }
+		switch index {
+		{{range $idx, $variant := $arg.EnumVariants}}case {{$idx}}: go_{{$arg.Name}} = {{$arg.CastType}}({{$variant.Name}})
+		{{end}}default: fmt.Printf("Pipeline Error: enum index out of range for {{$arg.Name}}: %d\n", index); return 0
+		}
+	}
 	{{else if eq .Type "bool"}}go_{{.Name}} := {{.Name}} == 1
 	{{else if eq .Type "int"}}go_{{.Name}} := {{if .CastType}}{{.CastType}}(int({{.Name}})){{else}}int({{.Name}}){{end}}
 	{{else if eq .Type "*bool"}}var go_{{.Name}} *bool
@@ -136,6 +154,19 @@ func main() {
 				}
 			}
 			cli_{{$arg.Name}} = &parsed_{{$arg.Name}}
+		}
+		{{else if eq $arg.Type "enum"}}
+		raw_{{$arg.Name}} := strings.ToLower(os.Args[{{add $idx 2}}])
+		var cli_{{$arg.Name}} {{$arg.CastType}}
+		switch raw_{{$arg.Name}} {
+		{{range $arg.EnumVariants}}case "{{.Label}}"{{if ne .Label (lower .Name)}}, "{{lower .Name}}"{{end}}: cli_{{$arg.Name}} = {{$arg.CastType}}({{.Name}})
+		{{end}}default:
+			index, err := strconv.Atoi(raw_{{$arg.Name}})
+			if err != nil { fmt.Printf("Error: invalid enum name or index for '{{$arg.Name}}': %s\n", raw_{{$arg.Name}}); os.Exit(1) }
+			switch index {
+			{{range $idx, $variant := $arg.EnumVariants}}case {{$idx}}: cli_{{$arg.Name}} = {{$arg.CastType}}({{$variant.Name}})
+			{{end}}default: fmt.Printf("Error: enum index out of range for '{{$arg.Name}}': %d\n", index); os.Exit(1)
+			}
 		}
 		{{else if eq $arg.Type "int"}}
 		var cli_{{$arg.Name}}_raw int
@@ -236,6 +267,19 @@ func main() {
 				}
 			}
 			cli_{{$arg.Name}} = &parsed_{{$arg.Name}}
+		}
+		{{else if eq $arg.Type "enum"}}
+		raw_{{$arg.Name}} := strings.ToLower(os.Args[{{add $idx 2}}])
+		var cli_{{$arg.Name}} {{$arg.CastType}}
+		switch raw_{{$arg.Name}} {
+		{{range $arg.EnumVariants}}case "{{.Label}}"{{if ne .Label (lower .Name)}}, "{{lower .Name}}"{{end}}: cli_{{$arg.Name}} = {{$arg.CastType}}({{.Name}})
+		{{end}}default:
+			index, err := strconv.Atoi(raw_{{$arg.Name}})
+			if err != nil { fmt.Printf("Error: invalid enum name or index for '{{$arg.Name}}': %s\n", raw_{{$arg.Name}}); os.Exit(1) }
+			switch index {
+			{{range $idx, $variant := $arg.EnumVariants}}case {{$idx}}: cli_{{$arg.Name}} = {{$arg.CastType}}({{$variant.Name}})
+			{{end}}default: fmt.Printf("Error: enum index out of range for '{{$arg.Name}}': %d\n", index); os.Exit(1)
+			}
 		}
 		{{else if eq $arg.Type "int"}}
 		var cli_{{$arg.Name}}_raw int
@@ -359,6 +403,7 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 
 	// Pre-scan all target files to identify declared struct, interface, and composite types
 	compositeTypes := make(map[string]bool)
+	enumConstantsByPackage := make(map[string]map[string][]string)
 	for _, fileToParse := range targetFiles {
 		node, err := parser.ParseFile(fset, fileToParse, nil, 0)
 		if err != nil {
@@ -376,6 +421,12 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 				}
 			}
 		}
+		if enumConstantsByPackage[node.Name.Name] == nil {
+			enumConstantsByPackage[node.Name.Name] = make(map[string][]string)
+		}
+		for enumName, variants := range goEnumConstants(node) {
+			enumConstantsByPackage[node.Name.Name][enumName] = append(enumConstantsByPackage[node.Name.Name][enumName], variants...)
+		}
 	}
 
 	for _, fileToParse := range targetFiles {
@@ -385,6 +436,7 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 		}
 
 		parsedPackageName := node.Name.Name
+		enumConstants := enumConstantsByPackage[parsedPackageName]
 
 		// 1. Calculate the full import path based on the directory structure FIRST
 		var importPath string
@@ -458,6 +510,7 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 
 					typeStr := "string"
 					castType := ""
+					var argsVariants []EnumVariantMeta
 
 					// Parse base identifiers (int, string, bool)
 					if ident, ok := paramType.(*ast.Ident); ok {
@@ -482,7 +535,30 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 								// Prepend the parsed package name to the local identifier so main can see it
 								typeStr = "int"
 								castType = fmt.Sprintf("%s.%s", parsedPackageName, ident.Name)
-								localNeedsStrconv = true
+								if variants := enumConstants[ident.Name]; len(variants) > 0 {
+									typeStr = "enum"
+									localNeedsStrconv = true
+									if parsedPackageName == "main" {
+										castType = ident.Name
+									}
+									for _, variant := range variants {
+										constantName := variant
+										if parsedPackageName != "main" {
+											constantName = parsedPackageName + "." + variant
+										}
+										label := variant
+										if strings.HasPrefix(strings.ToLower(label), strings.ToLower(ident.Name)) {
+											label = label[len(ident.Name):]
+										}
+										label = strings.TrimLeft(label, "_-")
+										if label == "" {
+											label = variant
+										}
+										argsVariants = append(argsVariants, EnumVariantMeta{Name: constantName, Label: strings.ToLower(label)})
+									}
+								} else {
+									localNeedsStrconv = true
+								}
 							}
 						}
 						// Parse pointer expressions (*bool)
@@ -515,9 +591,10 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 
 					for _, name := range field.Names {
 						args = append(args, ArgMetaData{
-							Name:     name.Name,
-							Type:     typeStr,
-							CastType: castType,
+							Name:         name.Name,
+							Type:         typeStr,
+							CastType:     castType,
+							EnumVariants: argsVariants,
 						})
 					}
 				}
@@ -568,6 +645,40 @@ func extractMetadata(targetDir, moduleBaseName string, targetFiles []string, exc
 	sort.Strings(dynamicImports)
 
 	return dynamicImports, functions, needsStrconv, nil
+}
+
+func goEnumConstants(file *ast.File) map[string][]string {
+	out := make(map[string][]string)
+	if file == nil {
+		return out
+	}
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.CONST {
+			continue
+		}
+		currentType := ""
+		for _, rawSpec := range gen.Specs {
+			spec, ok := rawSpec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			if spec.Type != nil {
+				if ident, ok := spec.Type.(*ast.Ident); ok {
+					currentType = ident.Name
+				} else {
+					currentType = ""
+				}
+			}
+			if currentType == "" {
+				continue
+			}
+			for _, name := range spec.Names {
+				out[currentType] = append(out[currentType], name.Name)
+			}
+		}
+	}
+	return out
 }
 
 // GenerateBridge accepts an 'excludePackages' comma-separated string, 'logLevelStr', and 'includeFuncParams' flag
@@ -670,7 +781,8 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 	}
 
 	funcMap := template.FuncMap{
-		"add": func(a, b int) int { return a + b },
+		"add":   func(a, b int) int { return a + b },
+		"lower": strings.ToLower,
 	}
 
 	tmpl, err := template.New("bridge").Funcs(funcMap).Parse(bridgeTemplate)
@@ -688,6 +800,17 @@ func GenerateBridge(inputPath, outputPath, excludePackages string, logLevelStr s
 	// package imports — as a single sorted set so the generated bridge is
 	// byte-stable across regenerations and matches what gofmt would leave.
 	bridgeImports := append([]string{"fmt", "os"}, dynamicImports...)
+	needsStrings := false
+	for _, fn := range functions {
+		for _, arg := range fn.Args {
+			if arg.Type == "enum" {
+				needsStrings = true
+			}
+		}
+	}
+	if needsStrings {
+		bridgeImports = append(bridgeImports, "strings")
+	}
 	if needsStrconv {
 		bridgeImports = append(bridgeImports, "strconv")
 	}

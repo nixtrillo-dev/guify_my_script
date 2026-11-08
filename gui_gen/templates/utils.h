@@ -270,7 +270,13 @@ static QStringList parseCsvValues(const QString& rawVal);
 
 static QString formatPythonArg(const QString& rawVal, const QString& dataType) {
     QString dt = dataType.toLower().trimmed();
-    if (dt == "int" || dt == "integer") {
+    if (dt == "enum") {
+        if (rawVal.trimmed().startsWith("[") && rawVal.trimmed().endsWith("]")) return rawVal.trimmed();
+        QStringList parts = parseCsvValues(rawVal);
+        if (parts.size() > 1) return "[" + parts.join(", ") + "]";
+        bool ok = false; qlonglong value = rawVal.trimmed().toLongLong(&ok);
+        return ok ? QString::number(value) : "0";
+    } else if (dt == "int" || dt == "integer") {
         QString trimmed = rawVal.trimmed();
         if (trimmed.isEmpty()) return "0";
         bool ok = false;
@@ -394,7 +400,13 @@ static QString jsonEscapeString(const QString& str) {
 
 static QString formatJsonArg(const QString& rawVal, const QString& dataType) {
     QString dt = dataType.toLower().trimmed();
-    if (dt == "int" || dt == "integer") {
+    if (dt == "enum") {
+        if (rawVal.trimmed().startsWith("[") && rawVal.trimmed().endsWith("]")) return rawVal.trimmed();
+        QStringList parts = parseCsvValues(rawVal);
+        if (parts.size() > 1) return "[" + parts.join(",") + "]";
+        bool ok = false; qlonglong value = rawVal.trimmed().toLongLong(&ok);
+        return ok ? QString::number(value) : "0";
+    } else if (dt == "int" || dt == "integer") {
         QString trimmed = rawVal.trimmed();
         if (trimmed.isEmpty()) return "0";
         bool ok = false;
@@ -430,6 +442,9 @@ static QString formatJsonArg(const QString& rawVal, const QString& dataType) {
 
 static QString formatPowerShellArg(const QString& rawVal, const QString& dataType) {
     QString dt = dataType.toLower().trimmed();
+    if (dt == "enum" && rawVal.trimmed().startsWith("[") && rawVal.trimmed().endsWith("]")) {
+        return "@(" + rawVal.trimmed().mid(1, rawVal.trimmed().size() - 2) + ")";
+    }
     if (dt == "bool" || dt == "boolean") {
         QString lower = rawVal.trimmed().toLower();
         return (lower == "1" || lower == "true" || lower == "yes") ? "true" : "false";

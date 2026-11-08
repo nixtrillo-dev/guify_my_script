@@ -1223,7 +1223,7 @@
         "data_type": {
           "type": "string",
           "default": "string",
-          "description": "The data type for this field's value. Common types include: 'string', 'int', 'float', 'bool', 'list'. Used for type conversions in type hinted programming languages. NOTE: For non-typed languages everything is passed as a string so this would be informational only and would not enforce type checking."
+          "description": "The data type for this field's value. Common types include: 'string', 'int', 'float', 'bool', 'list', 'enum'. Enum options are sent as their zero-based position for Rust, Go, JavaScript and PowerShell, and one-based position for Python. Used for type conversions in type hinted programming languages."
         },
         "options": {
           "type": "array",

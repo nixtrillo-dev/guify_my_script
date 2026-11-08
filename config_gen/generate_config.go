@@ -75,7 +75,7 @@ type JsonEndpoints struct {
 // UIField maps directly to your C++ application UI schema rules
 type UIField struct {
 	Name              string        `json:"name"`
-	Type              string        `json:"type"`
+	Type              string        `json:"field_type"`
 	DataType          string        `json:"data_type"`
 	ArgName           string        `json:"arg_name,omitempty"`
 	ParameterPosition int           `json:"parameter_position"`
@@ -466,6 +466,7 @@ func parseGoFile(path string) ([]UIAction, error) {
 	var actions []UIAction
 	fset := token.NewFileSet()
 	node, _ := parser.ParseFile(fset, path, nil, parser.ParseComments)
+	enumOptions := goEnumOptions(node)
 
 	for _, decl := range node.Decls {
 		fn, ok := decl.(*ast.FuncDecl)
@@ -479,17 +480,20 @@ func parseGoFile(path string) ([]UIAction, error) {
 		}
 
 		type goParam struct {
-			name     string
-			variadic bool
+			name       string
+			variadic   bool
+			enumName   string
+			isEnumList bool
 		}
 		var params []goParam
 		if fn.Type.Params != nil {
 			for _, fieldList := range fn.Type.Params.List {
 				_, variadic := fieldList.Type.(*ast.Ellipsis)
+				enumName, isEnumList := goEnumParamType(fieldList.Type, enumOptions)
 				for i, name := range fieldList.Names {
 					// In declarations like (first, rest ...string), only the final
 					// name receives the variadic values.
-					params = append(params, goParam{name: name.Name, variadic: variadic && i == len(fieldList.Names)-1})
+					params = append(params, goParam{name: name.Name, variadic: variadic && i == len(fieldList.Names)-1, enumName: enumName, isEnumList: isEnumList})
 				}
 			}
 		}
@@ -500,7 +504,11 @@ func parseGoFile(path string) ([]UIAction, error) {
 			if param.variadic {
 				label += " (one value)"
 			}
-			fields = append(fields, createField(label, i))
+			if options, ok := enumOptions[param.enumName]; ok && param.enumName != "" {
+				fields = append(fields, createEnumField(label, param.name, options, param.isEnumList, i))
+			} else {
+				fields = append(fields, createField(label, i))
+			}
 		}
 		actions = append(actions, UIAction{
 			Label:                     internal_utils.ToTitleCase(bashName),
@@ -640,6 +648,87 @@ func createField(displayName string, index int) UIField {
 	return field
 }
 
+func createEnumField(displayName, argName string, variants []string, multi bool, index int) UIField {
+	field := createField(displayName, index)
+	field.Name = displayName
+	field.ArgName = argName
+	field.DataType = "enum"
+	field.Type = "CB"
+	if multi {
+		field.Type = "MCB"
+	}
+	field.Options = make([]interface{}, 0, len(variants))
+	for _, variant := range variants {
+		field.Options = append(field.Options, variant)
+	}
+	if len(variants) > 0 {
+		field.Default = variants[0]
+	}
+	if multi {
+		field.Default = []string{}
+		field.Minimum = stringJSON("0")
+		field.Maximum = stringJSON("0")
+	}
+	return field
+}
+
+func goEnumOptions(node *ast.File) map[string][]string {
+	out := make(map[string][]string)
+	if node == nil {
+		return out
+	}
+	for _, decl := range node.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.CONST {
+			continue
+		}
+		currentEnum := ""
+		for _, spec := range gen.Specs {
+			value, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			if value.Type != nil {
+				if ident, ok := value.Type.(*ast.Ident); ok {
+					currentEnum = ident.Name
+				} else {
+					currentEnum = ""
+				}
+			}
+			if currentEnum == "" {
+				continue
+			}
+			for _, name := range value.Names {
+				if name.Name != "_" {
+					out[currentEnum] = append(out[currentEnum], name.Name)
+				}
+			}
+		}
+	}
+	return out
+}
+
+func goEnumParamType(expr ast.Expr, enums map[string][]string) (string, bool) {
+	if arr, ok := expr.(*ast.ArrayType); ok {
+		expr = arr.Elt
+		if id, ok := expr.(*ast.Ident); ok {
+			if _, found := enums[id.Name]; found {
+				return id.Name, true
+			}
+		}
+		return "", false
+	}
+	if star, ok := expr.(*ast.StarExpr); ok {
+		expr = star.X
+	}
+	if id, ok := expr.(*ast.Ident); ok {
+		if _, found := enums[id.Name]; found {
+			return id.Name, false
+		}
+	}
+	return "", false
+}
+
 func toUuidCase(input string) string {
 	replacer := strings.NewReplacer("_", "", "-", "", " ", "")
 	unspaced := replacer.Replace(input)
@@ -704,6 +793,7 @@ func parsePythonFile(path string) ([]UIAction, error) {
 
 	content := string(data)
 	var actions []UIAction
+	enumOptions := pythonEnumOptions(content)
 
 	// Match module-level def statements.  Restricting this to column zero avoids
 	// accidentally exposing class methods or nested implementation helpers.
@@ -724,6 +814,15 @@ func parsePythonFile(path string) ([]UIAction, error) {
 		fields := []UIField{}
 		for i, param := range params {
 			f := createPythonField(param, i)
+			parts := strings.SplitN(strings.TrimSpace(param), ":", 2)
+			if len(parts) > 1 {
+				typeName := strings.TrimSpace(strings.SplitN(parts[1], "=", 2)[0])
+				multi := strings.HasPrefix(typeName, "list[") || strings.HasPrefix(typeName, "List[")
+				typeName = strings.TrimSuffix(strings.TrimPrefix(strings.TrimPrefix(typeName, "list["), "List["), "]")
+				if variants, ok := enumOptions[typeName]; ok {
+					f = createEnumField(internal_utils.ToTitleCase(strings.TrimSpace(parts[0])), strings.TrimSpace(parts[0]), variants, multi, i)
+				}
+			}
 			if f.Name != "" {
 				fields = append(fields, f)
 			}
@@ -748,6 +847,18 @@ func parsePythonFile(path string) ([]UIAction, error) {
 	}
 
 	return actions, nil
+}
+
+func pythonEnumOptions(content string) map[string][]string {
+	out := make(map[string][]string)
+	classRE := regexp.MustCompile(`(?ms)^class\s+([A-Za-z_][A-Za-z0-9_]*)\s*\([^\n)]*(?:Enum|IntEnum)[^\n)]*\)\s*:\n((?:^[ \t]+[^\n]*\n?)*)`)
+	memberRE := regexp.MustCompile(`(?m)^\s+([A-Za-z_][A-Za-z0-9_]*)\s*=`)
+	for _, class := range classRE.FindAllStringSubmatch(content, -1) {
+		for _, member := range memberRE.FindAllStringSubmatch(class[2], -1) {
+			out[class[1]] = append(out[class[1]], member[1])
+		}
+	}
+	return out
 }
 
 func splitPythonParams(raw string) []string {
